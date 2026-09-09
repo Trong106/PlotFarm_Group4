@@ -1,0 +1,787 @@
+[
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 1: Phân rã nghiệp vụ & Khởi tạo khung dự án",
+    "day": "Ngày 1 (Thứ 2): Họp kích hoạt dự án & Phân rã chức năng",
+    "tasks": [
+      "- **Trọng (Leader)**: Tổ chức họp Kích hoạt dự án (Kick-off), phổ biến phạm vi & mục tiêu đồ án Demo PlotFarm; xây dựng bảng Phân rã công việc chi tiết (WBS) trên Notion/Trello gồm 14 tuần; thiết lập file Bảng theo dõi tiến độ hàng ngày (Excel); điền báo cáo tiến độ ngày 1.",
+      "- **Nghiệp**: Khảo sát chi tiết luồng chọn ô đất và chọn giống cây; liệt kê các trường dữ liệu cần có cho ô đất (mã ô, diện tích, thổ nhưỡng, giá thuê/tháng) và hạt giống (chu kỳ sinh trưởng, MinRentalDays, năng suất dự kiến).",
+      "- **Đức**: Khảo sát quy trình vòng đời cây trồng (Plant Journey), cấu trúc 1 bài nhật ký canh tác số (ảnh, trạng thái, ngày tuổi), thư viện Socket.IO v4 và cơ chế truyền video .mp4 qua giao thức HTTP Range Requests trên Node.js Express.",
+      "- **Tuấn**: Khảo sát luồng xác nhận thu hoạch, nhập cân nặng thực tế, quy trình kiểm định chất lượng và ma trận trạng thái đơn giao hàng nội bộ (PACKING -> SHIPPING -> DELIVERED)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 1: Phân rã nghiệp vụ & Khởi tạo khung dự án",
+    "day": "Ngày 2 (Thứ 3): Thiết kế Wireframe UI/UX trên Figma",
+    "tasks": [
+      "- **Trọng**: Thiết kế Sơ đồ kiến trúc luồng dữ liệu tổng thể (Data Flow Diagram - DFD) kết nối giữa 3 tầng: Next.js Frontend (App Router, Port 3000), Express Backend API (Port 5000) và MS SQL Server (Port 1433); điền báo cáo tiến độ ngày 2.",
+      "- **Nghiệp**: Thiết kế Wireframe giao diện Bản đồ nông trại (Farm Map Grid), Modal chi tiết ô đất, màn hình \"Vườn của tôi\" (My Farm Dashboard) và Plant Journey Progress Bar trên Figma.",
+      "- **Đức**: Thiết kế Wireframe khung xem Camera (có lớp phủ thời gian thực Live Timestamp, nút Toggle chuyển đổi chế độ Live 24/7 và Tua nhanh Time-lapse) và Dòng thời gian Nhật ký canh tác (Farm Journal Feed) trên Figma.",
+      "- **Tuấn**: Thiết kế Wireframe màn hình Modal \"Gửi yêu cầu chăm sóc\", màn hình Đăng ký thu hoạch (Harvest Request), Delivery Tracking Timeline và Dashboard Quản trị Admin (Admin Portal) trên Figma."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 1: Phân rã nghiệp vụ & Khởi tạo khung dự án",
+    "day": "Ngày 3 (Thứ 4): Thiết kế Chi tiết UI Figma & ERD Database",
+    "tasks": [
+      "- **Trọng**: Thiết kế bản vẽ sơ đồ quan hệ thực thể (ERD) trên draw.io gồm 12 bảng chính cho Microsoft SQL Server; điền báo cáo tiến độ ngày 3 vào file Excel.",
+      "- **Nghiệp**: Thiết kế Chi tiết UI Figma cho phân hệ Đặt thuê ô đất: Lên màu sắc (palette màu Modern Organic: xanh lá #2E7D32, nền kem #F9FBF7, xám nhạt), typography, thẻ chi tiết ô đất và Form chọn giống cây.",
+      "- **Đức**: Thiết kế Chi tiết UI Figma cho phân hệ Camera & Nhật ký canh tác: Thiết kế khung xem Live Camera (Player controls, Live timestamp, maintenance overlay), sưu tầm & xử lý nén 2 video mẫu HD (.mp4) giả lập stream 24/7 và time-lapse mầm cây, thiết kế bài đăng nhật ký & Modal xem ảnh (Lightbox).",
+      "- **Tuấn**: Thiết kế Chi tiết UI Figma cho phân hệ Yêu cầu chăm sóc & Quản trị Admin: Thiết kế Modal \"Gửi yêu cầu chăm sóc\" 1 chạm, giao diện báo giá phụ phí, nghiệm thu ảnh trước/sau và Bảng quản trị Admin (Admin Portal) quản lý danh sách ô đất/đơn thuê."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 1: Phân rã nghiệp vụ & Khởi tạo khung dự án",
+    "day": "Ngày 4 (Thứ 5): Khởi tạo Source Code Base",
+    "tasks": [
+      "- **Trọng**: Tạo GitHub Repository, cấu hình dự án Express.js (thư mục Controllers, Services, Models, Routes, Middlewares); điền báo cáo ngày 4.",
+      "- **Nghiệp**: Tạo dự án Next.js (App Router), cài đặt và cấu hình Tailwind CSS, Lucide Icons.",
+      "- **Tuấn**: Cắt các UI Component dùng chung trên Next.js (Button, Card, Input, Modal, Badge trạng thái).",
+      "- **Đức**: Cài đặt gói socket.io trên Express, viết đoạn code demo kết nối ping-pong realtime client-server.",
+      "- **Tuấn**: Cấu hình thư viện quản lý state (Zustand) và thiết lập file gọi API tập trung (axiosInstance.js)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 2: Thiết lập Database SQL Server & Xác thực người dùng (Auth)",
+    "day": "Ngày 5 (Thứ 6): Review Tuần 1 & Hợp nhất mã nguồn",
+    "tasks": [
+      "- **Trọng**: Họp tuần 1, kiểm tra quy chuẩn đặt tên nhánh Git (Git Flow), tổng hợp tiến độ tuần gửi Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả 4 thành viên (Trọng, Nghiệp, Đức, Tuấn)**: Kiểm tra môi trường cục bộ (chạy đồng thời cả Next.js port 3000 và Express port 5000), chốt duyệt toàn bộ bản vẽ Figma. Cập nhật bảng WBS tiến độ và điền báo cáo ngày."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 2: Thiết lập Database SQL Server & Xác thực người dùng (Auth)",
+    "day": "Ngày 6 (Thứ 2): Xây dựng Bảng dữ liệu người dùng & API Đăng ký",
+    "tasks": [
+      "- **Trọng**: Viết & thực thi script T-SQL trên SQL Server (tạo Table, PK, FK, Index, Default Constraints) tạo bảng Roles, Users; cấu hình pool kết nối mssql trong Express; điền báo cáo ngày 6.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/auth/register (kiểm tra email trùng, băm mật khẩu bằng bcryptjs).",
+      "- **Trọng**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Đăng ký tài khoản trên Next.js (gồm form: họ tên, email, số điện thoại, mật khẩu). Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Đức**: Viết hàm middleware tạo và ký JWT token (chứa payload userId, role).",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Đăng nhập trên Next.js, xử lý nhận và lưu JWT vào Cookie/LocalStorage."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 2: Thiết lập Database SQL Server & Xác thực người dùng (Auth)",
+    "day": "Ngày 7 (Thứ 3): Hoàn thiện Phân quyền Role-based & Guard Routes",
+    "tasks": [
+      "- **Trọng**: Viết middleware verifyToken và checkRole(['Admin', 'Staff', 'Customer']) trong Express; điền báo cáo ngày 7.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/auth/login và API /api/auth/me để lấy thông tin phiên đăng nhập hiện tại.",
+      "- **Trọng**: Xây dựng Auth Context trong Next.js để giữ trạng thái đăng nhập khi người dùng chuyển trang hoặc F5. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Đức**: Lập trình Tích hợp và kết nối dữ liệu giữa Client - Server (xử lý async/await, error handling, toast notification) middleware giải mã token JWT cho các kết nối Socket.IO để định danh client kết nối.",
+      "- **Tuấn**: Cấu hình Next.js Middleware chặn người dùng chưa đăng nhập truy cập các đường dẫn cá nhân (/my-farm, /admin)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 2: Thiết lập Database SQL Server & Xác thực người dùng (Auth)",
+    "day": "Ngày 8 (Thứ 4): Quản lý Thông tin cá nhân & Địa chỉ nhận hàng",
+    "tasks": [
+      "- **Trọng**: Viết & thực thi script T-SQL trên SQL Server (tạo Table, PK, FK, Index, Default Constraints) tạo bảng UserAddresses (địa chỉ nhận rau thu hoạch); điền báo cáo ngày 8.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) cập nhật Profile người dùng và API CRUD danh sách địa chỉ nhận hàng.",
+      "- **Trọng**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) \"Hồ sơ của tôi\" (My Profile) trên Next.js cho phép đổi tên, số điện thoại và thêm địa chỉ nhà. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Đức**: Viết script chèn dữ liệu khởi tạo (Seed Data: 1 tài khoản Admin, 2 tài khoản Staff, 2 tài khoản Customer) vào SQL Server.",
+      "- **Tuấn**: Xây dựng dropdown chuyển hướng trên Header (Hồ sơ, Mùa vụ của tôi, Đăng xuất)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 1: KHẢO SÁT, THIẾT KẾ & KHỞI TẠO HỆ THỐNG (TUẦN 1 – TUẦN 2)",
+    "week": "TUẦN 2: Thiết lập Database SQL Server & Xác thực người dùng (Auth)",
+    "day": "Ngày 9 (Thứ 5): Xây dựng Trang chủ & Kiểm thử bảo mật",
+    "tasks": [
+      "- **Trọng**: Cấu hình chuẩn hóa mã lỗi trả về (400, 401, 403, 404, 500) và bật CORS cho Express; điền báo cáo ngày 9.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) lấy danh sách người dùng dành riêng cho Admin (có tìm kiếm và phân trang).",
+      "- **Nghiệp**: Ghép giao diện Landing Page (giới thiệu mô hình Cloud Farming, các bước từ thuê đất đến nhận rau).",
+      "- **Đức**: Viết Unit Test kiểm tra các trường hợp đăng nhập sai mật khẩu, tài khoản bị khóa.",
+      "- **Tuấn**: Xây dựng giao diện bảng quản lý danh sách tài khoản người dùng trong trang Admin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 3: Quản lý Ô đất & Bản đồ nông trại trực quan",
+    "day": "Ngày 10 (Thứ 6): Nghiệm thu Luồng Xác thực (Auth)",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp nghiệm thu Tuần 2, kiểm tra luồng phân quyền người dùng, tổng hợp báo cáo gửi Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả 4 thành viên**: Thực hiện Kiểm thử chức năng (Functional Testing), rà soát edge cases, ghi nhận bug log và tinh chỉnh code luồng Đăng ký tài khoản mới $\\rightarrow$ Tự động đăng nhập $\\rightarrow$ Chuyển đúng quyền Customer hoặc Admin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 3: Quản lý Ô đất & Bản đồ nông trại trực quan",
+    "day": "Ngày 11 (Thứ 2): Thiết kế Dữ liệu Ô đất & API Bản đồ",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng Farms, FarmAreas, Plots (mã ô, vị trí hàng/cột, diện tích, loại đất, giá thuê, 5 trạng thái: AVAILABLE, RESERVED, RENTED, FALLOWING, MAINTENANCE, các trường ReservedUntil, FallowingUntil); điền báo cáo ngày 11.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/plots lấy danh sách ô đất kèm bộ lọc (theo trạng thái, khoảng giá, diện tích).",
+      "- **Nghiệp**: Thiết kế & Cắt dựng Component dùng chung trên Next.js (tối ưu hóa Reusability, Responsive Tailwind CSS) Bản đồ ô đất dạng lưới (Grid Map) trên Next.js hiển thị danh sách các ô.",
+      "- **Đức**: Viết sự kiện Socket.IO plot_status_changed để đồng bộ màu sắc ô đất khi có thay đổi trạng thái.",
+      "- **Tuấn**: Xây dựng thanh công cụ lọc (Filter Bar) ô đất theo trạng thái (Còn trống, Đang trồng)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 3: Quản lý Ô đất & Bản đồ nông trại trực quan",
+    "day": "Ngày 12 (Thứ 3): Chi tiết Ô đất & Tương tác Bản đồ",
+    "tasks": [
+      "- **Trọng**: Thiết lập các ràng buộc dữ liệu trạng thái ô đất và thời hạn nghỉ đất (FALLOWING) tối thiểu 3 ngày sau thu hoạch (BR-10); điền báo cáo ngày 12.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/plots/:id trả về thông tin chi tiết: độ pH đất, độ ẩm tiêu chuẩn, ảnh mẫu ô đất.",
+      "- **Nghiệp**: Tô màu ô đất trên bản đồ theo quy ước (Xanh lá: Còn trống, Vàng: Đang giữ chỗ, Xám: Đang thuê, Cam/Nâu: Đang nghỉ & cải tạo đất - FALLOWING, Đỏ: Bảo trì).",
+      "- **Đức**: Kết nối Socket.IO phía Next.js để khi 1 tài khoản chọn giữ chỗ, các trình duyệt khác tự động đổi sang màu vàng.",
+      "- **Tuấn**: Xây dựng Modal Popup hiển thị nhanh thông số ô đất khi người dùng nhấp chuột vào ô trên bản đồ."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 3: Quản lý Ô đất & Bản đồ nông trại trực quan",
+    "day": "Ngày 13 (Thứ 4): Giữ chỗ tạm thời (Reserve Plot)",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy tắc nghiệp vụ BR-01 & BR-11: Khóa giữ chỗ ô đất độc quyền trong 15 phút, giải phóng ngay lập tức về AVAILABLE khi khách hủy phiên hoặc timeout; điền báo cáo ngày 13.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/plots/:id/reserve (đổi trạng thái sang RESERVED và gắn thời gian hết hạn).",
+      "- **Nghiệp**: Thiết kế & Cắt dựng Component dùng chung trên Next.js (tối ưu hóa Reusability, Responsive Tailwind CSS) đồng hồ đếm ngược 15 phút thanh toán trên giao diện người dùng.",
+      "- **Đức**: Viết hàm trong Node.js (setInterval mỗi 30 giây) quét các ô đất RESERVED quá 15 phút hoặc nhận sự kiện cancel_hold để tự động trả về AVAILABLE ngay lập tức (BR-11).",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) xem danh sách toàn bộ ô đất dạng bảng dành cho Admin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 3: Quản lý Ô đất & Bản đồ nông trại trực quan",
+    "day": "Ngày 14 (Thứ 5): Quản trị Ô đất phía Admin",
+    "tasks": [
+      "- **Trọng**: Code review module Quản lý ô đất, kiểm tra xử lý lỗi tranh chấp đặt chỗ cùng lúc (Concurrency); điền báo cáo ngày 14.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) Admin thêm ô đất mới, sửa giá thuê và đưa ô đất vào diện bảo trì.",
+      "- **Tuấn**: Xây dựng giao diện Form thêm mới/chỉnh sửa ô đất trên trang Admin.",
+      "- **Đức**: Viết script chèn sẵn 20 ô đất mẫu (5 ô trống, 10 ô đang canh tác, 5 ô bảo trì) vào SQL Server.",
+      "- **Tuấn**: Tối ưu hóa giao diện bản đồ ô đất co giãn mượt mà trên màn hình di động (Responsive)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 4: Quản lý Hạt giống & Gói dịch vụ canh tác",
+    "day": "Ngày 15 (Thứ 6): Nghiệm thu Bản đồ ô đất",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp nghiệm thu Tuần 3, demo chọn ô đất giữa 2 máy tính khác nhau, gửi báo cáo tiến độ tuần cho Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Kiểm tra hoạt động đồng bộ đổi màu ô đất theo thời gian thực và chức năng tự động hủy giữ chỗ sau 15 phút."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 4: Quản lý Hạt giống & Gói dịch vụ canh tác",
+    "day": "Ngày 16 (Thứ 2): Thiết kế Dữ liệu Hạt giống & Gói dịch vụ",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng Seeds (tên cây, loại cây, số ngày lớn, sản lượng dự kiến, thời hạn thuê tối thiểu MinRentalDays) và CarePackages; điền báo cáo ngày 16.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/seeds lấy danh sách các giống cây trồng đang có.",
+      "- **Nghiệp**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) \"Chọn giống cây trồng\" (Choose Crop) dạng danh sách thẻ sản phẩm trên Next.js.",
+      "- **Đức**: Viết câu truy vấn SQL lọc các hạt giống phù hợp với diện tích và tính chất của ô đất người dùng vừa chọn.",
+      "- **Tuấn**: Xây dựng bộ lọc hạt giống theo danh mục: Rau ăn lá ngắn ngày, Rau củ quả, Cây gia vị."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 4: Quản lý Hạt giống & Gói dịch vụ canh tác",
+    "day": "Ngày 17 (Thứ 3): Chi tiết Giống cây & Gói chăm sóc",
+    "tasks": [
+      "- **Trọng**: Xây dựng cấu trúc giá dịch vụ: $\\text{Tổng phí} = \\text{Tiền thuê đất} + \\text{Tiền giống} + \\text{Gói chăm sóc}$; điền báo cáo ngày 17.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/care-packages trả về các gói: Gói Tiêu Chuẩn (tưới nước) và Gói Hữu Cơ VIP (tưới + bón phân hữu cơ).",
+      "- **Nghiệp**: Xây dựng thẻ hiển thị chi tiết cây: vòng đời sinh trưởng (ví dụ: 45 ngày), sản lượng dự kiến (ví dụ: 5kg).",
+      "- **Đức**: Tải và chuẩn bị sẵn bộ ảnh đại diện sắc nét cho từng loại cây: Cải ngọt, Xà lách, Dâu tây, Cà chua bi.",
+      "- **Tuấn**: Thiết kế & Cắt dựng Component dùng chung trên Next.js (tối ưu hóa Reusability, Responsive Tailwind CSS) chọn Gói dịch vụ chăm sóc với bảng so sánh quyền lợi giữa các gói."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 4: Quản lý Hạt giống & Gói dịch vụ canh tác",
+    "day": "Ngày 18 (Thứ 4): Hoàn thiện Luồng Chọn Đất $\\rightarrow$ Chọn Cây",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy tắc nghiệp vụ BR-02: Khách hàng chỉ được chọn hạt giống sau khi đã giữ chỗ ô đất hợp lệ; điền báo cáo ngày 18.",
+      "- **Nghiệp**: Viết API kiểm tra tính hợp lệ của cặp đôi PlotId và SeedId trước khi chuyển sang bước thanh toán.",
+      "- **Nghiệp**: Xây dựng hiệu ứng chuyển bước (Step Wizard): Bước 1 (Chọn đất) $\\rightarrow$ Bước 2 (Chọn cây) $\\rightarrow$ Bước 3 (Chọn gói chăm sóc).",
+      "- **Đức**: Lưu thông tin các bước chọn vào LocalStorage/State để không bị mất dữ liệu khi người dùng bấm quay lại.",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Admin quản lý thêm/sửa danh mục hạt giống và đơn giá từng loại."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 4: Quản lý Hạt giống & Gói dịch vụ canh tác",
+    "day": "Ngày 19 (Thứ 5): Tóm tắt Đơn đặt thuê & Validation",
+    "tasks": [
+      "- **Trọng**: Code review module Hạt giống, kiểm tra các điều kiện ràng buộc số lượng hạt giống trong kho; điền báo cáo ngày 19.",
+      "- **Nghiệp**: Viết Unit Test cho thuật toán tính toán tổng tiền dựa trên số tháng thuê và gói dịch vụ.",
+      "- **Nghiệp**: Thiết kế & Cắt dựng Component dùng chung trên Next.js (tối ưu hóa Reusability, Responsive Tailwind CSS) \"Tóm tắt lựa chọn\" ghim cố định ở góc màn hình (hiển thị mã ô, cây đã chọn, tổng tiền tạm tính).",
+      "- **Đức**: Xây dựng chức năng gợi ý giống cây trồng phù hợp nhất dựa trên kích thước ô đất người dùng chọn.",
+      "- **Tuấn**: Kiểm tra và hoàn thiện các cảnh báo nhắc nhở nếu người dùng bỏ sót thông tin trước khi nhấn \"Tiếp tục\"."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 5: Tạo Đơn thuê đất & Mô phỏng Thanh toán (Mock Payment)",
+    "day": "Ngày 20 (Thứ 6): Nghiệm thu Luồng Chọn Giống cây",
+    "tasks": [
+      "- **Trọng**: Họp tuần 4, đánh giá tiến độ màn hình Chọn giống cây, chuẩn bị chuyển sang module Thanh toán, gửi báo cáo cho Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Chạy thử kịch bản: Từ bản đồ chọn 1 ô đất $\\rightarrow$ Chọn hạt giống Xà lách $\\rightarrow$ Chọn Gói chăm sóc VIP $\\rightarrow$ Xem bảng tóm tắt chi phí."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 5: Tạo Đơn thuê đất & Mô phỏng Thanh toán (Mock Payment)",
+    "day": "Ngày 21 (Thứ 2): Thiết kế Dữ liệu Đơn thuê & Hóa đơn",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng RentalOrders, OrderDetails, Payments (mã giao dịch, phương thức, số tiền, trạng thái); điền báo cáo ngày 21.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/orders (Tạo đơn thuê đất mới ở trạng thái PENDING_PAYMENT).",
+      "- **Nghiệp**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Xác nhận đơn thuê và Thanh toán (Rental Checkout Page) trên Next.js.",
+      "- **Đức**: Tạo mã QR Code thanh toán chuyển khoản ngân hàng động (chứa nội dung: PLOTFARM <MaDonHang>).",
+      "- **Tuấn**: Xây dựng bảng kê khai chi tiết các khoản phí: Tiền đất ($m^2$), Tiền giống, Phí chuẩn bị đất, Phí dịch vụ chăm sóc."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 5: Tạo Đơn thuê đất & Mô phỏng Thanh toán (Mock Payment)",
+    "day": "Ngày 22 (Thứ 3): Xây dựng Cổng Thanh toán Mô phỏng (Mock Sandbox)",
+    "tasks": [
+      "- **Trọng**: Thiết kế luồng xử lý Webhook mô phỏng thanh toán trực tuyến thành công; điền báo cáo ngày 22.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/payments/mock-checkout (Nhận yêu cầu thanh toán mô phỏng từ người dùng).",
+      "- **Nghiệp**: Lập trình Tích hợp và kết nối dữ liệu giữa Client - Server (xử lý async/await, error handling, toast notification) các nút phương thức thanh toán: Ví MoMo (Sandbox), VNPAY (Sandbox), Quét mã QR chuyển khoản, Thẻ ATM.",
+      "- **Đức**: Xây dựng trang Mock Payment Gateway riêng: giao diện giả lập màn hình thanh toán của ngân hàng với nút \"Xác nhận trả tiền thành công\" và \"Hủy giao dịch\".",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Chờ xử lý thanh toán (có hiệu ứng loading kiểm tra trạng thái đơn)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 5: Tạo Đơn thuê đất & Mô phỏng Thanh toán (Mock Payment)",
+    "day": "Ngày 23 (Thứ 4): Xử lý Nghiệp vụ khi Thanh toán Thành công",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy tắc nghiệp vụ BR-03: Chỉ khi đơn thuê chuyển PAID, ô đất mới chính thức đổi thành RENTED; điền báo cáo ngày 23.",
+      "- **Nghiệp**: Viết transaction trong SQL Server: Cập nhật đơn hàng thành PAID, đổi trạng thái ô đất thành RENTED, tạo bản ghi lịch sử thanh toán.",
+      "- **Nghiệp**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Thông báo kết quả: \"Chúc mừng bạn đã sở hữu ô đất thành công!\" kèm nút xem mùa vụ ngay.",
+      "- **Đức**: Gửi sự kiện Socket.IO thông báo tới toàn bộ hệ thống ô đất này đã chính thức có chủ sở hữu.",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) hiển thị danh sách tất cả các đơn thuê đất trong trang Quản trị Admin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 2: PHÁT TRIỂN CORE DỊCH VỤ THUÊ ĐẤT (TUẦN 3 – TUẦN 5)",
+    "week": "TUẦN 5: Tạo Đơn thuê đất & Mô phỏng Thanh toán (Mock Payment)",
+    "day": "Ngày 24 (Thứ 5): Hóa đơn điện tử & Lịch sử thuê đất",
+    "tasks": [
+      "- **Trọng**: Code review module Thanh toán, kiểm tra khả năng chống bấm thanh toán trùng lặp (Double-click); điền báo cáo ngày 24.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/users/orders trả về lịch sử các hợp đồng thuê đất của người dùng hiện tại.",
+      "- **Nghiệp**: Xây dựng giao diện xem Hóa đơn điện tử chi tiết có thể bấm In hoặc xem lại bất cứ lúc nào.",
+      "- **Đức**: Bổ sung tính năng Admin xác nhận thanh toán thủ công bằng tay (dành cho trường hợp khách chuyển khoản thật).",
+      "- **Tuấn**: Xây dựng chức năng hủy đơn thuê và trả lại ô đất nếu người dùng chưa thanh toán trong thời hạn."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 6: Quản lý Vụ trồng & Hành trình sinh trưởng (Plant Journey)",
+    "day": "Ngày 25 (Thứ 6): Nghiệm thu Giai đoạn 1 (Thuê đất & Thanh toán)",
+    "tasks": [
+      "- **Trọng**: Họp tổng kết mốc tuần 5 (Hoàn thành 1/3 chặng đường dự án), chuẩn bị bản demo luồng thuê đất báo cáo Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Thực hiện demo trơn tru từ tài khoản mới $\\rightarrow$ Xem bản đồ $\\rightarrow$ Giữ chỗ $\\rightarrow$ Chọn cây $\\rightarrow$ Bấm nút giả lập thanh toán $\\rightarrow$ Đơn chuyển thành công."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 6: Quản lý Vụ trồng & Hành trình sinh trưởng (Plant Journey)",
+    "day": "Ngày 26 (Thứ 2): Thiết kế Vụ trồng (Cultivation Cycle)",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng Cultivations (bổ sung trạng thái FAILED, cột DamageReason, ReplantCount để hỗ trợ bảo hiểm nông nghiệp BR-13) và bảng GrowthStages; điền báo cáo ngày 26.",
+      "- **Nghiệp**: Viết logic tự động tạo 1 bản ghi Cultivations mới ngay khi đơn thuê đất chuyển trạng thái PAID.",
+      "- **Nghiệp**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) trung tâm \"Vườn của tôi\" (My Farm Dashboard) hiển thị danh sách các ô đất đang canh tác.",
+      "- **Đức**: Thiết lập danh mục 5 giai đoạn phát triển chuẩn cho cây: Chuẩn bị đất $\\rightarrow$ Gieo hạt $\\rightarrow$ Cây con $\\rightarrow$ Ra hoa/tạo quả $\\rightarrow$ Sẵn sàng thu hoạch.",
+      "- **Tuấn**: Xây dựng thẻ hiển thị tóm tắt vụ trồng: Tên cây, hình ảnh, số ngày đã trồng, đếm ngược ngày thu hoạch."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 6: Quản lý Vụ trồng & Hành trình sinh trưởng (Plant Journey)",
+    "day": "Ngày 27 (Thứ 3): Thuật toán Tính toán Tiến độ Sinh trưởng",
+    "tasks": [
+      "- **Trọng**: Viết hàm tính toán tiến độ dự kiến: $\\text{Tiến độ} = \\min\\left(100, \\frac{\\text{Số ngày từ khi gieo}}{\\text{Tổng số ngày trưởng thành}} \\times 100\\right)\\%$; điền báo cáo ngày 27.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/cultivations/:id trả về thông tin chi tiết mùa vụ và phần trăm tiến độ sinh trưởng.",
+      "- **Nghiệp**: Xây dựng thanh Progress Bar trực quan và Timeline hành trình phát triển của cây (Plant Journey) trên Next.js.",
+      "- **Đức**: Viết script Node.js cho phép đổi ngày bắt đầu trồng lùi về quá khứ để demo nhanh tiến độ tăng từ 10% lên 90%.",
+      "- **Tuấn**: Xây dựng giao diện hiển thị các chỉ số sức khỏe của cây: Phát triển tốt, Bình thường, Cần chú ý."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 6: Quản lý Vụ trồng & Hành trình sinh trưởng (Plant Journey)",
+    "day": "Ngày 28 (Thứ 4): Giao diện Kỹ thuật viên Farm (Staff Dashboard)",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy tắc nghiệp vụ BR-05: Tiến độ hiển thị 100% chỉ là dự kiến, cần nhân viên xác nhận mới được thu hoạch; điền báo cáo ngày 28.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) cho nhân viên chuyển trạng thái giai đoạn sinh trưởng của cây trồng.",
+      "- **Tuấn**: Xây dựng giao diện riêng cho Nhân viên nông trại (Staff View) trên Next.js (tối ưu thao tác nhanh trên điện thoại).",
+      "- **Đức**: Phát sự kiện Socket.IO khi nhân viên chuyển giai đoạn của cây để màn hình khách hàng cập nhật tức thì.",
+      "- **Tuấn**: Xây dựng form cho nhân viên cập nhật ghi chú đánh giá tình hình sâu bệnh thực tế của cây."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 6: Quản lý Vụ trồng & Hành trình sinh trưởng (Plant Journey)",
+    "day": "Ngày 29 (Thứ 5): Hoàn thiện Giao diện Hành trình Cây trồng",
+    "tasks": [
+      "- **Trọng**: Code review module Vụ trồng, kiểm tra trạng thái ô đất chuyển sang CULTIVATING đúng quy trình; điền báo cáo ngày 29.",
+      "- **Nghiệp**: Viết API liên kết thông tin Vụ trồng với Camera giả lập của ô đất đó.",
+      "- **Nghiệp**: Thiết kế các icon mầm cây tương ứng với từng mốc sinh trưởng trên thanh Timeline.",
+      "- **Đức**: Viết hàm kiểm tra định kỳ trong Node.js tự động tăng số ngày tuổi của cây sau mỗi 24 giờ.",
+      "- **Tuấn**: Kiểm tra tính responsive của giao diện Plant Journey trên các kích thước màn hình điện thoại khác nhau."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 7: Phân hệ Nhật ký canh tác (Farm Journal Timeline)",
+    "day": "Ngày 30 (Thứ 6): Nghiệm thu Phân hệ Vụ trồng",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp tuần 6, tổng hợp báo cáo tiến độ tuần gửi Mentor, demo màn hình Dashboard Vườn của tôi. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Thực hiện Kiểm thử chức năng (Functional Testing), rà soát edge cases, ghi nhận bug log và tinh chỉnh code việc tạo vụ trồng mới và theo dõi sự thay đổi của thanh tiến trình sinh trưởng."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 7: Phân hệ Nhật ký canh tác (Farm Journal Timeline)",
+    "day": "Ngày 31 (Thứ 2): Thiết kế Dữ liệu Nhật ký & Lưu trữ Hình ảnh Mockup",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng CultivationLogs (mã vụ, mã nhân viên, ngày đăng, loại hoạt động, ghi chú, link ảnh); điền báo cáo ngày 31.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/cultivations/:id/logs (Lấy danh sách các dòng nhật ký sắp xếp theo ngày mới nhất).",
+      "- **Đức**: Xây dựng giao diện Dòng thời gian Nhật ký canh tác (Farm Journal) kiểu Feed mạng xã hội trên Next.js.",
+      "- **Đức**: Chuẩn bị sẵn một thư mục ảnh gồm 10 tấm ảnh mẫu chụp cây theo từng mốc ngày tuổi để làm dữ liệu demo.",
+      "- **Tuấn**: Xây dựng giao diện Form đăng nhật ký canh tác dành cho Nhân viên (chọn ngày, chọn việc làm, tải ảnh lên)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 7: Phân hệ Nhật ký canh tác (Farm Journal Timeline)",
+    "day": "Ngày 32 (Thứ 3): Xây dựng API Đăng Nhật ký kèm Ảnh",
+    "tasks": [
+      "- **Trọng**: Chuẩn hóa danh mục hoạt động canh tác: Chuẩn bị đất, Gieo hạt, Tưới nước, Bón phân, Bắt sâu, Cắt tỉa; điền báo cáo ngày 32.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) POST /api/cultivation-logs (nhận dữ liệu bài viết và link ảnh từ nhân viên).",
+      "- **Đức**: Xây dựng Modal xem ảnh phóng to (Lightbox) và hiển thị thông tin chi tiết người thực hiện chăm sóc.",
+      "- **Đức**: Cấu hình thư mục tĩnh trong Express (express.static('public/uploads')) để lưu và phục vụ ảnh nhật ký nhanh chóng.",
+      "- **Tuấn**: Bổ sung bộ lọc nhật ký theo phân loại hoạt động (ví dụ: chỉ lọc xem các bài đăng có hình ảnh bón phân)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 7: Phân hệ Nhật ký canh tác (Farm Journal Timeline)",
+    "day": "Ngày 33 (Thứ 4): Tương tác & Thông báo Nhật ký mới",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy trình kiểm soát chất lượng nhật ký canh tác của nhân viên; điền báo cáo ngày 33.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) cho phép khách hàng thả tim (Like) hoặc để lại lời nhắn động viên kỹ thuật viên làm vườn.",
+      "- **Đức**: Lập trình Tích hợp và kết nối dữ liệu giữa Client - Server (xử lý async/await, error handling, toast notification) chuông thông báo (Notification Bell) nhấp nháy đỏ trên giao diện khách khi có nhật ký mới.",
+      "- **Đức**: Phát sự kiện Socket.IO new_farm_log ngay khi nhân viên bấm \"Đăng bài\" để app khách hàng cập nhật bài mới tức thì.",
+      "- **Tuấn**: Xây dựng giao diện cho phép nhân viên chỉnh sửa nội dung bài viết trong ngày nếu viết sai thông tin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 7: Phân hệ Nhật ký canh tác (Farm Journal Timeline)",
+    "day": "Ngày 34 (Thứ 5): Farm Passport (Hồ sơ hành trình mùa vụ)",
+    "tasks": [
+      "- **Trọng**: Thiết kế định dạng xuất dữ liệu tóm tắt hành trình mùa vụ (\"Farm Passport\"); điền báo cáo ngày 34.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) tổng hợp toàn bộ các hình ảnh từ ngày đầu đến ngày cuối của một vụ trồng.",
+      "- **Đức**: Xây dựng giao diện xem album hành trình mùa vụ (Farm Passport) như một cuốn sổ lưu niệm nông nghiệp.",
+      "- **Đức**: Xây dựng nút bấm \"Tải toàn bộ ảnh nhật ký\" về máy cho khách hàng.",
+      "- **Tuấn**: Tối ưu hóa tốc độ tải trang nhật ký khi có nhiều hình ảnh (sử dụng Lazy Loading ảnh trong Next.js)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 8: Gửi & Xử lý Yêu cầu chăm sóc (Care Request Workflow)",
+    "day": "Ngày 35 (Thứ 6): Nghiệm thu Nhật ký canh tác",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp tuần 7, kiểm tra luồng Đăng nhật ký $\\rightarrow$ Khách hàng nhận thông báo thời gian thực, gửi báo cáo cho Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Demo thử nghiệm: Nhân viên dùng điện thoại đăng 1 bài kèm ảnh $\\rightarrow$ Trình duyệt khách hàng tự động nhảy ra bài viết mới."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 8: Gửi & Xử lý Yêu cầu chăm sóc (Care Request Workflow)",
+    "day": "Ngày 36 (Thứ 2): Thiết kế Dữ liệu Yêu cầu chăm sóc",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng CareRequests (mã yêu cầu, mã vụ, loại dịch vụ, ghi chú, phụ phí Fee, trạng thái duyệt phí IsFeeAccepted, PaymentStatus, trạng thái, ảnh nghiệm thu - BR-12); điền báo cáo ngày 36.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) POST /api/care-requests (Khách hàng tạo yêu cầu: Tưới thêm nước, Bắt sâu bọ, Chụp ảnh cận cảnh cây).",
+      "- **Tuấn**: Xây dựng Modal \"Gửi yêu cầu chăm sóc\" trên Dashboard khách hàng với danh sách thao tác nhanh bằng 1 chạm.",
+      "- **Đức**: Định nghĩa các trạng thái yêu cầu: PENDING (Chờ nhận), IN_PROGRESS (Đang làm), COMPLETED (Hoàn thành).",
+      "- **Tuấn**: Xây dựng giao diện \"Hàng đợi công việc\" (Task Queue) trên màn hình của Nhân viên nông trại."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 8: Gửi & Xử lý Yêu cầu chăm sóc (Care Request Workflow)",
+    "day": "Ngày 37 (Thứ 3): Quy trình Tiếp nhận & Xử lý Công việc",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy tắc nghiệp vụ BR-07: Yêu cầu ngoài gói chăm sóc phải được thông báo chi phí trước khi làm; điền báo cáo ngày 37.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/care-requests/:id/accept cho nhân viên bấm nhận việc.",
+      "- **Đức**: Xây dựng thẻ hiển thị trạng thái yêu cầu trên giao diện khách hàng (kèm thông tin tên nhân viên tiếp nhận).",
+      "- **Đức**: Phát sự kiện Socket.IO khi nhân viên nhận task, giao diện khách hàng tự động chuyển từ màu xám sang xanh lá.",
+      "- **Tuấn**: Xây dựng nút bấm \"Nhận việc\" và \"Bắt đầu thực hiện\" trên giao diện của Staff."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 8: Gửi & Xử lý Yêu cầu chăm sóc (Care Request Workflow)",
+    "day": "Ngày 38 (Thứ 4): Hoàn thành Yêu cầu & Tự động tạo Nhật ký",
+    "tasks": [
+      "- **Trọng**: Viết logic liên kết: Khi nhân viên hoàn thành yêu cầu chăm sóc $\\rightarrow$ tự động tạo 1 bài viết nhật ký tương ứng; điền báo cáo ngày 38.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/care-requests/:id/complete (nhân viên tải ảnh hoàn thành và nhập ghi chú kết quả).",
+      "- **Tuấn**: Xây dựng giao diện xem kết quả nghiệm thu của khách hàng (hiển thị ảnh trước/sau khi chăm sóc).",
+      "- **Đức**: Phát thông báo \"Yêu cầu tưới cây của bạn đã hoàn thành!\" đến khách hàng qua Socket.IO.",
+      "- **Tuấn**: Xây dựng form cho nhân viên nhập lượng vật tư nông nghiệp đã sử dụng (lượng phân bón hữu cơ, lượng nước)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 3: PHÁT TRIỂN PHÂN HỆ CANH TÁC & REALTIME (TUẦN 6 – TUẦN 8)",
+    "week": "TUẦN 8: Gửi & Xử lý Yêu cầu chăm sóc (Care Request Workflow)",
+    "day": "Ngày 39 (Thứ 5): Lịch sử Chăm sóc & Đánh giá Dịch vụ",
+    "tasks": [
+      "- **Trọng**: Code review module Care Request, kiểm tra xử lý việc hủy yêu cầu khi nhân viên chưa bấm tiếp nhận; điền báo cáo ngày 39.",
+      "- **Nghiệp**: Viết API thống kê số lần yêu cầu chăm sóc đã sử dụng trong tháng của gói dịch vụ.",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) \"Lịch sử yêu cầu chăm sóc\" của mùa vụ.",
+      "- **Đức**: Bổ sung tính năng đánh giá chất lượng (Rating 1-5 sao) sau khi yêu cầu được hoàn thành.",
+      "- **Tuấn**: Xây dựng bảng theo dõi số lượng task hoàn thành của từng nhân viên trên trang Admin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 9: Giả lập Live Camera & Mô phỏng Chỉ số Cảm biến",
+    "day": "Ngày 40 (Thứ 6): Nghiệm thu Luồng Yêu cầu Chăm sóc",
+    "tasks": [
+      "- **Trọng**: Họp tuần 8 (Hết 2/3 thời gian thực tập), tổng kết toàn bộ luồng canh tác, chuẩn bị sang phần Camera và Thu hoạch, gửi báo cáo Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Chạy kịch bản hoàn chỉnh: Khách bấm gửi yêu cầu kiểm tra sâu $\\rightarrow$ Nhân viên nhận task $\\rightarrow$ Đăng ảnh xác nhận $\\rightarrow$ Khách nhận thông báo hoàn tất."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 9: Giả lập Live Camera & Mô phỏng Chỉ số Cảm biến",
+    "day": "Ngày 41 (Thứ 2): Xây dựng Khung phát Video Giả lập Camera",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu quy tắc nghiệp vụ BR-04: Khách hàng chỉ xem được camera của ô đất mình đang thuê; điền báo cáo ngày 41.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/plots/:id/camera (kiểm tra quyền sở hữu ô đất và trả về URL video mẫu tương ứng).",
+      "- **Đức**: Xây dựng khung phát Video Player trên Next.js sử dụng thẻ HTML5 <video> cấu hình chạy lặp (loop muted autoPlay).",
+      "- **Đức**: Đặt file video .mp4 quay luống rau vào thư mục public/videos/ trên server Express và cấu hình route phục vụ video streaming.",
+      "- **Tuấn**: Xây dựng lớp phủ (Overlay) giả lập góc trên camera: Dòng chữ đỏ nhấp nháy ● LIVE và đồng hồ hiển thị ngày giờ nhảy từng giây."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 9: Giả lập Live Camera & Mô phỏng Chỉ số Cảm biến",
+    "day": "Ngày 42 (Thứ 3): Tính năng Time-lapse Sinh trưởng Giả lập",
+    "tasks": [
+      "- **Trọng**: Hỗ trợ kiểm thử trình phát video trên các trình duyệt khác nhau; điền báo cáo ngày 42.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) trả về danh sách clip tua nhanh quá trình phát triển (Time-lapse) theo từng tuần.",
+      "- **Đức**: Xây dựng nút chuyển đổi (Toggle): Chế độ \"Trực tiếp 24/7\" (Live) $\\longleftrightarrow$ Chế độ \"Tua nhanh sinh trưởng\" (Time-lapse).",
+      "- **Đức**: Cấu hình phát video tua nhanh mầm cây lớn lên khi người dùng nhấn chuyển sang tab Time-lapse.",
+      "- **Tuấn**: Bổ sung nút bấm \"Chụp ảnh màn hình camera\" để người dùng lưu khoảnh khắc vườn rau về máy tính/điện thoại."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 9: Giả lập Live Camera & Mô phỏng Chỉ số Cảm biến",
+    "day": "Ngày 43 (Thứ 4): Mô phỏng Cảm biến Môi trường (Nhiệt độ, Độ ẩm)",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng SensorData (mã ô đất, nhiệt độ không khí, độ ẩm không khí, độ ẩm đất, thời gian đo); điền báo cáo ngày 43.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/plots/:id/sensors/latest lấy số đo môi trường mới nhất của ô đất.",
+      "- **Đức**: Xây dựng Widget hiển thị 3 chỉ số môi trường cạnh màn hình Camera: Nhiệt độ ($28^\\circ\\text{C}$), Độ ẩm không khí ($75\\%$), Độ ẩm đất ($68\\%$).",
+      "- **Đức**: Viết hàm trong Node.js (setInterval mỗi 10 giây) tự sinh số đo ngẫu nhiên dao động nhẹ và phát qua Socket.IO tới client.",
+      "- **Tuấn**: Xây dựng biểu đồ đường (Line Chart bằng thư viện recharts) thể hiện biến thiên nhiệt độ và độ ẩm trong 24 giờ qua."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 9: Giả lập Live Camera & Mô phỏng Chỉ số Cảm biến",
+    "day": "Ngày 44 (Thứ 5): Xử lý Tình huống Ngoại lệ & Tối ưu Giao diện",
+    "tasks": [
+      "- **Trọng**: Đánh giá tiêu chuẩn NFR-10: Khi luồng video mất kết nối, hệ thống vẫn hiển thị ảnh tĩnh ô đất và không làm treo ứng dụng; điền báo cáo ngày 44.",
+      "- **Nghiệp**: Viết API Admin bật/tắt trạng thái bảo trì camera của từng ô đất.",
+      "- **Đức**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) hiển thị dự phòng khi camera bảo trì (\"Camera đang bảo dưỡng định kỳ\").",
+      "- **Đức**: Tối ưu hóa kích thước video file demo (nén MP4 xuống dưới 10MB để tải ngay lập tức).",
+      "- **Tuấn**: Kiểm tra tính responsive: Màn hình xem camera và widget cảm biến hiển thị vừa vặn trên màn hình điện thoại."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 10: Phân hệ Thu hoạch & Quản lý Giao hàng nội bộ",
+    "day": "Ngày 45 (Thứ 6): Nghiệm thu Màn hình Camera & Cảm biến",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp tuần 9, tổng hợp báo cáo gửi Mentor, demo màn hình Camera và biểu đồ chỉ số môi trường nhảy số tự động. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Trải nghiệm xem video mượt mà, đồng hồ thời gian thực nhảy chuẩn và số đo độ ẩm đất tự động cập nhật."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 10: Phân hệ Thu hoạch & Quản lý Giao hàng nội bộ",
+    "day": "Ngày 46 (Thứ 2): Thiết kế Dữ liệu Thu hoạch & Giao hàng",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng HarvestRequests, Deliveries; thiết lập trigger/stored procedure tự động chuyển trạng thái ô đất sang FALLOWING (Nghỉ đất tối thiểu 3 ngày theo quy tắc BR-10) ngay sau khi thu hoạch hoàn tất; điền báo cáo ngày 46.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) cho nhân viên farm xác nhận cây đã đủ tuổi thu hoạch (chuyển trạng thái ô đất sang READY_TO_HARVEST).",
+      "- **Tuấn**: Xây dựng thông báo nổi bật trên Dashboard: \"Vụ mùa của bạn đã sẵn sàng thu hoạch! Bấm vào đây để nhận nông sản\".",
+      "- **Đức**: Viết tài liệu quy tắc nghiệp vụ BR-06: Nút \"Yêu cầu thu hoạch\" chỉ sáng lên khi cây được nhân viên xác nhận READY_TO_HARVEST.",
+      "- **Tuấn**: Xây dựng giao diện cho nhân viên kỹ thuật bấm xác nhận cây đã chín trên Staff Dashboard."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 10: Phân hệ Thu hoạch & Quản lý Giao hàng nội bộ",
+    "day": "Ngày 47 (Thứ 3): Tạo Yêu cầu Thu hoạch & Điền Địa chỉ nhận hàng",
+    "tasks": [
+      "- **Trọng**: Thiết kế luồng lựa chọn phương thức nhận: Nhận tại trang trại hoặc Giao tận nhà; điền báo cáo ngày 47.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) POST /api/harvest-requests (Khách chọn ngày thu hoạch, hình thức nhận và điền địa chỉ giao hàng).",
+      "- **Tuấn**: Xây dựng Modal \"Đăng ký nhận nông sản\" (cho phép chọn địa chỉ đã lưu hoặc nhập địa chỉ giao hàng mới).",
+      "- **Đức**: Phát sự kiện Socket.IO báo đơn thu hoạch mới đến màn hình quản lý nông trại.",
+      "- **Tuấn**: Xây dựng danh sách đơn thu hoạch cần thực hiện cắt rau dành cho nhân viên nông trại."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 10: Phân hệ Thu hoạch & Quản lý Giao hàng nội bộ",
+    "day": "Ngày 48 (Thứ 4): Cập nhật Sản lượng thực tế & Đóng gói nông sản",
+    "tasks": [
+      "- **Trọng**: Viết logic tính toán chênh lệch giữa sản lượng dự kiến và sản lượng thu hoạch thực tế; điền báo cáo ngày 48.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/harvest-requests/:id/record-yield (Nhân viên nhập số cân thực tế và tải ảnh chụp rổ nông sản).",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) chúc mừng thu hoạch thành công (\"Harvest Celebration\") hiển thị số cân nông sản sạch nhận được.",
+      "- **Đức**: Tự động sinh mã vận đơn giao hàng ngẫu nhiên (ví dụ: PF-SHIP-8892) khi nông sản được đóng thùng.",
+      "- **Tuấn**: Xây dựng form cho nhân viên nhập cân nặng thực tế (ví dụ: 4.8 kg) và bấm \"Xác nhận đóng gói hoàn tất\"."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 10: Phân hệ Thu hoạch & Quản lý Giao hàng nội bộ",
+    "day": "Ngày 49 (Thứ 5): Theo dõi Hành trình Giao hàng (Delivery Tracking)",
+    "tasks": [
+      "- **Trọng**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) cập nhật trạng thái đơn giao: DANG_DONG_GOI $\\rightarrow$ DANG_GIAO_HANG $\\rightarrow$ DA_GIAO_THANH_CONG; điền báo cáo ngày 49.",
+      "- **Nghiệp**: Viết logic tự động đóng vụ trồng (COMPLETED) và giải phóng ô đất về trạng thái AVAILABLE cho vụ sau.",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Timeline theo dõi giao hàng (Delivery Tracking) tương tự các app thương mại điện tử.",
+      "- **Đức**: Bổ sung nút bấm giả lập dành cho nhân viên: \"Bắt đầu đi giao\" và \"Đã giao hàng thành công\" để đổi trạng thái đơn hàng khi demo.",
+      "- **Tuấn**: Xây dựng chức năng in Phiếu xuất kho nông sản sạch để chuẩn bị bàn giao cho khách."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 11: Phân hệ Quản trị (Admin Dashboard) & Báo cáo Doanh thu",
+    "day": "Ngày 50 (Thứ 6): Nghiệm thu Luồng Thu hoạch & Giao hàng",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp tuần 10, gửi báo cáo tiến độ tuần cho Mentor, nghiệm thu chu trình khép kín từ lúc trồng đến lúc nhận rau. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Chạy thử toàn diện kịch bản: Cây đến ngày chín $\\rightarrow$ Khách đặt lịch giao $\\rightarrow$ Nhân viên nhập cân nặng $\\rightarrow$ Đơn chuyển sang đang giao $\\rightarrow$ Hoàn thành vụ mùa."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 11: Phân hệ Quản trị (Admin Dashboard) & Báo cáo Doanh thu",
+    "day": "Ngày 51 (Thứ 2): Xây dựng API Thống kê Số liệu Tổng quan",
+    "tasks": [
+      "- **Trọng**: Viết các câu truy vấn SQL tổng hợp số liệu kinh doanh nông trại; điền báo cáo ngày 51.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/admin/metrics trả về 4 chỉ số cốt lõi: Tổng doanh thu, Tổng số ô đất đang thuê, Tỷ lệ lấp đầy trang trại (%), Số vụ trồng đang diễn ra.",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Dashboard Admin với 4 thẻ chỉ số (Metric Cards) nổi bật trên Next.js.",
+      "- **Đức**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) /api/admin/revenue-chart trả về doanh thu phân bổ theo 6 tháng gần nhất.",
+      "- **Tuấn**: Xây dựng biểu đồ cột doanh thu và biểu đồ tròn thể hiện tỷ lệ các loại giống cây được thuê nhiều nhất."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 11: Phân hệ Quản trị (Admin Dashboard) & Báo cáo Doanh thu",
+    "day": "Ngày 52 (Thứ 3): Quản lý Phân công Nhân viên & Cấu hình Nông trại",
+    "tasks": [
+      "- **Trọng**: Viết script SQL tạo bảng StaffAssignments (phân công nhân viên phụ trách từng khu vực ô đất); điền báo cáo ngày 52.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) phân công hoặc đổi nhân viên kỹ thuật phụ trách một khu đất cụ thể.",
+      "- **Tuấn**: Xây dựng giao diện phân công công việc trực quan cho Admin (chọn nhân viên gán vào khu vực đất).",
+      "- **Đức**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) xuất danh sách đơn thuê và doanh thu ra file Excel (.xlsx) bằng thư viện exceljs.",
+      "- **Tuấn**: Xây dựng trang Cấu hình hệ thống (cho phép Admin sửa thời gian giữ chỗ ô đất, giá điện nước dịch vụ)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 11: Phân hệ Quản trị (Admin Dashboard) & Báo cáo Doanh thu",
+    "day": "Ngày 53 (Thứ 4): Báo cáo Hiệu suất & Tỷ lệ Sử dụng đất",
+    "tasks": [
+      "- **Trọng**: Viết tài liệu hướng dẫn quản trị vận hành nông trại PlotFarm; điền báo cáo ngày 53.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) thống kê năng suất của nhân viên (số lượng yêu cầu chăm sóc đã hoàn thành trong tháng).",
+      "- **Tuấn**: Thiết kế & Xây dựng Giao diện màn hình trên Next.js (Tailwind CSS, tích hợp State Management, xử lý trạng thái Loading & Empty state) Báo cáo tỷ lệ sử dụng đất theo từng khu vực (Khu A, Khu B, Khu C).",
+      "- **Đức**: Viết chức năng tải file báo cáo thống kê định dạng Excel về máy tính người quản trị.",
+      "- **Tuấn**: Bổ sung bộ lọc báo cáo thống kê theo khoảng ngày tùy chọn (Từ ngày ... Đến ngày ...)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 4: GIẢ LẬP CAMERA, CẢM BIẾN & THU HOẠCH (TUẦN 9 – TUẦN 11)",
+    "week": "TUẦN 11: Phân hệ Quản trị (Admin Dashboard) & Báo cáo Doanh thu",
+    "day": "Ngày 54 (Thứ 5): Hoàn thiện Quản lý Đơn hàng & Audit Log",
+    "tasks": [
+      "- **Trọng**: Code review module Admin Portal, kiểm tra bảo mật phân quyền chặn tuyệt đối quyền Customer vào trang Admin; điền báo cáo ngày 54.",
+      "- **Nghiệp**: Xây dựng RESTful Express API (validate đầu vào Zod/Validator, xử lý Try-Catch, định dạng JSON Response chuẩn) lấy danh sách chi tiết tất cả các giao dịch thanh toán trên hệ thống.",
+      "- **Nghiệp**: Hoàn thiện bảng quản trị đơn hàng có nút xem chi tiết hợp đồng và hóa đơn thanh toán.",
+      "- **Đức**: Xây dựng bảng lưu vết hoạt động quản trị (AuditLogs: ghi nhận tài khoản Admin nào đã chỉnh sửa giá ô đất).",
+      "- **Tuấn**: Kiểm tra và tinh chỉnh giao diện Admin hiển thị cân đối trên màn hình máy tính bảng và laptop."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 12: Kiểm thử Hệ thống & Sửa lỗi (Testing & Bug Fixing)",
+    "day": "Ngày 55 (Thứ 6): Nghiệm thu Toàn bộ Phân hệ Admin & Feature Freeze",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp tuần 11, gửi báo cáo tiến độ tuần cho Mentor, công bố chính thức đóng băng tính năng mới (Feature Freeze). Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Rà soát lại danh mục 20 yêu cầu chức năng (FR-01 đến FR-20) đã hoàn thành đầy đủ trong source code."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 12: Kiểm thử Hệ thống & Sửa lỗi (Testing & Bug Fixing)",
+    "day": "Ngày 56 (Thứ 2): Kiểm thử Tích hợp Luồng Khách hàng (Customer Flow)",
+    "tasks": [
+      "- **Trọng**: Lập danh sách kịch bản kiểm thử tích hợp (Test Checklist) cho luồng Người dùng thuê đất; điền báo cáo ngày 56.",
+      "- **Nghiệp**: Thực hiện kiểm thử và ghi nhận lỗi ở bước: Đăng ký $\\rightarrow$ Xem bản đồ $\\rightarrow$ Giữ chỗ $\\rightarrow$ Chọn giống cây.",
+      "- **Đức**: Thực hiện kiểm thử và ghi nhận lỗi ở bước: Thanh toán $\\rightarrow$ Xem mùa vụ cá nhân $\\rightarrow$ Xem camera ô đất.",
+      "- **Đức**: Kiểm tra độ trễ kết nối Socket.IO khi mở nhiều tab cùng lúc trên trình duyệt.",
+      "- **Tuấn**: Thực hiện kiểm thử bước gửi yêu cầu chăm sóc và bấm nút thu hoạch nhận nông sản."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 12: Kiểm thử Hệ thống & Sửa lỗi (Testing & Bug Fixing)",
+    "day": "Ngày 57 (Thứ 3): Kiểm thử Tích hợp Luồng Vận hành (Staff & Admin Flow)",
+    "tasks": [
+      "- **Trọng**: Lập danh sách kịch bản kiểm thử cho luồng Nhân viên làm việc và Quản trị viên; điền báo cáo ngày 57.",
+      "- **Nghiệp**: Thực hiện Kiểm thử chức năng (Functional Testing), rà soát edge cases, ghi nhận bug log và tinh chỉnh code các chức năng Admin: Thêm/sửa ô đất, đổi giá thuê, khóa tài khoản người dùng.",
+      "- **Tuấn**: Thực hiện Kiểm thử chức năng (Functional Testing), rà soát edge cases, ghi nhận bug log và tinh chỉnh code giao diện Nhân viên: Tiếp nhận yêu cầu chăm sóc, đăng ảnh kết quả.",
+      "- **Đức**: Thực hiện Kiểm thử chức năng (Functional Testing), rà soát edge cases, ghi nhận bug log và tinh chỉnh code quy trình đăng bài nhật ký và phát thông báo tới khách hàng.",
+      "- **Tuấn**: Thực hiện Kiểm thử chức năng (Functional Testing), rà soát edge cases, ghi nhận bug log và tinh chỉnh code luồng xác nhận thu hoạch, cân sản lượng và bấm chuyển trạng thái giao hàng."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 12: Kiểm thử Hệ thống & Sửa lỗi (Testing & Bug Fixing)",
+    "day": "Ngày 58 (Thứ 4): Sửa các Lỗi Logic & Dữ liệu (Bug Fixing)",
+    "tasks": [
+      "- **Trọng**: Phân loại và gán các ticket lỗi phát hiện được cho từng thành viên giải quyết; điền báo cáo ngày 58.",
+      "- **Nghiệp**: Sửa lỗi hiển thị sai số tiền thanh toán khi chọn gói chăm sóc đi kèm.",
+      "- **Nghiệp**: Sửa lỗi thanh tiến độ sinh trưởng bị tràn khỏi khung giao diện trên màn hình điện thoại.",
+      "- **Đức**: Sửa lỗi kết nối Socket.IO bị ngắt quãng khi người dùng bấm tải lại (F5) trang xem camera.",
+      "- **Tuấn**: Sửa lỗi giao diện hiển thị sai trạng thái màu sắc ô đất sau khi hủy phiên giữ chỗ."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 12: Kiểm thử Hệ thống & Sửa lỗi (Testing & Bug Fixing)",
+    "day": "Ngày 59 (Thứ 5): Đánh giá Tiêu chuẩn Phi chức năng & Hiệu năng",
+    "tasks": [
+      "- **Trọng**: Kiểm tra thời gian phản hồi của các API chính, đảm bảo đạt yêu cầu dưới 1 giây (NFR-04); điền báo cáo ngày 59.",
+      "- **Nghiệp**: Thêm chỉ mục (Index) trên SQL Server cho các cột thường xuyên tìm kiếm (PlotId, RentalOrderId, Status).",
+      "- **Trọng**: Tối ưu hóa dung lượng build của ứng dụng Next.js, xóa bỏ các package không sử dụng. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Đức**: Tối ưu hóa cơ chế phục vụ video .mp4 giả lập camera để video phát ngay lập tức không bị chờ.",
+      "- **Tuấn**: Kiểm tra tính tương thích giao diện trên 3 trình duyệt phổ biến: Google Chrome, Apple Safari và Microsoft Edge."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 13: Chuẩn bị Dữ liệu Mẫu & Diễn tập Kịch bản Demo (Dry Run)",
+    "day": "Ngày 60 (Thứ 6): Nghiệm thu Đợt Kiểm thử Hệ thống",
+    "tasks": [
+      "- **Trọng**: Tổ chức họp tuần 12, tổng hợp bảng thống kê các lỗi đã sửa, gửi báo cáo chất lượng cho Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Chạy kiểm thử tự động toàn bộ ứng dụng, xác nhận hệ thống hoạt động ổn định và không còn lỗi nghiêm trọng."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 13: Chuẩn bị Dữ liệu Mẫu & Diễn tập Kịch bản Demo (Dry Run)",
+    "day": "Ngày 61 (Thứ 2): Chuẩn bị Bộ Dữ liệu Trình diễn Chuẩn (Demo Data)",
+    "tasks": [
+      "- **Trọng**: Lập kịch bản chi tiết cho buổi thuyết trình demo (từng bước thao tác, lời dẫn thuyết trình); điền báo cáo ngày 61.",
+      "- **Nghiệp**: Nạp dữ liệu vào SQL Server: Tạo sẵn 15 ô đất với đầy đủ 5 trạng thái đa dạng: Xanh (AVAILABLE), Vàng (RESERVED), Xám (RENTED), Nâu (FALLOWING - Đang nghỉ cải tạo đất), Đỏ (MAINTENANCE).",
+      "- **Đức**: Chuẩn bị sẵn bộ 10 tấm ảnh chụp rau thật sắc nét tương ứng với 10 mốc sinh trưởng của cây Xà lách xoong.",
+      "- **Đức**: Nạp sẵn 2 video mẫu chất lượng cao vào server: 1 video luống rau có gió thổi và 1 video mầm cây nảy mầm time-lapse.",
+      "- **Tuấn**: Tạo sẵn 3 tài khoản demo mẫu: Tài khoản Khách mới, Tài khoản Khách đã có vườn cây chín sẵn, Tài khoản Nhân viên nông trại."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 13: Chuẩn bị Dữ liệu Mẫu & Diễn tập Kịch bản Demo (Dry Run)",
+    "day": "Ngày 62 (Thứ 3): Tinh chỉnh UI/UX & Hiệu ứng Thị giác",
+    "tasks": [
+      "- **Trọng**: Rà soát lại toàn bộ giao diện theo chuẩn phong cách \"Modern Organic\" (nền kem, chữ sắc nét, card bo góc); điền báo cáo ngày 62.",
+      "- **Nghiệp**: Thay đổi các câu thông báo hệ thống thô cứng thành các câu thông báo nhẹ nhàng, thân thiện với người dùng.",
+      "- **Tuấn**: Bổ sung hiệu ứng chuyển động mượt mà (Skeleton loading khi tải dữ liệu trang Dashboard).",
+      "- **Đức**: Đảm bảo lớp phủ thời gian thực trên màn hình Live Camera nhảy đúng giờ hiện tại của máy tính người xem.",
+      "- **Tuấn**: Căn chỉnh khoảng cách lề, kích thước font chữ và độ tương phản màu sắc trên toàn bộ các trang web."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 13: Chuẩn bị Dữ liệu Mẫu & Diễn tập Kịch bản Demo (Dry Run)",
+    "day": "Ngày 63 (Thứ 4): Diễn tập Kịch bản Demo lần 1 (Dry Run 1)",
+    "tasks": [
+      "- **Trọng**: Điều phối buổi diễn tập demo nội bộ lần 1, bấm giờ theo dõi thời lượng thuyết trình; điền báo cáo ngày 63.",
+      "- **Nghiệp**: Đóng vai Khách hàng 1: Vào trang chủ $\\rightarrow$ Xem bản đồ ô đất $\\rightarrow$ Chọn giống rau $\\rightarrow$ Bấm thanh toán mô phỏng thành công.",
+      "- **Đức**: Trình chiếu Dashboard cá nhân: Xem thanh % cây lớn lên $\\rightarrow$ Mở tab xem Camera trực tiếp $\\rightarrow$ Xem nhật ký hành trình.",
+      "- **Đức**: Đóng vai Nhân viên kỹ thuật: Dùng màn hình Staff nhận lệnh tưới cây $\\rightarrow$ Đăng ảnh xác nhận hoàn thành.",
+      "- **Tuấn**: Đóng vai Khách hàng 2 (cây đã chín): Bấm nút \"Yêu cầu thu hoạch\" $\\rightarrow$ Nhập địa chỉ nhà $\\rightarrow$ Mở trang Admin xem doanh thu nhảy số."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 5: KIỂM THỬ, TỐI ƯU & CHUẨN BỊ KỊCH BẢN DEMO (TUẦN 12 – TUẦN 13)",
+    "week": "TUẦN 13: Chuẩn bị Dữ liệu Mẫu & Diễn tập Kịch bản Demo (Dry Run)",
+    "day": "Ngày 64 (Thứ 5): Khắc phục Điểm vấp & Hoàn thiện Thao tác",
+    "tasks": [
+      "- **Trọng**: Ghi chú các điểm thao tác chưa mượt trong buổi diễn tập lần 1; điền báo cáo ngày 64.",
+      "- **Cả 4 thành viên**: Tinh chỉnh code xử lý ngay các thao tác bấm chậm, bổ sung nút bấm chuyển nhanh tài khoản để người thuyết trình không mất thời gian gõ lại mật khẩu khi demo."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 6: HOÀN THIỆN TÀI LIỆU, BÁO CÁO & NGHIỆM THU (TUẦN 14)",
+    "week": "TUẦN 14: Đóng gói Sản phẩm & Bảo vệ Đồ án Thực tập",
+    "day": "Ngày 65 (Thứ 6): Diễn tập Kịch bản Demo lần 2 (Dry Run 2) & Đóng gói Mã nguồn",
+    "tasks": [
+      "- **Trọng**: Tổ chức diễn tập kịch bản demo lần 2, ghi nhận thời gian thuyết trình chuẩn xác trong 15 phút, gửi báo cáo tuần cho Mentor. Cập nhật bảng WBS tiến độ và điền báo cáo ngày.",
+      "- **Cả nhóm**: Đóng gói toàn bộ mã nguồn lên nhánh chính main/release trên GitHub, tạo file hướng dẫn chạy dự án (README.md)."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 6: HOÀN THIỆN TÀI LIỆU, BÁO CÁO & NGHIỆM THU (TUẦN 14)",
+    "week": "TUẦN 14: Đóng gói Sản phẩm & Bảo vệ Đồ án Thực tập",
+    "day": "Ngày 66 (Thứ 2): Soạn thảo Báo cáo Thực tập Tổng kết (Chương 1 & 2)",
+    "tasks": [
+      "- **Trọng**: Viết Lời mở đầu, Lý do chọn đề tài, Kiến trúc tổng thể hệ thống (Next.js - Express - SQL Server), 13 quy tắc nghiệp vụ trọng yếu (BR-01 đến BR-13) và cơ chế xử lý rủi ro nông nghiệp trong file Báo cáo; điền báo cáo ngày 66.",
+      "- **Nghiệp**: Viết nội dung mô tả chi tiết chức năng Khám phá nông trại, Bản đồ ô đất và luồng Thanh toán kèm hình ảnh minh họa.",
+      "- **Nghiệp**: Viết nội dung mô tả phân hệ Vụ trồng, Dòng đời sinh trưởng của cây và Nhật ký canh tác số.",
+      "- **Đức**: Viết nội dung mô tả giải pháp Stream Camera giả lập, Realtime Socket.IO và Widget mô phỏng cảm biến môi trường.",
+      "- **Tuấn**: Viết nội dung mô tả quy trình Thu hoạch, Quản lý giao vận nội bộ và phân hệ Báo cáo quản trị Admin."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 6: HOÀN THIỆN TÀI LIỆU, BÁO CÁO & NGHIỆM THU (TUẦN 14)",
+    "week": "TUẦN 14: Đóng gói Sản phẩm & Bảo vệ Đồ án Thực tập",
+    "day": "Ngày 67 (Thứ 3): Thiết kế Slide Thuyết trình & Quay Video Demo Dự phòng",
+    "tasks": [
+      "- **Trọng**: Thiết kế bộ Slide thuyết trình bảo vệ dự án (15 slide: Đặt vấn đề, Giải pháp PlotFarm, Kiến trúc công nghệ, Demo các tính năng chính, Kết luận); điền báo cáo ngày 67.",
+      "- **Nghiệp**: Chụp ảnh các màn hình giao diện đẹp nhất (UI Mockup) của phân hệ Đặt thuê ô đất & Vụ trồng, biên tập hình ảnh đưa vào các trang slide thuyết trình.",
+      "- **Đức**: Quay & Biên tập một video Demo sản phẩm chất lượng cao thời lượng 3–5 phút (quay luồng xem camera trực tiếp, nhật ký canh tác realtime) để làm phương án dự phòng khi đường truyền mạng có sự cố.",
+      "- **Tuấn**: Quay & Biên tập phần video Demo các phân hệ Yêu cầu chăm sóc, Đăng ký thu hoạch, Timeline giao hàng và Báo cáo Admin; ghép nối thành video demo tổng thể 14 tuần."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 6: HOÀN THIỆN TÀI LIỆU, BÁO CÁO & NGHIỆM THU (TUẦN 14)",
+    "week": "TUẦN 14: Đóng gói Sản phẩm & Bảo vệ Đồ án Thực tập",
+    "day": "Ngày 68 (Thứ 4): Hoàn thiện Quyển Báo cáo Thực tập",
+    "tasks": [
+      "- **Trọng**: Tổng hợp các phần viết của thành viên thành 1 tài liệu Báo cáo thực tập hoàn chỉnh, kiểm tra chính tả, định dạng mục lục và xuất bản file PDF; điền báo cáo ngày 68.",
+      "- **Cả 4 thành viên**: Tải video demo lên Google Drive/YouTube, cập nhật link video và link repo GitHub vào tài liệu báo cáo."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 6: HOÀN THIỆN TÀI LIỆU, BÁO CÁO & NGHIỆM THU (TUẦN 14)",
+    "week": "TUẦN 14: Đóng gói Sản phẩm & Bảo vệ Đồ án Thực tập",
+    "day": "Ngày 69 (Thứ 5): Tổng duyệt Thuyết trình (Final Rehearsal)",
+    "tasks": [
+      "- **Trọng**: Phân công lời thoại và thời gian nói cho từng thành viên: Trọng mở đầu và kết luận, 4 thành viên thuyết minh trực tiếp trên màn hình theo đúng module mình phụ trách; điền báo cáo ngày 69.",
+      "- **Cả nhóm**: Kiểm tra lại máy tính thuyết trình, sạc pin, chuột, cấu hình chạy server local sẵn sàng, chuẩn bị tâm lý tự tin cho buổi nghiệm thu chính thức."
+    ]
+  },
+  {
+    "phase": "GIAI ĐOẠN 6: HOÀN THIỆN TÀI LIỆU, BÁO CÁO & NGHIỆM THU (TUẦN 14)",
+    "week": "TUẦN 14: Đóng gói Sản phẩm & Bảo vệ Đồ án Thực tập",
+    "day": "Ngày 70 (Thứ 6): BÁO CÁO BẢO VỆ DỰ ÁN TRƯỚC HỘI ĐỒNG & MENTOR",
+    "tasks": [
+      "- **Cả nhóm**: Thuyết trình slide, thực hiện trình diễn trực tiếp ứng dụng Demo PlotFarm và trả lời các câu hỏi phản biện của Mentor/Hội đồng.",
+      "- **Trọng**: Cập nhật dòng kết quả nghiệm thu cuối cùng vào sheet Theo dõi tiến độ trong file Bảng theo dõi tiến độ.xlsx, lưu trữ toàn bộ hồ sơ dự án và chính thức hoàn thành xuất sắc kỳ thực tập 14 tuần!. Cập nhật bảng WBS tiến độ và điền báo cáo ngày."
+    ]
+  }
+]
