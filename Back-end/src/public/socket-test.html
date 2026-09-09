@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlotFarm - Socket.IO Realtime & Ping-Pong Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0B0F17;
+      --bg-card: #131B2A;
+      --bg-card-hover: #192438;
+      --bg-input: #0E1624;
+      --border-color: #1E2D45;
+      --primary: #10B981;
+      --primary-hover: #059669;
+      --primary-glow: rgba(16, 185, 129, 0.25);
+      --accent: #3B82F6;
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    /* Header */
+    header {
+      background: rgba(19, 27, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #10B981 0%, #047857 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+
+    .brand h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #FFFFFF, #94A3B8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand .subtitle {
+      font-size: 0.8rem;
+      color: var(--primary);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .connection-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 1rem;
+      border-radius: 9999px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 10px var(--danger);
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.connected {
+      background: var(--primary);
+      box-shadow: 0 0 12px var(--primary);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connecting {
+      background: var(--warning);
+      box-shadow: 0 0 12px var(--warning);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.15); }
+    }
+
+    /* Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 1.5rem;
+      flex: 1;
+    }
+
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    /* Stat Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .stat-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--primary);
+    }
+
+    /* Form Controls */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #032514;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+    .btn-accent:hover {
+      background: #2563EB;
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+    }
+    .btn-outline:hover {
+      background: var(--bg-input);
+      color: var(--text-main);
+      border-color: var(--text-muted);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171;
+    }
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #FFFFFF;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .input-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .input-field {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 0.6rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: var(--primary);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .input-row .input-field {
+      flex: 1;
+    }
+
+    /* Toggle Switch */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: var(--text-muted);
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+      background-color: #032514;
+    }
+
+    /* Terminal / Console */
+    .terminal-container {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 480px;
+    }
+
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0D131F;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+      padding: 0.75rem 1rem;
+    }
+
+    .terminal-title {
+      font-size: 0.85rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .window-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .window-dot.red { background: #EF4444; }
+    .window-dot.yellow { background: #F59E0B; }
+    .window-dot.green { background: #10B981; }
+
+    .terminal-body {
+      background: #090E17;
+      border: 1px solid var(--border-color);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      flex: 1;
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      overflow-y: auto;
+      max-height: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .log-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      line-height: 1.4;
+      animation: fadeIn 0.15s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(2px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-time {
+      color: #64748B;
+      flex-shrink: 0;
+    }
+
+    .log-tag {
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .log-tag.connect { background: rgba(16, 185, 129, 0.2); color: #34D399; }
+    .log-tag.disconnect { background: rgba(239, 68, 68, 0.2); color: #F87171; }
+    .log-tag.ping { background: rgba(59, 130, 246, 0.2); color: #60A5FA; }
+    .log-tag.pong { background: rgba(16, 185, 129, 0.25); color: #10B981; }
+    .log-tag.echo { background: rgba(168, 85, 247, 0.2); color: #C084FC; }
+    .log-tag.room { background: rgba(245, 158, 11, 0.2); color: #FBBF24; }
+    .log-tag.error { background: rgba(239, 68, 68, 0.25); color: #EF4444; }
+
+    .log-content {
+      color: #E2E8F0;
+      word-break: break-all;
+    }
+
+    .log-content pre {
+      background: #111827;
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+      margin-top: 0.25rem;
+      font-size: 0.76rem;
+      border: 1px solid #1E293B;
+    }
+
+    /* Active Rooms Tags */
+    .rooms-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .room-chip {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .room-chip .remove-room {
+      cursor: pointer;
+      color: var(--danger);
+      font-weight: bold;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+  <!-- Socket.IO Client Library (served automatically by Socket.IO server or CDN fallback) -->
+  <script src="/socket.io/socket.io.js" onerror="this.onerror=null;this.src='https://cdn.socket.io/4.7.5/socket.io.min.js'"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-icon">🌱</div>
+      <div>
+        <h1>PlotFarm Realtime Gateway</h1>
+        <div class="subtitle">Socket.IO & Ping-Pong Diagnostics</div>
+      </div>
+    </div>
+
+    <div class="connection-badge">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Disconnected</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container">
+    <!-- Sidebar Controls -->
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+
+      <!-- Server & Client Info -->
+      <div class="card">
+        <div class="card-title">📡 Trạng thái Kết nối</div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">Socket ID</span>
+            <span class="stat-value" id="statSocketId" style="font-size: 0.9rem; word-break: break-all;">--</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Latency (RTT)</span>
+            <span class="stat-value" id="statLatency">-- ms</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Pings Gửi</span>
+            <span class="stat-value" id="statPingSent">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Pongs Nhận</span>
+            <span class="stat-value" id="statPongRecv">0</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button class="btn btn-outline" id="btnConnect" style="flex: 1;" onclick="connectSocket()">Kết nối lại</button>
+          <button class="btn btn-danger" id="btnDisconnect" style="flex: 1;" onclick="disconnectSocket()">Ngắt kết nối</button>
+        </div>
+      </div>
+
+      <!-- Ping-Pong Test Card -->
+      <div class="card">
+        <div class="card-title">⚡ Ping-Pong Benchmark</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          Gửi gói tin ping đến backend, server xử lý và phản hồi pong để đo chính xác thời gian khứ hồi (RTT).
+        </p>
+
+        <button class="btn btn-primary" id="btnPing" onclick="sendPing()">
+          🚀 Gửi Ping ngay
+        </button>
+
+        <div class="toggle-wrap">
+          <span style="font-size: 0.85rem; font-weight: 500;">Tự động Ping (mỗi 2s)</span>
+          <label class="switch">
+            <input type="checkbox" id="toggleAutoPing" onchange="toggleAutoPing(this.checked)">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Echo Test Card -->
+      <div class="card">
+        <div class="card-title">🔁 Echo Test Payload</div>
+        <div class="input-group">
+          <label class="input-label">Payload tin nhắn</label>
+          <div class="input-row">
+            <input type="text" class="input-field" id="echoInput" placeholder="Nhập tin nhắn test..." value="Hello PlotFarm!">
+            <button class="btn btn-accent" onclick="sendEcho()">Echo</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Room Subscriptions -->
+      <div class="card">
+        <div class="card-title">🏡 Quản lý Room (Mảnh đất / Nông trại)</div>
+        <div class="input-group">
+          <label class="input-label">Tên Room</label>
+          <div class="input-row">
+            <input type="text" class="input-field" id="roomInput" placeholder="VD: plot:101, farm:area:2" value="plot:101">
+            <button class="btn btn-outline" onclick="joinRoom()">Tham gia</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="input-label" style="margin-bottom: 0.35rem;">Các room đang tham gia:</div>
+          <div class="rooms-list" id="roomsList">
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Chưa tham gia room nào</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main Terminal Console -->
+    <div class="terminal-container">
+      <div class="terminal-header">
+        <div class="terminal-title">
+          <div class="window-dots">
+            <span class="window-dot red"></span>
+            <span class="window-dot yellow"></span>
+            <span class="window-dot green"></span>
+          </div>
+          <span>realtime-event-console.log</span>
+        </div>
+        <div>
+          <button class="btn btn-outline" style="padding: 0.3rem 0.75rem; font-size: 0.75rem;" onclick="clearConsole()">
+            🗑️ Xóa Log
+          </button>
+        </div>
+      </div>
+
+      <div class="terminal-body" id="terminalLogs">
+        <!-- Logs appear here dynamically -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <span>PlotFarm Smart Agriculture Platform © 2026</span>
+    <span>Socket.IO v4.7.5 • <a href="/api/docs">Swagger UI Docs</a> • <a href="/api/health">Health Check</a></span>
+  </footer>
+
+  <!-- Client Script -->
+  <script>
+    let socket = null;
+    let autoPingInterval = null;
+    let pingSentCount = 0;
+    let pongRecvCount = 0;
+    const activeRooms = new Set();
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const statSocketId = document.getElementById('statSocketId');
+    const statLatency = document.getElementById('statLatency');
+    const statPingSent = document.getElementById('statPingSent');
+    const statPongRecv = document.getElementById('statPongRecv');
+    const terminalLogs = document.getElementById('terminalLogs');
+    const roomsList = document.getElementById('roomsList');
+
+    function formatTime() {
+      const now = new Date();
+      return now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+    }
+
+    function appendLog(type, message, details = null) {
+      const logItem = document.createElement('div');
+      logItem.className = 'log-item';
+
+      let detailsHtml = '';
+      if (details) {
+        detailsHtml = `<pre>${typeof details === 'object' ? JSON.stringify(details, null, 2) : details}</pre>`;
+      }
+
+      logItem.innerHTML = `
+        <span class="log-time">[${formatTime()}]</span>
+        <span class="log-tag ${type}">${type}</span>
+        <div class="log-content">
+          ${message}
+          ${detailsHtml}
+        </div>
+      `;
+
+      terminalLogs.appendChild(logItem);
+      terminalLogs.scrollTop = terminalLogs.scrollHeight;
+    }
+
+    function clearConsole() {
+      terminalLogs.innerHTML = '';
+      appendLog('connect', 'Nhật ký đã được xóa.');
+    }
+
+    function updateConnectionState(state, socketId = '--') {
+      if (state === 'connected') {
+        statusDot.className = 'status-dot connected';
+        statusText.textContent = 'Đã kết nối';
+        statSocketId.textContent = socketId;
+        statSocketId.title = socketId;
+      } else if (state === 'connecting') {
+        statusDot.className = 'status-dot connecting';
+        statusText.textContent = 'Đang kết nối...';
+        statSocketId.textContent = '--';
+      } else {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Đã ngắt';
+        statSocketId.textContent = '--';
+      }
+    }
+
+    function connectSocket() {
+      if (socket && socket.connected) {
+        appendLog('connect', 'Socket đã ở trạng thái kết nối.');
+        return;
+      }
+
+      updateConnectionState('connecting');
+      appendLog('connect', 'Đang thiết lập kết nối Socket.IO tới ' + window.location.origin + '...');
+
+      // Connect to same origin
+      socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      socket.on('connect', () => {
+        updateConnectionState('connected', socket.id);
+        appendLog('connect', `Kết nối thành công! ID: ${socket.id}`);
+      });
+
+      socket.on('welcome', (data) => {
+        appendLog('connect', `Server Handshake: ${data.message}`, data);
+      });
+
+      socket.on('pong', (data) => {
+        pongRecvCount++;
+        statPongRecv.textContent = pongRecvCount;
+
+        const clientTime = data.clientTime;
+        if (clientTime) {
+          const rtt = Date.now() - clientTime;
+          statLatency.textContent = `${rtt} ms`;
+          appendLog('pong', `Nhận Pong! Độ trễ RTT: <strong>${rtt} ms</strong>`, data);
+        } else {
+          appendLog('pong', `Nhận Pong từ server`, data);
+        }
+      });
+
+      socket.on('echo_reply', (data) => {
+        appendLog('echo', `Phản hồi Echo từ server:`, data);
+      });
+
+      socket.on('room_joined', (data) => {
+        activeRooms.add(data.room);
+        renderRooms();
+        appendLog('room', `Đã tham gia room [${data.room}]`, data);
+      });
+
+      socket.on('room_left', (data) => {
+        activeRooms.delete(data.room);
+        renderRooms();
+        appendLog('room', `Đã rời khỏi room [${data.room}]`, data);
+      });
+
+      socket.on('disconnect', (reason) => {
+        updateConnectionState('disconnected');
+        appendLog('disconnect', `Mất kết nối với server. Lý do: ${reason}`);
+      });
+
+      socket.on('connect_error', (error) => {
+        updateConnectionState('disconnected');
+        appendLog('error', `Lỗi kết nối: ${error.message}`);
+      });
+    }
+
+    function disconnectSocket() {
+      if (socket) {
+        socket.disconnect();
+        updateConnectionState('disconnected');
+        appendLog('disconnect', 'Người dùng chủ động ngắt kết nối.');
+      }
+    }
+
+    function sendPing() {
+      if (!socket || !socket.connected) {
+        appendLog('error', 'Chưa kết nối đến server. Vui lòng kết nối trước!');
+        return;
+      }
+
+      const sendTime = Date.now();
+      pingSentCount++;
+      statPingSent.textContent = pingSentCount;
+
+      appendLog('ping', `Gửi Ping lúc ${new Date(sendTime).toISOString()}...`);
+
+      socket.emit('ping', {
+        clientTime: sendTime,
+        message: 'PlotFarm Ping Test from Web Console',
+      });
+    }
+
+    function toggleAutoPing(enabled) {
+      if (enabled) {
+        if (autoPingInterval) clearInterval(autoPingInterval);
+        appendLog('ping', 'Đã bật chế độ Tự động Ping mỗi 2 giây.');
+        sendPing();
+        autoPingInterval = setInterval(() => {
+          if (socket && socket.connected) {
+            sendPing();
+          }
+        }, 2000);
+      } else {
+        if (autoPingInterval) {
+          clearInterval(autoPingInterval);
+          autoPingInterval = null;
+        }
+        appendLog('ping', 'Đã tắt chế độ Tự động Ping.');
+      }
+    }
+
+    function sendEcho() {
+      if (!socket || !socket.connected) {
+        appendLog('error', 'Chưa kết nối đến server.');
+        return;
+      }
+
+      const text = document.getElementById('echoInput').value || 'Hello';
+      appendLog('echo', `Gửi Echo: "${text}"`);
+      socket.emit('echo', { message: text, timestamp: Date.now() });
+    }
+
+    function joinRoom() {
+      if (!socket || !socket.connected) {
+        appendLog('error', 'Chưa kết nối đến server.');
+        return;
+      }
+
+      const room = document.getElementById('roomInput').value.trim();
+      if (!room) return;
+
+      appendLog('room', `Yêu cầu tham gia room: ${room}...`);
+      socket.emit('join_room', room);
+    }
+
+    function leaveRoom(room) {
+      if (!socket || !socket.connected) return;
+      appendLog('room', `Yêu cầu rời khỏi room: ${room}...`);
+      socket.emit('leave_room', room);
+    }
+
+    function renderRooms() {
+      if (activeRooms.size === 0) {
+        roomsList.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Chưa tham gia room nào</span>';
+        return;
+      }
+
+      roomsList.innerHTML = '';
+      activeRooms.forEach(room => {
+        const chip = document.createElement('div');
+        chip.className = 'room-chip';
+        chip.innerHTML = `
+          <span>🏷️ ${room}</span>
+          <span class="remove-room" title="Rời room" onclick="leaveRoom('${room}')">×</span>
+        `;
+        roomsList.appendChild(chip);
+      });
+    }
+
+    // Auto connect on load
+    window.addEventListener('DOMContentLoaded', () => {
+      connectSocket();
+    });
+  </script>
+</body>
+</html>
