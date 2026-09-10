@@ -2,9 +2,11 @@
  * @file socketMiddleware.js
  * @description Middleware giải mã token JWT cho các kết nối Socket.IO
  * Định danh client kết nối (userId, role, email) và hỗ trợ phân quyền Role-based realtime.
+ * Tích hợp với authMiddleware.js (Express RBAC) để dùng chung định nghĩa ROLES.
  */
 
 const { verifyToken } = require('../utils/jwtHelper');
+const { ROLES } = require('./authMiddleware');
 
 /**
  * Trích xuất JWT token từ handshake của Socket.IO
@@ -103,6 +105,7 @@ const socketAuthMiddleware = (options = { strict: false }) => {
 
 /**
  * Helper kiểm tra vai trò (Role) của socket client trước khi thực hiện hành động.
+ * Nhất quán với checkRole() trong authMiddleware: so khớp KHÔNG phân biệt chữ hoa/thường.
  *
  * @param {import('socket.io').Socket} socket
  * @param {string[]} allowedRoles - Danh sách các role được phép (VD: ['Admin', 'Staff'])
@@ -112,11 +115,14 @@ const checkSocketRole = (socket, allowedRoles = []) => {
   if (!socket.user || socket.user.isAnonymous) {
     return false;
   }
-  return allowedRoles.includes(socket.user.role);
+  const userRole = String(socket.user.role || '').trim().toUpperCase();
+  const normalizedAllowed = allowedRoles.map((r) => String(r).trim().toUpperCase());
+  return normalizedAllowed.includes(userRole);
 };
 
 module.exports = {
   extractTokenFromHandshake,
   socketAuthMiddleware,
   checkSocketRole,
+  ROLES, // Re-export để các file khác dùng chung
 };
