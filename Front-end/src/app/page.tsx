@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 
 import React, { useState } from 'react';
 import {
@@ -11,6 +12,7 @@ import {
   Lock,
   Mail,
   UserCheck,
+  UserPlus,
   LogOut,
   Code2,
   LayoutGrid,
@@ -94,7 +96,16 @@ export default function Home() {
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
-            {/* Auth User Profile Indicator / Login link */}
+            {/* Register Button in Navbar */}
+            {!isAuthenticated && (
+              <Link href="/register">
+                <Button variant="outline" size="sm" leftIcon={<UserPlus className="w-3.5 h-3.5" />}>
+                  Đăng Ký
+                </Button>
+              </Link>
+            )}
+
+            {/* Auth User Profile Indicator */}
             {isAuthenticated ? (
               <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800">
                 <div className="text-right">
@@ -142,6 +153,11 @@ export default function Home() {
                   Swagger API Docs (Cổng 5000)
                 </Button>
               </a>
+              <Link href="/register">
+                <Button variant="outline" className="bg-white/10 hover:bg-white/20 border-white/30 text-white" leftIcon={<UserPlus className="w-4 h-4" />}>
+                  Đăng Ký Tài Khoản (Ngày 6)
+                </Button>
+              </Link>
               <a href="http://localhost:5000/socket-test" target="_blank" rel="noreferrer">
                 <Button variant="outline" leftIcon={<Activity className="w-4 h-4" />}>
                   Kiểm thử Socket.IO Realtime
