@@ -30,8 +30,8 @@ const config: Config = {
         }
       },
       animation: {
-        'fade-in': 'fadeIn 0.2s ease-in-out forward',
-        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forward',
+        'fade-in': 'fadeIn 0.2s ease-in-out forwards',
+        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {

@@ -310,11 +310,11 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs overflow-x-auto leading-relaxed border border-slate-800">
-                  <p className="text-emerald-400 font-bold mb-2">// REST API Payload Response:</p>
+                  <p className="text-emerald-400 font-bold mb-2">{'// REST API Payload Response:'}</p>
                   {isAuthenticated ? (
                     <pre className="whitespace-pre-wrap">{JSON.stringify(user, null, 2)}</pre>
                   ) : (
-                    <p className="text-slate-500">// Chưa đăng nhập. Hãy nhập Email & Mật khẩu để gọi API thật.</p>
+                    <p className="text-slate-500">{'// Chưa đăng nhập. Hãy nhập Email & Mật khẩu để gọi API thật.'}</p>
                   )}
                 </div>
               </CardContent>
