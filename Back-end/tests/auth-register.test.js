@@ -61,7 +61,7 @@ const useDatabase = (t, options = {}) => {
           }
           if (query.includes('SELECT RoleId')) {
             assert.equal(params.RoleName, 'Customer');
-            return { recordset: options.missingRole ? [] : [{ RoleId: 7 }] };
+            return { recordset: options.missingRole ? [] : [{ RoleId: 7, RoleName: 'Customer' }] };
           }
           assert.match(query, /INSERT INTO Users/);
           assert.equal(params.RoleId, 7, 'must use the Customer role from SQL, not a hardcoded/client role');
@@ -101,13 +101,24 @@ test('creates a Customer, normalizes input, hashes password and returns the stan
     PasswordHash: 'client-controlled-hash',
   });
   assert.equal(status, 201);
-  assert.deepEqual(body.data, {
+  assert.deepEqual(body.data.user, {
     userId: 1,
     fullName: validInput.fullName,
     email: validInput.email,
+    roleId: 7,
     role: 'Customer',
     createdAt: '2026-09-10T00:00:00.000Z',
   });
+  assert.equal(typeof body.data.token, 'string');
+  const sessionResponse = await fetch(`${baseUrl}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${body.data.token}` },
+  });
+  assert.equal(sessionResponse.status, 200, 'registration JWT must authenticate with the API');
+  const session = (await sessionResponse.json()).data;
+  assert.equal(session.userId, body.data.user.userId);
+  assert.equal(session.email, validInput.email);
+  assert.equal(session.role, 'Customer');
+  assert.ok(session.exp > session.iat);
   const insert = database.calls.find(({ query }) => query.includes('INSERT INTO Users'));
   assert.equal(insert.params.PhoneNumber, '+84901234567');
   assert.match(insert.query, /'ACTIVE'/);

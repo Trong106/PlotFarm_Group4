@@ -29,12 +29,20 @@ const swaggerOptions = {
             message: { type: 'string', example: 'Đăng ký tài khoản thành công' },
             data: {
               type: 'object',
+              required: ['token', 'user'],
               properties: {
-                userId: { type: 'integer', example: 1 },
-                fullName: { type: 'string', example: 'Nguyễn Văn An' },
-                email: { type: 'string', format: 'email', example: 'an@example.com' },
-                role: { type: 'string', enum: ['Customer'] },
-                createdAt: { type: 'string', format: 'date-time' },
+                token: { type: 'string', description: 'Signed JWT for the new Customer account' },
+                user: {
+                  type: 'object',
+                  properties: {
+                    userId: { type: 'integer', example: 1 },
+                    fullName: { type: 'string', example: 'Nguyễn Văn An' },
+                    email: { type: 'string', format: 'email', example: 'an@example.com' },
+                    roleId: { type: 'integer', example: 7 },
+                    role: { type: 'string', enum: ['Customer'] },
+                    createdAt: { type: 'string', format: 'date-time' },
+                  },
+                },
               },
             },
             timestamp: { type: 'string', format: 'date-time' },

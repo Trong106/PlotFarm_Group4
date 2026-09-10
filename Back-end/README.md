@@ -85,11 +85,15 @@ Thành công (`201 Created`):
   "statusCode": 201,
   "message": "Đăng ký tài khoản thành công",
   "data": {
-    "userId": 1,
-    "fullName": "Nguyễn Văn An",
-    "email": "an@example.com",
-    "role": "Customer",
-    "createdAt": "2026-09-10T00:00:00.000Z"
+    "token": "<JWT của tài khoản vừa đăng ký>",
+    "user": {
+      "userId": 1,
+      "fullName": "Nguyễn Văn An",
+      "email": "an@example.com",
+      "roleId": 7,
+      "role": "Customer",
+      "createdAt": "2026-09-10T00:00:00.000Z"
+    }
   },
   "timestamp": "2026-09-10T00:00:00.000Z"
 }
