@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const { socketAuthMiddleware, checkSocketRole } = require('../middlewares/socketMiddleware');
 
 let io = null;
 
@@ -38,16 +39,75 @@ const initSocket = (server, app = null) => {
     app.set('io', io);
   }
 
+  // Đăng ký Middleware giải mã JWT Token cho mọi kết nối Socket.IO
+  io.use(socketAuthMiddleware({ strict: false }));
+
   // Socket Connection Handlers
   io.on('connection', (socket) => {
     const clientIp = socket.handshake.address;
-    console.log(`[Socket.IO] Client connected: ${socket.id} from ${clientIp}`);
+    const user = socket.user || { isAnonymous: true, role: 'Guest' };
 
-    // Welcome handshake event
+    console.log(
+      `[Socket.IO] Client kết nối: ${socket.id} (IP: ${clientIp}) | Người dùng: ${
+        user.isAnonymous ? 'Guest' : `#${user.userId} - ${user.fullName || user.email} [${user.role}]`
+      }`
+    );
+
+    // Tự động phân luồng vào room theo User ID và Role nếu đã định danh
+    if (!user.isAnonymous && user.userId) {
+      socket.join(`user:${user.userId}`);
+      socket.join(`role:${user.role}`);
+      console.log(`[Socket.IO] ${socket.id} tự động vào room [user:${user.userId}] và [role:${user.role}]`);
+    }
+
+    // Gửi sự kiện welcome kèm định danh người dùng
     socket.emit('welcome', {
       message: 'Connected to PlotFarm Realtime Gateway',
       socketId: socket.id,
+      user,
       serverTime: new Date().toISOString(),
+    });
+
+    /**
+     * Sự kiện định danh: Kiểm tra thông tin user hiện tại của socket
+     */
+    socket.on('whoami', (callback) => {
+      const response = {
+        socketId: socket.id,
+        user: socket.user,
+        serverTime: new Date().toISOString(),
+      };
+      socket.emit('whoami_response', response);
+      if (typeof callback === 'function') callback(response);
+    });
+
+    /**
+     * Sự kiện Role-based: Thao tác yêu cầu quyền quản trị (Admin/Staff)
+     */
+    socket.on('admin_action', (data, callback) => {
+      const isAllowed = checkSocketRole(socket, ['Admin', 'Staff']);
+      if (!isAllowed) {
+        const response = {
+          success: false,
+          statusCode: 403,
+          message: 'Từ chối truy cập: Hành động này yêu cầu quyền Admin hoặc Staff.',
+          user: socket.user,
+        };
+        socket.emit('admin_action_result', response);
+        if (typeof callback === 'function') callback(response);
+        return;
+      }
+
+      const response = {
+        success: true,
+        statusCode: 200,
+        message: `Xác thực quyền [${socket.user.role}] thành công! Thực thi tác vụ quản trị realtime.`,
+        executedBy: socket.user,
+        data,
+        timestamp: new Date().toISOString(),
+      };
+      socket.emit('admin_action_result', response);
+      if (typeof callback === 'function') callback(response);
     });
 
     /**

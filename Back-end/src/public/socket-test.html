@@ -554,6 +554,42 @@
         </div>
       </div>
 
+      <!-- JWT Authentication & Role-Based Card -->
+      <div class="card" style="border-color: rgba(59, 130, 246, 0.4);">
+        <div class="card-title" style="color: #60A5FA;">🔐 JWT Auth & Phân Quyền Role</div>
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+          Định danh Client qua JWT handshake middleware. Giải mã userId, role và tự động gia nhập rooms.
+        </p>
+
+        <div class="input-group">
+          <label class="input-label">JWT Token (Bearer hoặc raw)</label>
+          <input type="text" class="input-field" id="jwtTokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." style="font-family: var(--font-mono); font-size: 0.75rem;">
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;">
+          <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="loadTokenFromStorage()">📥 Lấy từ Storage</button>
+          <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="clearTokenInput()">❌ Xóa Token</button>
+        </div>
+
+        <!-- User Identity Box -->
+        <div id="userIdentityBox" style="margin-top: 0.75rem; padding: 0.65rem; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border-color); font-size: 0.78rem;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+            <span style="color: var(--text-muted);">Định danh:</span>
+            <span id="userRoleBadge" style="padding: 0.15rem 0.5rem; border-radius: 999px; background: #374151; color: #9CA3AF; font-weight: 700; font-size: 0.7rem;">GUEST</span>
+          </div>
+          <div style="color: var(--text-main); font-weight: 600;" id="userProfileText">Chưa xác thực (Khách vãng lai)</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.75rem;">
+          <button class="btn btn-accent" style="width: 100%; font-size: 0.8rem;" onclick="testWhoAmI()">
+            🔍 Kiểm tra Định Danh (whoami)
+          </button>
+          <button class="btn" style="width: 100%; font-size: 0.8rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #FBBF24;" onclick="testAdminAction()">
+            🛡️ Thử Hành Động Quản Trị (Admin/Staff Only)
+          </button>
+        </div>
+      </div>
+
       <!-- Ping-Pong Test Card -->
       <div class="card">
         <div class="card-title">⚡ Ping-Pong Benchmark</div>
@@ -704,21 +740,63 @@
       }
     }
 
+    function loadTokenFromStorage() {
+      const stored = localStorage.getItem('token');
+      if (stored) {
+        document.getElementById('jwtTokenInput').value = stored;
+        appendLog('connect', 'Đã tải JWT Token từ LocalStorage.');
+      } else {
+        appendLog('error', 'Không tìm thấy "token" trong LocalStorage. Hãy đăng nhập trước hoặc dán token thủ công.');
+      }
+    }
+
+    function clearTokenInput() {
+      document.getElementById('jwtTokenInput').value = '';
+      updateUserIdentityUI({ isAnonymous: true, role: 'Guest' });
+      appendLog('connect', 'Đã xóa trường Token. Lần kết nối tới sẽ là khách vãng lai (Guest).');
+    }
+
+    function updateUserIdentityUI(user) {
+      const userRoleBadge = document.getElementById('userRoleBadge');
+      const userProfileText = document.getElementById('userProfileText');
+
+      if (!user || user.isAnonymous) {
+        userRoleBadge.textContent = 'GUEST';
+        userRoleBadge.style.background = '#374151';
+        userRoleBadge.style.color = '#9CA3AF';
+        userProfileText.textContent = 'Chưa xác thực (Khách vãng lai)';
+      } else {
+        userRoleBadge.textContent = (user.role || 'USER').toUpperCase();
+        if (user.role === 'Admin') {
+          userRoleBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          userRoleBadge.style.color = '#F87171';
+        } else if (user.role === 'Staff') {
+          userRoleBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+          userRoleBadge.style.color = '#FBBF24';
+        } else {
+          userRoleBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+          userRoleBadge.style.color = '#34D399';
+        }
+        userProfileText.innerHTML = `<strong>#${user.userId}</strong> - ${user.fullName || user.email || 'Người dùng'} <span style="font-size: 0.72rem; color: var(--text-muted);">(${user.email || ''})</span>`;
+      }
+    }
+
     function connectSocket() {
       if (socket && socket.connected) {
-        appendLog('connect', 'Socket đã ở trạng thái kết nối.');
-        return;
+        appendLog('connect', 'Đang ngắt kết nối cũ để thiết lập kết nối mới...');
+        socket.disconnect();
       }
 
-      updateConnectionState('connecting');
-      appendLog('connect', 'Đang thiết lập kết nối Socket.IO tới ' + window.location.origin + '...');
+      const token = document.getElementById('jwtTokenInput').value.trim();
 
-      // Connect to same origin
+      updateConnectionState('connecting');
+      appendLog('connect', 'Đang thiết lập kết nối Socket.IO tới ' + window.location.origin + (token ? ' [Đính kèm JWT Token]' : ' [Không đính kèm Token - Khách]') + '...');
+
+      // Connect with JWT auth token in handshake
       socket = io({
+        auth: { token: token || undefined },
         transports: ['websocket', 'polling'],
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
+        reconnection: false,
       });
 
       socket.on('connect', () => {
@@ -728,6 +806,10 @@
 
       socket.on('welcome', (data) => {
         appendLog('connect', `Server Handshake: ${data.message}`, data);
+        if (data.user) {
+          updateUserIdentityUI(data.user);
+          appendLog('connect', `Định danh người dùng thành công: User #${data.user.userId || 'N/A'} - Vai trò: <strong>${data.user.role}</strong>`, data.user);
+        }
       });
 
       socket.on('pong', (data) => {
@@ -767,7 +849,36 @@
 
       socket.on('connect_error', (error) => {
         updateConnectionState('disconnected');
-        appendLog('error', `Lỗi kết nối: ${error.message}`);
+        appendLog('error', `Lỗi xác thực / kết nối Socket.IO: ${error.message}`);
+      });
+    }
+
+    function testWhoAmI() {
+      if (!socket || !socket.connected) {
+        appendLog('error', 'Chưa kết nối đến server.');
+        return;
+      }
+      appendLog('connect', 'Đang gửi yêu cầu kiểm tra định danh "whoami"...');
+      socket.emit('whoami', (res) => {
+        appendLog('connect', 'Thông tin định danh socket hiện tại:', res);
+        if (res && res.user) {
+          updateUserIdentityUI(res.user);
+        }
+      });
+    }
+
+    function testAdminAction() {
+      if (!socket || !socket.connected) {
+        appendLog('error', 'Chưa kết nối đến server.');
+        return;
+      }
+      appendLog('room', 'Đang gửi yêu cầu thực thi tác vụ quản trị "admin_action"...');
+      socket.emit('admin_action', { task: 'DEMO_ADMIN_EVENT', time: Date.now() }, (res) => {
+        if (res.success) {
+          appendLog('pong', `✅ [200 OK] Quyền hợp lệ: ${res.message}`, res);
+        } else {
+          appendLog('error', `❌ [${res.statusCode} Forbidden] Bị từ chối: ${res.message}`, res);
+        }
       });
     }
 
