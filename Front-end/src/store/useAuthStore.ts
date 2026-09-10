@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     } catch (err: any) {
       const isNetworkError = !err.response;
-      const errorMsg = isNetworkError 
+      const errorMsg = isNetworkError
         ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
         : (err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
 

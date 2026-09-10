@@ -62,7 +62,7 @@ export default function RegisterPage() {
   const passwordStrength = useMemo(() => {
     const p = formData.password;
     if (!p) return { score: 0, label: '', color: 'bg-slate-200 dark:bg-slate-700' };
-    if (p.length < 6) return { score: 1, label: 'Yếu (Tối thiểu 6 ký tự)', color: 'bg-red-500' };
+    if (p.length < 8) return { score: 1, label: 'Yếu (Tối thiểu 8 ký tự)', color: 'bg-red-500' };
 
     let score = 1;
     if (/[A-Z]/.test(p)) score += 1;
@@ -79,24 +79,30 @@ export default function RegisterPage() {
 
     if (!formData.fullName.trim()) {
       errors.fullName = 'Họ và tên không được để trống';
-    } else if (formData.fullName.trim().length < 2) {
-      errors.fullName = 'Họ tên quá ngắn (tối thiểu 2 ký tự)';
+    } else if (formData.fullName.trim().length > 100) {
+      errors.fullName = 'Họ tên không được vượt quá 100 ký tự';
     }
 
     if (!formData.email.trim()) {
       errors.email = 'Email không được để trống';
+    } else if (formData.email.trim().length > 150) {
+      errors.email = 'Email không được vượt quá 150 ký tự';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       errors.email = 'Định dạng email không hợp lệ (ví dụ: ten@domain.com)';
     }
 
-    if (formData.phoneNumber.trim() && !/^(0|\+84)[0-9]{9}$/.test(formData.phoneNumber.trim())) {
-      errors.phoneNumber = 'Số điện thoại không hợp lệ (10 chữ số, bắt đầu bằng 0 hoặc +84)';
+    if (formData.phoneNumber.trim() && !/^\+?[0-9]{9,15}$/.test(formData.phoneNumber.trim())) {
+      errors.phoneNumber = 'Số điện thoại phải gồm 9–15 chữ số, có thể bắt đầu bằng +';
     }
 
     if (!formData.password) {
       errors.password = 'Mật khẩu không được để trống';
-    } else if (formData.password.length < 6) {
-      errors.password = 'Mật khẩu phải có ít nhất 6 ký tự';
+    } else if (formData.password.length < 8) {
+      errors.password = 'Mật khẩu phải có ít nhất 8 ký tự';
+    } else if (!formData.password.trim()) {
+      errors.password = 'Mật khẩu không được chỉ chứa khoảng trắng';
+    } else if (new TextEncoder().encode(formData.password).length > 72) {
+      errors.password = 'Mật khẩu không được vượt quá 72 byte UTF-8';
     }
 
     if (!formData.confirmPassword) {
@@ -170,7 +176,7 @@ export default function RegisterPage() {
         <div className="text-sm text-slate-600 dark:text-slate-400">
           Đã có tài khoản?{' '}
           <Link
-            href="/"
+            href="/login"
             className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4"
           >
             Đăng nhập ngay
@@ -181,7 +187,7 @@ export default function RegisterPage() {
       {/* Main Container */}
       <main className="max-w-6xl w-full mx-auto px-4 py-24 sm:px-6 lg:px-8 z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          
+
           {/* Left Column: Brand Showcase (Desktop only) */}
           <div className="hidden lg:flex lg:col-span-5 flex-col space-y-8 pr-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold w-fit">
@@ -250,7 +256,7 @@ export default function RegisterPage() {
           {/* Right Column: Register Card */}
           <div className="lg:col-span-7">
             <div className="bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl backdrop-blur-xl rounded-3xl p-8 sm:p-10 transition-all duration-300">
-              
+
               {/* SUCCESS VIEW */}
               {isSuccess ? (
                 <div className="py-8 text-center space-y-6 animate-fade-in">
@@ -288,7 +294,7 @@ export default function RegisterPage() {
                       size="lg"
                       className="w-full sm:w-auto px-8"
                       rightIcon={<ArrowRight className="w-4 h-4" />}
-                      onClick={() => router.push('/')}
+                      onClick={() => router.push('/login')}
                     >
                       Đăng Nhập Vào Hệ Thống
                     </Button>
@@ -328,7 +334,7 @@ export default function RegisterPage() {
 
                   {/* Register Form */}
                   <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                    
+
                     {/* Full Name */}
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
@@ -437,7 +443,7 @@ export default function RegisterPage() {
                         <input
                           type={showPassword ? 'text' : 'password'}
                           name="password"
-                          placeholder="Tối thiểu 6 ký tự..."
+                          placeholder="Tối thiểu 8 ký tự..."
                           value={formData.password}
                           onChange={handleChange}
                           onBlur={() => handleBlur('password')}

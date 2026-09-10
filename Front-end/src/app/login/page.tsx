@@ -77,7 +77,7 @@ export default function LoginPage() {
         {/* Decorative background glows */}
         <div className="absolute top-0 left-0 w-96 h-96 bg-brand-500/20 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-soil-500/20 rounded-full blur-3xl pointer-events-none translate-x-1/3 translate-y-1/3" />
-        
+
         {/* Top Header Branding */}
         <div className="relative z-10 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
@@ -102,7 +102,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-soil-700/60 border border-soil-600/50 text-soil-100 text-xs font-semibold backdrop-blur-md">
             <Trees className="w-4 h-4 text-brand-400" /> Hệ Thống Quản Lý Nông Trại Thông Minh
           </div>
-          
+
           <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight">
             Quản Lý Ô Đất & Nông Nông Nghiệp <span className="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-emerald-300">Tối Ưu</span>
           </h1>
