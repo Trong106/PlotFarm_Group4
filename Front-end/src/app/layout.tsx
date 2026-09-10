@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'PlotFarm - Smart Farming & Plot Rental Platform',
-  description: 'Nền tảng trực tuyến cho thuê ô đất canh tác và nông nghiệp thông minh - Team 4',
+  description: 'Nền tảng trực tuyến cho thuê ô đất canh tác và nông nghiệp thông minh',
 };
 
 export default function RootLayout({

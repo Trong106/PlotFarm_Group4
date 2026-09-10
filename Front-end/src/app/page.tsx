@@ -72,9 +72,6 @@ export default function Home() {
                 <span className="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300">
                   PlotFarm
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300/40">
-                  Team 4
-                </span>
               </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                 Nền tảng quản lý nông trại thông minh & cho thuê đất trồng
@@ -97,7 +94,7 @@ export default function Home() {
               {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
 
-            {/* Auth User Profile Indicator */}
+            {/* Auth User Profile Indicator / Login link */}
             {isAuthenticated ? (
               <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800">
                 <div className="text-right">
@@ -110,7 +107,13 @@ export default function Home() {
                   <LogOut className="w-4 h-4 text-rose-500" />
                 </Button>
               </div>
-            ) : null}
+            ) : (
+              <a href="/login">
+                <Button variant="primary" size="sm">
+                  Trang Đăng Nhập
+                </Button>
+              </a>
+            )}
           </div>
         </div>
       </header>
@@ -122,10 +125,10 @@ export default function Home() {
           <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-4">
-              <Sparkles className="w-3.5 h-3.5" /> Đồng bộ nhánh Main hoàn tất (Trọng - Đức - Nghiệp - Tuấn)
+              <Sparkles className="w-3.5 h-3.5" /> Đồng bộ hệ thống hoàn tất
             </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">
-              Hệ Thống PlotFarm Team 4 Integrated Client & Server
+              Hệ Thống PlotFarm Integrated Client & Server
             </h1>
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
               Front-end Next.js App Router chuẩn hóa với bộ Base UI Components, Zustand Store, Socket.IO Gateway và RESTful API backend thực tế.
@@ -347,7 +350,7 @@ export default function Home() {
       >
         <div className="space-y-4 text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
           <p>
-            Đây là component <strong className="text-emerald-600 dark:text-emerald-400">Modal</strong> dùng chung cho dự án PlotFarm Team 4.
+            Đây là component <strong className="text-emerald-600 dark:text-emerald-400">Modal</strong> dùng chung cho dự án PlotFarm.
           </p>
           <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 space-y-2">
             <h5 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">Tính năng:</h5>
