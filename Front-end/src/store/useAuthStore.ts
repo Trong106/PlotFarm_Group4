@@ -46,10 +46,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data.data;
+      const { token, user } = response.data.data || response.data;
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', token);
+        document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
       }
 
       set({
@@ -63,8 +64,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       toast.success(`Chào mừng ${user.fullName || user.email}! Vai trò: ${user.role}`, 'Đăng nhập thành công');
       return true;
     } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+      const isNetworkError = !err.response;
+      const errorMessage = isNetworkError
+        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
+        : err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+
       set({
         error: errorMessage,
         isLoading: false,
@@ -78,12 +82,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/register', data);
-      const resData = response.data.data;
+      const resData = response.data.data || response.data;
 
       // Nếu backend trả về token sau khi đăng ký
       if (resData && resData.token) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', resData.token);
+          document.cookie = `token=${resData.token}; path=/; max-age=604800; SameSite=Lax`;
         }
         set({
           token: resData.token,
@@ -92,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           error: null,
         });
-        toast.success(`Tài khoản ${resData.user?.fullName} đã được tạo thành công!`, 'Đăng ký thành công');
+        toast.success(`Tài khoản ${resData.user?.fullName || ''} đã được tạo thành công!`, 'Đăng ký thành công');
       } else {
         set({ isLoading: false });
         toast.success('Đăng ký tài khoản thành công! Bạn có thể đăng nhập ngay.', 'Đăng ký thành công');
@@ -100,7 +105,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       return true;
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Đăng ký thất bại.';
+      const isNetworkError = !err.response;
+      const errorMessage = isNetworkError
+        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
+        : err.response?.data?.message || err.message || 'Đăng ký thất bại.';
+
       set({
         error: errorMessage,
         isLoading: false,
@@ -123,6 +132,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
     set({
       user: null,

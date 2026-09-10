@@ -23,6 +23,32 @@ const config: Config = {
           900: '#14532d',
           950: '#052e16',
         },
+        earth: {
+          50: '#fdfaf7',
+          100: '#f7eee5',
+          200: '#eddac7',
+          300: '#dfbda3',
+          400: '#cf9c7b',
+          500: '#c17e5a',
+          600: '#a86142',
+          700: '#8c4b37',
+          800: '#723e31',
+          900: '#5e342b',
+          950: '#341915',
+        },
+        soil: {
+          50: '#fbf8f3',
+          100: '#f3eada',
+          200: '#e5d2b2',
+          300: '#d4b483',
+          400: '#c39556',
+          500: '#a9763a',
+          600: '#8c5a2e',
+          700: '#6e4326',
+          800: '#5c3723',
+          900: '#4e2d20',
+          950: '#2a150e',
+        },
         slateDark: {
           900: '#0f172a',
           800: '#1e293b',
@@ -30,8 +56,8 @@ const config: Config = {
         }
       },
       animation: {
-        'fade-in': 'fadeIn 0.2s ease-in-out forward',
-        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forward',
+        'fade-in': 'fadeIn 0.2s ease-in-out forwards',
+        'scale-in': 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
