@@ -1,6 +1,6 @@
 const { errorResponse } = require('../utils/responseHelper');
 
-const validateBody = (schema) => (req, res, next) => {
+const validateBody = (schema, defaultMessage = 'Dữ liệu không hợp lệ') => (req, res, next) => {
   try {
     const result = schema.safeParse(req.body);
     if (!result.success) {
@@ -8,7 +8,7 @@ const validateBody = (schema) => (req, res, next) => {
         field: issue.path.join('.') || 'body',
         message: issue.message,
       }));
-      return errorResponse(res, 'Dữ liệu đăng ký không hợp lệ', 400, errors);
+      return errorResponse(res, defaultMessage, 400, errors);
     }
 
     // Only validated fields reach the controller; unknown fields are stripped.
