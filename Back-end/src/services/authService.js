@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { getPool, sql } = require('../config/db');
 const { TABLES } = require('../models');
+const { generateToken } = require('../utils/jwtHelper');
 
 const registerUser = async ({ fullName, email, password, phoneNumber }) => {
   const pool = getPool();
@@ -26,7 +26,7 @@ const registerUser = async ({ fullName, email, password, phoneNumber }) => {
   const roleResult = await pool
     .request()
     .input('RoleName', sql.NVarChar(50), 'Customer')
-    .query(`SELECT RoleId FROM ${TABLES.ROLES} WHERE RoleName = @RoleName`);
+    .query(`SELECT RoleId, RoleName FROM ${TABLES.ROLES} WHERE RoleName = @RoleName`);
   
   const roleId = roleResult.recordset.length > 0 ? roleResult.recordset[0].RoleId : 3;
 
@@ -44,7 +44,29 @@ const registerUser = async ({ fullName, email, password, phoneNumber }) => {
       VALUES (@RoleId, @FullName, @Email, @PasswordHash, @PhoneNumber, 'ACTIVE')
     `);
 
-  return insertResult.recordset[0];
+  const newUser = insertResult.recordset[0];
+
+  // Lấy tên role để đưa vào payload token
+  const roleName = roleResult.recordset.length > 0 ? roleResult.recordset[0].RoleName : 'Customer';
+
+  // Tạo và ký JWT token ngay sau đăng ký (payload: userId, role)
+  const token = generateToken({
+    userId: newUser.UserId,
+    role: roleName,
+    email: newUser.Email,
+  });
+
+  return {
+    token,
+    user: {
+      userId: newUser.UserId,
+      fullName: newUser.FullName,
+      email: newUser.Email,
+      roleId: newUser.RoleId,
+      role: roleName,
+      createdAt: newUser.CreatedAt,
+    },
+  };
 };
 
 const loginUser = async ({ email, password }) => {
@@ -81,18 +103,12 @@ const loginUser = async ({ email, password }) => {
     throw error;
   }
 
-  // Create JWT Token
-  const payload = {
+  // Tạo và ký JWT token (payload: userId, role) — dùng generateToken từ jwtHelper
+  const token = generateToken({
     userId: user.UserId,
-    email: user.Email,
     role: user.RoleName,
-  };
-
-  const token = jwt.sign(
-    payload,
-    process.env.JWT_SECRET || 'PlotFarm_Super_Secret_Key_2026_Team4',
-    { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
-  );
+    email: user.Email,
+  });
 
   return {
     token,
