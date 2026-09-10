@@ -3,10 +3,10 @@ import { create } from 'zustand';
 interface UIState {
   theme: 'light' | 'dark';
   isDemoModalOpen: boolean;
-  activeTab: 'components' | 'state' | 'mock-api';
+  activeTab: 'components' | 'state' | 'socket' | 'mock-api';
   toggleTheme: () => void;
   setDemoModalOpen: (isOpen: boolean) => void;
-  setActiveTab: (tab: 'components' | 'state' | 'mock-api') => void;
+  setActiveTab: (tab: 'components' | 'state' | 'socket' | 'mock-api') => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({

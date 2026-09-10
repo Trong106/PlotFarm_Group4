@@ -22,6 +22,14 @@ import {
   Server,
   Zap,
   Check,
+  ShieldCheck,
+  Radio,
+  Wifi,
+  WifiOff,
+  Terminal,
+  RefreshCw,
+  Send,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -30,16 +38,33 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useUIStore } from '@/store/useUIStore';
+import { useSocketStore } from '@/store/useSocketStore';
+import { toast } from '@/store/useToastStore';
 
 export default function Home() {
   const { theme, toggleTheme, isDemoModalOpen, setDemoModalOpen, activeTab, setActiveTab } = useUIStore();
   const { user, isAuthenticated, isLoading, error, login, logout } = useAuthStore();
+  const {
+    isConnected: isSocketConnected,
+    isConnecting: isSocketConnecting,
+    socketId,
+    identifiedUser,
+    latency,
+    logs: socketLogs,
+    connectSocket,
+    disconnectSocket,
+    sendPing,
+    executeAdminAction,
+    checkWhoAmI,
+    clearLogs,
+  } = useSocketStore();
 
   const [btnLoading, setBtnLoading] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [inputError, setInputError] = useState('');
   const [loginEmail, setLoginEmail] = useState('admin@plotfarm.vn');
   const [loginPass, setLoginPass] = useState('password123');
+  const [customSocketToken, setCustomSocketToken] = useState('');
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,6 +216,17 @@ export default function Home() {
             <Code2 className="w-4 h-4" />
             2. Kết Nối Express REST API Thật
           </button>
+          <button
+            onClick={() => setActiveTab('socket')}
+            className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-sm transition-all whitespace-nowrap ${
+              activeTab === 'socket'
+                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <Radio className="w-4 h-4" />
+            3. Phân Quyền Role-based Realtime (Socket.IO)
+          </button>
         </div>
 
         {/* TAB 1: BASE UI COMPONENTS */}
@@ -334,6 +370,270 @@ export default function Home() {
                     <pre className="whitespace-pre-wrap">{JSON.stringify(user, null, 2)}</pre>
                   ) : (
                     <p className="text-slate-500">{'// Chưa đăng nhập. Hãy nhập Email & Mật khẩu để gọi API thật.'}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* TAB 3: ROLE-BASED & JWT SOCKET.IO GATEWAY */}
+        {activeTab === 'socket' && (
+          <div className="space-y-8 animate-fade-in">
+            {/* Realtime Status Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card variant="glass" className="p-4">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Trạng thái Kết nối</span>
+                <div className="flex items-center gap-2 mt-2">
+                  <span
+                    className={`w-3 h-3 rounded-full ${
+                      isSocketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                    }`}
+                  />
+                  <span className="font-bold text-sm">
+                    {isSocketConnected ? 'ĐÃ KẾT NỐI' : isSocketConnecting ? 'ĐANG KẾT NỐI...' : 'ĐÃ NGẮT'}
+                  </span>
+                </div>
+              </Card>
+
+              <Card variant="glass" className="p-4">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Socket Client ID</span>
+                <p className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-2 truncate">
+                  {socketId || '--'}
+                </p>
+              </Card>
+
+              <Card variant="glass" className="p-4">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Vai trò Được Định Danh</span>
+                <div className="mt-1">
+                  <Badge
+                    variant={
+                      identifiedUser?.role === 'Admin'
+                        ? 'danger'
+                        : identifiedUser?.role === 'Staff'
+                        ? 'warning'
+                        : identifiedUser?.role === 'Customer'
+                        ? 'success'
+                        : 'neutral'
+                    }
+                    size="sm"
+                  >
+                    {identifiedUser?.role || 'GUEST (Khách)'}
+                  </Badge>
+                </div>
+              </Card>
+
+              <Card variant="glass" className="p-4">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Độ Trễ Khứ Hồi (RTT)</span>
+                <p className="font-mono text-base font-extrabold text-blue-500 mt-1">
+                  {latency !== null ? `${latency} ms` : '-- ms'}
+                </p>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Connection Controls & Token Input */}
+              <Card variant="glass">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Radio className="w-5 h-5 text-emerald-500" />
+                    Kết Nối Realtime Gateway & JWT Token
+                  </CardTitle>
+                  <CardDescription>
+                    Middleware Socket.IO tự động giải mã JWT để định danh người dùng và xếp room theo vai trò
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+                      JWT Token xác thực (Tùy chọn hoặc tự lấy khi đã login)
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-3.5 py-2 rounded-xl text-xs font-mono border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Để trống để dùng Token đang đăng nhập hoặc kết nối kiểu Khách vãng lai..."
+                      value={customSocketToken}
+                      onChange={(e) => setCustomSocketToken(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {isAuthenticated && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const token = localStorage.getItem('token') || '';
+                          setCustomSocketToken(token);
+                          toast.info('Đã điền Token của tài khoản hiện tại', 'JWT Token');
+                        }}
+                      >
+                        Dùng Token Hiện Tại ({user?.role})
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setCustomSocketToken('');
+                        toast.info('Đã xóa token, kết nối sẽ ở vai trò Guest', 'Guest Mode');
+                      }}
+                    >
+                      Xóa Token (Chế độ Khách)
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    {isSocketConnected ? (
+                      <Button
+                        variant="danger"
+                        onClick={disconnectSocket}
+                        leftIcon={<WifiOff className="w-4 h-4" />}
+                      >
+                        Ngắt Kết Nối Socket
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        isLoading={isSocketConnecting}
+                        onClick={async () => {
+                          await connectSocket(customSocketToken.trim() || undefined);
+                        }}
+                        leftIcon={<Wifi className="w-4 h-4" />}
+                      >
+                        Kết Nối Socket.IO
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      disabled={!isSocketConnected}
+                      onClick={async () => {
+                        await sendPing();
+                      }}
+                      leftIcon={<Activity className="w-4 h-4" />}
+                    >
+                      Ping RTT
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Role-based Authorization Interactive Tester */}
+              <Card variant="glass">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-blue-500" />
+                    Phân Quyền Role-Based Realtime
+                  </CardTitle>
+                  <CardDescription>
+                    Kiểm tra phân quyền server Socket.IO dựa trên vai trò giải mã từ Token
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  {/* Identity Detail Box */}
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500">Định danh Client:</span>
+                      <Badge
+                        variant={
+                          identifiedUser?.role === 'Admin'
+                            ? 'danger'
+                            : identifiedUser?.role === 'Staff'
+                            ? 'warning'
+                            : identifiedUser?.role === 'Customer'
+                            ? 'success'
+                            : 'neutral'
+                        }
+                      >
+                        {identifiedUser?.role || 'Chưa định danh'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">User ID: </span>
+                      <span className="font-bold">{identifiedUser?.userId ?? 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Họ tên / Email: </span>
+                      <span className="font-semibold">
+                        {identifiedUser?.fullName || identifiedUser?.email || (identifiedUser?.isAnonymous ? 'Khách Vãng Lai' : 'N/A')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Role Actions */}
+                  <div className="space-y-3">
+                    <Button
+                      variant="secondary"
+                      className="w-full justify-start text-xs"
+                      disabled={!isSocketConnected}
+                      onClick={async () => {
+                        await checkWhoAmI();
+                      }}
+                      leftIcon={<RefreshCw className="w-4 h-4" />}
+                    >
+                      1. Gọi Sự Kiện &quot;whoami&quot; (Xác Minh Lại Định Danh)
+                    </Button>
+
+                    <Button
+                      variant="primary"
+                      className="w-full justify-start text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                      disabled={!isSocketConnected}
+                      onClick={async () => {
+                        await executeAdminAction('BAT_HE_THONG_TUOI_TIEU_TOAN_KHU');
+                      }}
+                      leftIcon={<ShieldCheck className="w-4 h-4" />}
+                    >
+                      2. Thao Tác Yêu Cầu Quyền Quản Trị (Admin/Staff Only)
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                    * Ghi chú: Nếu bạn kết nối với vai trò <strong>Customer</strong> hoặc <strong>Guest</strong>, thao tác quản trị trên sẽ bị Server từ chối ngay với mã lỗi <strong>403 Forbidden</strong> và hiển thị Toast Cảnh báo.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Realtime Event Stream Terminal Viewer */}
+            <Card variant="glass">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Terminal className="w-4 h-4 text-emerald-500" />
+                    Nhật Ký Sự Kiện Realtime (Realtime Event Console)
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Theo dõi trực tiếp các gói tin gửi/nhận, bắt lỗi và phản hồi định danh
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" onClick={clearLogs} leftIcon={<Trash2 className="w-3.5 h-3.5" />}>
+                  Xóa Log
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 rounded-2xl bg-slate-950 font-mono text-xs text-slate-200 h-64 overflow-y-auto space-y-2 border border-slate-800 shadow-inner">
+                  {socketLogs.length === 0 ? (
+                    <p className="text-slate-500 italic">// Chưa có sự kiện nào. Hãy bấm &quot;Kết Nối Socket.IO&quot; để bắt đầu.</p>
+                  ) : (
+                    socketLogs.map((log) => (
+                      <div key={log.id} className="flex items-start gap-2 leading-relaxed">
+                        <span className="text-slate-500 shrink-0">[{log.time}]</span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                            log.type === 'connect'
+                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                              : log.type === 'error'
+                              ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                              : log.type === 'pong'
+                              ? 'bg-blue-950 text-blue-400 border border-blue-800'
+                              : 'bg-amber-950 text-amber-400 border border-amber-800'
+                          }`}
+                        >
+                          {log.type.toUpperCase()}
+                        </span>
+                        <span className="text-slate-300">{log.message}</span>
+                      </div>
+                    ))
                   )}
                 </div>
               </CardContent>
