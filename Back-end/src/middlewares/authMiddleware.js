@@ -30,17 +30,17 @@ const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization || req.headers.Authorization;
 
     if (!authHeader) {
-      return errorResponse(res, 'Yêu cầu Token xác thực hợp lệ (Authorization header missing)', 401, 'AUTH_HEADER_MISSING');
+      return errorResponse(res, 'Yêu cầu Token xác thực hợp lệ (Bearer token)', 401, 'AUTH_HEADER_MISSING');
     }
 
     const parts = authHeader.trim().split(/\s+/);
     if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
-      return errorResponse(res, 'Định dạng token không đúng chuẩn Bearer (Cú pháp: Bearer <token>)', 401, 'INVALID_TOKEN_FORMAT');
+      return errorResponse(res, 'Yêu cầu Token xác thực hợp lệ (Bearer token)', 401, 'INVALID_TOKEN_FORMAT');
     }
 
     const token = parts[1];
     if (!token) {
-      return errorResponse(res, 'Mã token xác thực không được để trống', 401, 'EMPTY_TOKEN');
+      return errorResponse(res, 'Yêu cầu Token xác thực hợp lệ (Bearer token)', 401, 'EMPTY_TOKEN');
     }
 
     // Xác minh token bằng helper chung (hoặc fallback thư viện jwt)
@@ -50,15 +50,15 @@ const verifyToken = (req, res, next) => {
     } catch (err) {
       // Bắt chi tiết từng loại lỗi JWT
       if (err.name === 'TokenExpiredError') {
-        return errorResponse(res, 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 401, 'TOKEN_EXPIRED');
+        return errorResponse(res, 'Token không hợp lệ hoặc đã hết hạn', 401, 'TOKEN_EXPIRED');
       }
       if (err.name === 'JsonWebTokenError') {
-        return errorResponse(res, 'Mã token không hợp lệ hoặc đã bị chỉnh sửa trái phép.', 401, 'INVALID_SIGNATURE');
+        return errorResponse(res, 'Token không hợp lệ hoặc đã hết hạn', 401, 'INVALID_SIGNATURE');
       }
       if (err.name === 'NotBeforeError') {
-        return errorResponse(res, 'Token chưa đến thời gian có hiệu lực sử dụng.', 401, 'TOKEN_NOT_ACTIVE');
+        return errorResponse(res, 'Token không hợp lệ hoặc đã hết hạn', 401, 'TOKEN_NOT_ACTIVE');
       }
-      return errorResponse(res, 'Không thể xác thực token: ' + err.message, 401, 'TOKEN_VERIFICATION_FAILED');
+      return errorResponse(res, 'Token không hợp lệ hoặc đã hết hạn', 401, 'TOKEN_VERIFICATION_FAILED');
     }
 
     // Gán thông tin người dùng vào request để các middleware/controller phía sau sử dụng
@@ -66,6 +66,7 @@ const verifyToken = (req, res, next) => {
       userId: decoded.userId,
       role: decoded.role,
       email: decoded.email,
+      ...(decoded.fullName && { fullName: decoded.fullName }),
       iat: decoded.iat,
       exp: decoded.exp,
     };

@@ -613,7 +613,7 @@ export default function Home() {
               <CardContent>
                 <div className="p-4 rounded-2xl bg-slate-950 font-mono text-xs text-slate-200 h-64 overflow-y-auto space-y-2 border border-slate-800 shadow-inner">
                   {socketLogs.length === 0 ? (
-                    <p className="text-slate-500 italic">// Chưa có sự kiện nào. Hãy bấm &quot;Kết Nối Socket.IO&quot; để bắt đầu.</p>
+                    <p className="text-slate-500 italic">{'// Chưa có sự kiện nào. Hãy bấm "Kết Nối Socket.IO" để bắt đầu.'}</p>
                   ) : (
                     socketLogs.map((log) => (
                       <div key={log.id} className="flex items-start gap-2 leading-relaxed">
