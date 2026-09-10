@@ -34,10 +34,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { token, user } = response.data.data;
+      const { token, user } = response.data.data || response.data;
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', token);
+        document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
       }
 
       set({
@@ -48,8 +49,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       return true;
     } catch (err: any) {
+      const isNetworkError = !err.response;
+      const errorMsg = isNetworkError 
+        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
+        : (err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+
       set({
-        error: err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.',
+        error: errorMsg,
         isLoading: false,
       });
       return false;
@@ -84,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
     set({
       user: null,
