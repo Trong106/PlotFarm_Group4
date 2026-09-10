@@ -24,4 +24,20 @@ const registerSchema = z.object({
     .optional(),
 });
 
-module.exports = { registerSchema };
+const loginSchema = z.object({
+  email: z.string({ error: 'Email là bắt buộc và phải là chuỗi' })
+    .trim()
+    .toLowerCase()
+    .min(1, 'Email không được để trống')
+    .max(150, 'Email không được vượt quá 150 ký tự')
+    .pipe(z.email({ error: 'Email không đúng định dạng' })),
+  password: z.string({ error: 'Mật khẩu là bắt buộc và phải là chuỗi' })
+    .min(1, 'Mật khẩu không được để trống')
+    .refine((value) => Buffer.byteLength(value, 'utf8') <= 72,
+      'Mật khẩu không được vượt quá 72 byte UTF-8'),
+});
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+};

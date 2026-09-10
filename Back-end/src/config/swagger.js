@@ -48,6 +48,59 @@ const swaggerOptions = {
             timestamp: { type: 'string', format: 'date-time' },
           },
         },
+        LoginResponse: {
+          type: 'object',
+          required: ['success', 'statusCode', 'message', 'data', 'timestamp'],
+          properties: {
+            success: { type: 'boolean', example: true },
+            statusCode: { type: 'integer', example: 200 },
+            message: { type: 'string', example: 'Đăng nhập thành công' },
+            data: {
+              type: 'object',
+              required: ['token', 'user'],
+              properties: {
+                token: { type: 'string', description: 'Signed JWT Bearer token' },
+                user: {
+                  type: 'object',
+                  properties: {
+                    userId: { type: 'integer', example: 1 },
+                    fullName: { type: 'string', example: 'Nguyễn Văn An' },
+                    email: { type: 'string', format: 'email', example: 'an@example.com' },
+                    roleId: { type: 'integer', example: 7 },
+                    role: { type: 'string', example: 'Customer' },
+                    phoneNumber: { type: 'string', nullable: true, example: '0901234567' },
+                    avatarUrl: { type: 'string', nullable: true, example: null },
+                    status: { type: 'string', example: 'ACTIVE' },
+                    createdAt: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
+            },
+            timestamp: { type: 'string', format: 'date-time' },
+          },
+        },
+        SessionResponse: {
+          type: 'object',
+          required: ['success', 'statusCode', 'message', 'data', 'timestamp'],
+          properties: {
+            success: { type: 'boolean', example: true },
+            statusCode: { type: 'integer', example: 200 },
+            message: { type: 'string', example: 'Lấy thông tin phiên đăng nhập thành công' },
+            data: {
+              type: 'object',
+              required: ['userId', 'role', 'email'],
+              properties: {
+                userId: { type: 'integer', example: 1 },
+                role: { type: 'string', example: 'Customer' },
+                email: { type: 'string', format: 'email', example: 'an@example.com' },
+                fullName: { type: 'string', example: 'Nguyễn Văn An' },
+                iat: { type: 'integer', example: 1773128953 },
+                exp: { type: 'integer', example: 1773215353 },
+              },
+            },
+            timestamp: { type: 'string', format: 'date-time' },
+          },
+        },
         ErrorResponse: {
           type: 'object',
           required: ['success', 'statusCode', 'message', 'errors', 'timestamp'],
@@ -159,6 +212,7 @@ const baseSwaggerSpec = {
       post: {
         tags: ['Authentication'],
         summary: 'User login',
+        description: 'Authenticates user with email and password, returning signed JWT token and user details.',
         requestBody: {
           required: true,
           content: {
@@ -167,16 +221,38 @@ const baseSwaggerSpec = {
                 type: 'object',
                 required: ['email', 'password'],
                 properties: {
-                  email: { type: 'string', format: 'email', example: 'user@example.com' },
-                  password: { type: 'string', format: 'password', example: '123456' },
+                  email: { type: 'string', format: 'email', maxLength: 150, example: 'an@example.com' },
+                  password: {
+                    type: 'string', format: 'password', maxLength: 72, writeOnly: true,
+                    description: 'User password, at most 72 bytes UTF-8',
+                    example: 'MatKhau123!',
+                  },
                 },
               },
             },
           },
         },
         responses: {
-          200: { description: 'Login successful' },
-          401: { description: 'Invalid credentials' },
+          200: {
+            description: 'Login successful',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/LoginResponse' } } },
+          },
+          400: {
+            description: 'Validation error or malformed JSON',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          401: {
+            description: 'Invalid credentials (email not found or incorrect password)',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          403: {
+            description: 'Account is locked or inactive',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          500: {
+            description: 'Internal server error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
         },
       },
     },
@@ -184,10 +260,21 @@ const baseSwaggerSpec = {
       get: {
         tags: ['Authentication'],
         summary: 'Get current user session',
+        description: 'Returns active session details decoded from JWT Bearer token.',
         security: [{ BearerAuth: [] }],
         responses: {
-          200: { description: 'Current user profile' },
-          401: { description: 'Unauthorized' },
+          200: {
+            description: 'Current user session details',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/SessionResponse' } } },
+          },
+          401: {
+            description: 'Missing, invalid, or expired JWT token',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          500: {
+            description: 'Internal server error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
         },
       },
     },

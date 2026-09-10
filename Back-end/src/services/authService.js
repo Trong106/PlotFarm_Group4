@@ -60,15 +60,14 @@ const registerUser = async ({ fullName, email, password, phoneNumber }) => {
   }
 
   const newUser = insertResult.recordset[0];
-
-  // Lấy tên role để đưa vào payload token
   const roleName = roleResult.recordset[0].RoleName;
 
-  // Tạo và ký JWT token ngay sau đăng ký (payload: userId, role)
+  // Tạo và ký JWT token ngay sau đăng ký (payload: userId, role, email, fullName)
   const token = generateToken({
     userId: newUser.UserId,
     role: roleName,
     email: newUser.Email,
+    fullName: newUser.FullName,
   });
 
   return {
@@ -91,7 +90,8 @@ const loginUser = async ({ email, password }) => {
     .request()
     .input('Email', sql.NVarChar(150), email)
     .query(`
-      SELECT u.UserId, u.RoleId, r.RoleName, u.FullName, u.Email, u.PasswordHash, u.Status
+      SELECT u.UserId, u.RoleId, r.RoleName, u.FullName, u.Email, u.PasswordHash,
+             u.PhoneNumber, u.AvatarUrl, u.Status, u.CreatedAt
       FROM ${TABLES.USERS} u
       JOIN ${TABLES.ROLES} r ON u.RoleId = r.RoleId
       WHERE u.Email = @Email
@@ -105,12 +105,7 @@ const loginUser = async ({ email, password }) => {
 
   const user = userResult.recordset[0];
 
-  if (user.Status !== 'ACTIVE') {
-    const error = new Error('Tài khoản đã bị tạm khóa hoặc chưa kích hoạt');
-    error.statusCode = 403;
-    throw error;
-  }
-
+  // So sánh mật khẩu bằng bcrypt trước để chống enumeration trạng thái tài khoản
   const isMatch = await bcrypt.compare(password, user.PasswordHash);
   if (!isMatch) {
     const error = new Error('Email hoặc mật khẩu không chính xác');
@@ -118,11 +113,18 @@ const loginUser = async ({ email, password }) => {
     throw error;
   }
 
-  // Tạo và ký JWT token (payload: userId, role) — dùng generateToken từ jwtHelper
+  if (user.Status !== 'ACTIVE') {
+    const error = new Error('Tài khoản đã bị tạm khóa hoặc chưa kích hoạt');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Tạo và ký JWT token (payload: userId, role, email, fullName)
   const token = generateToken({
     userId: user.UserId,
     role: user.RoleName,
     email: user.Email,
+    fullName: user.FullName,
   });
 
   return {
@@ -131,12 +133,34 @@ const loginUser = async ({ email, password }) => {
       userId: user.UserId,
       fullName: user.FullName,
       email: user.Email,
+      roleId: user.RoleId,
       role: user.RoleName,
+      phoneNumber: user.PhoneNumber || null,
+      avatarUrl: user.AvatarUrl || null,
+      status: user.Status,
+      createdAt: user.CreatedAt,
     },
+  };
+};
+
+const getCurrentSession = (userSession) => {
+  if (!userSession) {
+    const error = new Error('Người dùng chưa được xác thực');
+    error.statusCode = 401;
+    throw error;
+  }
+  return {
+    userId: userSession.userId,
+    role: userSession.role,
+    email: userSession.email,
+    ...(userSession.fullName && { fullName: userSession.fullName }),
+    iat: userSession.iat,
+    exp: userSession.exp,
   };
 };
 
 module.exports = {
   registerUser,
   loginUser,
+  getCurrentSession,
 };

@@ -113,7 +113,7 @@ Dữ liệu không hợp lệ (`400 Bad Request`):
 
 Email trùng trả `409 Conflict` với lỗi của trường `email`. JSON sai cú pháp trả `400`; body quá lớn trả `413`. Lỗi máy chủ/cơ sở dữ liệu trả `500` và `errors: null`, không lộ chi tiết SQL hoặc stack trace. Các lỗi đều dùng cùng envelope JSON như trên. Hợp đồng đăng ký trả tên trường camelCase như API đăng nhập.
 
-### Kiểm thử API đăng ký
+### Kiểm thử tự động (Unit / Integration Tests)
 
 ```powershell
 cd Back-end
@@ -121,9 +121,94 @@ npm.cmd ci
 npm.cmd test
 ```
 
-Bộ kiểm thử dùng HTTP Express thật, Zod thật và bcryptjs thật; chỉ giả lập SQL Server. Các trường hợp gồm đăng ký hợp lệ, đầu vào sai, email trùng, cạnh tranh đăng ký, role cố định, mật khẩu đã băm, lỗi database và JSON không hợp lệ. Server kiểm thử dùng cổng tạm và tự đóng khi hoàn tất; không ghi dữ liệu vào database hiện có.
+Bộ kiểm thử bao gồm 28 test cases chạy tự động bằng `node:test` cho cả hai module Đăng ký (`auth-register.test.js`) và Đăng nhập / Phiên làm việc (`auth-login.test.js`).
 
-Để chạy backend trong PowerShell, dùng `npm.cmd run dev`. Có thể thử API qua Swagger tại `http://localhost:5000/api/docs` sau khi cấu hình SQL Server.
+## Đăng nhập hệ thống — POST /api/auth/login
+
+API công khai nhận JSON, kiểm tra đầu vào bằng Zod schema (`loginSchema`), đối soát tài khoản và xác minh mật khẩu bằng `bcryptjs`. Trả về JWT token kèm thông tin người dùng.
+
+| Trường | Quy tắc |
+|---|---|
+| `email` | Bắt buộc, chuỗi email hợp lệ, tối đa 150 ký tự; tự động bỏ khoảng trắng và chuyển chữ thường |
+| `password` | Bắt buộc, tối thiểu 1 ký tự, tối đa 72 byte UTF-8 (giới hạn bảo mật của bcrypt) |
+
+Ví dụ gọi API bằng PowerShell:
+
+```powershell
+$body = @{
+  email = 'mai@example.com'
+  password = 'MatKhau123!'
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri 'http://localhost:5000/api/auth/login' `
+  -ContentType 'application/json; charset=utf-8' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))
+```
+
+Thành công (`200 OK`):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Đăng nhập thành công",
+  "data": {
+    "token": "<Signed JWT Token>",
+    "user": {
+      "userId": 10,
+      "fullName": "Trần Thị Mai",
+      "email": "mai@example.com",
+      "roleId": 3,
+      "role": "Customer",
+      "phoneNumber": "0912345678",
+      "avatarUrl": null,
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T08:00:00.000Z"
+    }
+  },
+  "timestamp": "2026-09-10T08:00:00.000Z"
+}
+```
+
+Các mã lỗi:
+- `400 Bad Request`: Thiếu email/password, sai định dạng email, mật khẩu vượt quá 72 byte UTF-8 hoặc JSON sai cú pháp.
+- `401 Unauthorized`: Sai email hoặc sai mật khẩu (`"Email hoặc mật khẩu không chính xác"` - cùng một thông báo để chống enumeration).
+- `403 Forbidden`: Tài khoản có trạng thái không phải `ACTIVE` (`"Tài khoản đã bị tạm khóa hoặc chưa kích hoạt"`).
+- `500 Internal Server Error`: Lỗi kết nối CSDL hoặc lỗi hệ thống bất ngờ (không làm lộ query hay thông tin nhạy cảm).
+
+## Lấy thông tin phiên đăng nhập — GET /api/auth/me
+
+API yêu cầu xác thực Bearer token qua header `Authorization: Bearer <token>`. Trả về thông tin phiên làm việc hiện tại của tài khoản.
+
+Ví dụ gọi API bằng PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Get -Uri 'http://localhost:5000/api/auth/me' `
+  -Headers @{ Authorization = "Bearer $token" }
+```
+
+Thành công (`200 OK`):
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy thông tin phiên đăng nhập thành công",
+  "data": {
+    "userId": 10,
+    "role": "Customer",
+    "email": "mai@example.com",
+    "fullName": "Trần Thị Mai",
+    "iat": 1773128953,
+    "exp": 1773215353
+  },
+  "timestamp": "2026-09-10T08:00:00.000Z"
+}
+```
+
+Các mã lỗi:
+- `401 Unauthorized`: Thiếu header Authorization, header không đúng định dạng `Bearer <token>`, token không hợp lệ hoặc token đã hết hạn.
+
+Để chạy backend trong PowerShell, dùng `npm.cmd run dev`. Có thể thử nghiệm trực quan tất cả các API qua Swagger UI tại `http://localhost:5000/api/docs`.
 
 ## Realtime Gateway (Socket.IO)
 
