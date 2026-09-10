@@ -159,8 +159,41 @@ const getCurrentSession = (userSession) => {
   };
 };
 
+const getUserProfile = async (userId) => {
+  try {
+    const pool = db.getPool();
+    const result = await pool
+      .request()
+      .input('UserId', sql.Int, userId)
+      .query(`
+        SELECT u.UserId, u.RoleId, r.RoleName, u.FullName, u.Email, u.PhoneNumber, u.Status, u.CreatedAt
+        FROM ${TABLES.USERS} u
+        JOIN ${TABLES.ROLES} r ON u.RoleId = r.RoleId
+        WHERE u.UserId = @UserId
+      `);
+
+    if (result.recordset.length === 0) {
+      return null;
+    }
+
+    const u = result.recordset[0];
+    return {
+      userId: u.UserId,
+      fullName: u.FullName,
+      email: u.Email,
+      phoneNumber: u.PhoneNumber,
+      role: u.RoleName,
+      status: u.Status,
+      createdAt: u.CreatedAt,
+    };
+  } catch (error) {
+    return null;
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getCurrentSession,
+  getUserProfile,
 };
