@@ -15,9 +15,7 @@ import {
   Sun,
   KeyRound,
   ArrowRight,
-  Sparkles,
   HelpCircle,
-  Cpu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -26,13 +24,12 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, mockLogin, isLoading, error, isAuthenticated, token, user } = useAuthStore();
+  const { login, isLoading, error, isAuthenticated, token, user } = useAuthStore();
 
   const [email, setEmail] = useState('admin@plotfarm.vn');
   const [password, setPassword] = useState('password123');
   const [formError, setFormError] = useState('');
   const [saveTokenStatus, setSaveTokenStatus] = useState<string | null>(null);
-  const [useMock, setUseMock] = useState(false);
 
   // If already authenticated, show status or redirect option
   useEffect(() => {
@@ -67,16 +64,9 @@ export default function LoginPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    if (useMock) {
-      const success = await mockLogin(email, 'FARM_OWNER');
-      if (success) {
-        setSaveTokenStatus('JWT Mock Token đã được lưu thành công vào LocalStorage và Document Cookie!');
-      }
-    } else {
-      const success = await login(email, password);
-      if (success) {
-        setSaveTokenStatus('JWT Token từ API Express đã được nhận và lưu vào Cookie / LocalStorage!');
-      }
+    const success = await login(email, password);
+    if (success) {
+      setSaveTokenStatus('JWT Token từ API Express đã được nhận và lưu vào Cookie / LocalStorage!');
     }
   };
 
@@ -174,31 +164,6 @@ export default function LoginPage() {
               Nhập thông tin để truy cập bảng điều khiển hệ thống PlotFarm.
             </p>
           </div>
-
-          {/* Mode Switch: Real API vs Mock Test */}
-          <div className="p-3.5 rounded-2xl bg-soil-100/70 dark:bg-soil-950/60 border border-soil-200 dark:border-soil-900 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className={`p-2 rounded-xl ${useMock ? 'bg-amber-500 text-white' : 'bg-brand-600 text-white'}`}>
-                {useMock ? <Cpu className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  {useMock ? 'Chế độ: Mock Login (Chạy Thử Độc Lập)' : 'Chế độ: Express REST API (Cổng 5000)'}
-                </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  {useMock ? 'Không phụ thuộc Backend server' : 'Kết nối API thật /api/auth/login'}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setUseMock(!useMock)}
-              className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-white dark:bg-soil-900 border border-soil-300 dark:border-soil-700 text-soil-800 dark:text-soil-200 hover:bg-soil-200/50 dark:hover:bg-soil-800 transition-colors"
-            >
-              Đổi Chế Độ
-            </button>
-          </div>
-
           {/* Authenticated Success Banner */}
           {isAuthenticated && (
             <div className="p-4 rounded-2xl bg-brand-500/10 border border-brand-500/30 text-brand-900 dark:text-brand-200 space-y-2">
@@ -293,7 +258,7 @@ export default function LoginPage() {
               className="w-full bg-gradient-to-r from-brand-600 via-emerald-600 to-soil-700 hover:from-brand-500 hover:to-soil-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-brand-700/20"
               leftIcon={<LogIn className="w-5 h-5" />}
             >
-              {useMock ? 'Đăng Nhập Chế Độ Thử Nghiệm (Mock)' : 'Đăng Nhập Hệ Thống PlotFarm'}
+              Đăng Nhập Hệ Thống PlotFarm
             </Button>
           </form>
 

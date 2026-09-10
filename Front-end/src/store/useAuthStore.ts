@@ -18,7 +18,6 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email?: string, password?: string) => Promise<boolean>;
-  mockLogin: (email: string, role?: string) => Promise<boolean>;
   register: (data: { fullName: string; email: string; password: string; phoneNumber?: string }) => Promise<boolean>;
   fetchProfile: () => Promise<void>;
   logout: () => void;
@@ -50,10 +49,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       return true;
     } catch (err: any) {
-      // Fallback for mock testing when Backend API server is offline
       const isNetworkError = !err.response;
       const errorMsg = isNetworkError 
-        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Đang sử dụng chế độ Mock Login thử nghiệm.'
+        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
         : (err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
 
       set({
@@ -62,34 +60,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       return false;
     }
-  },
-
-  mockLogin: async (email: string, role = 'FARMER') => {
-    set({ isLoading: true, error: null });
-    await new Promise((res) => setTimeout(res, 800));
-    const mockToken = `mock_jwt_token_${Date.now()}`;
-    const mockUser: UserProfile = {
-      userId: 101,
-      fullName: email.split('@')[0] || 'Người dùng PlotFarm',
-      email: email || 'user@plotfarm.vn',
-      role: role,
-      phoneNumber: '0987654321',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      status: 'ACTIVE'
-    };
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token', mockToken);
-      document.cookie = `token=${mockToken}; path=/; max-age=604800; SameSite=Lax`;
-    }
-
-    set({
-      token: mockToken,
-      user: mockUser,
-      isAuthenticated: true,
-      isLoading: false,
-    });
-    return true;
   },
 
   register: async (data) => {
