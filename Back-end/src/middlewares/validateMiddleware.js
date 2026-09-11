@@ -19,4 +19,18 @@ const validateBody = (schema, defaultMessage = 'Dữ liệu không hợp lệ') 
   }
 };
 
-module.exports = { validateBody };
+const validateParams = (schema) => (req, res, next) => {
+  try {
+    const result = schema.safeParse(req.params);
+    if (!result.success) {
+      return errorResponse(res, 'Tham số đường dẫn không hợp lệ', 400,
+        result.error.issues.map((issue) => ({ field: issue.path.join('.'), message: issue.message })));
+    }
+    req.params = result.data;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { validateBody, validateParams };

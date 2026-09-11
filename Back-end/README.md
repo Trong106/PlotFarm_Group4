@@ -227,3 +227,75 @@ Các mã lỗi:
 ```bash
 npm run test:socket
 ```
+# User Profile & Shipping Address APIs
+
+Chạy `database/01_roles_and_users_schema.sql`, sau đó `database/02_user_addresses_schema.sql`
+trên SQL Server trước khi sử dụng sổ địa chỉ. Script thứ hai có thể chạy lại và không xóa dữ liệu.
+
+Tất cả API dưới đây yêu cầu header `Authorization: Bearer <token>` của tài khoản `ACTIVE`.
+`userId` luôn lấy từ JWT. Không được truyền `userId`, `roleId`, `status`, mật khẩu hoặc trường ngoài schema trong body.
+
+| Method | Endpoint | Chức năng |
+| --- | --- | --- |
+| GET | `/api/users/me` | Đọc hồ sơ mới nhất từ database |
+| PATCH | `/api/users/me` | Cập nhật một phần hồ sơ |
+| GET | `/api/users/me/addresses` | Danh sách địa chỉ của mình, địa chỉ mặc định trước |
+| POST | `/api/users/me/addresses` | Tạo địa chỉ, trả HTTP 201 |
+| GET | `/api/users/me/addresses/:addressId` | Xem chi tiết địa chỉ |
+| PATCH | `/api/users/me/addresses/:addressId` | Cập nhật một phần địa chỉ |
+| DELETE | `/api/users/me/addresses/:addressId` | Xóa địa chỉ, trả HTTP 200 với `data: null` |
+
+Ví dụ body cập nhật hồ sơ:
+
+```json
+{
+  "fullName": "Nguyễn Văn An",
+  "email": "an@example.com",
+  "phoneNumber": "0901234567",
+  "avatarUrl": "https://example.com/avatar.png"
+}
+```
+
+Các trường đều tùy chọn khi PATCH nhưng phải có ít nhất một trường. Tên tối đa 100 ký tự;
+email hợp lệ, tối đa 150 ký tự, được trim và chuyển thành chữ thường. Số điện thoại gồm 9–15 chữ số,
+có thể bắt đầu bằng `+`; `null` hoặc chuỗi rỗng xóa số điện thoại hồ sơ. Avatar phải là URL HTTP(S),
+tối đa 500 ký tự; `null` xóa avatar. Email trùng trả 409. Các claim trong JWT cũ không được cập nhật;
+sau khi sửa hồ sơ, frontend lấy dữ liệu từ response hoặc `GET /api/users/me`.
+`GET /api/auth/me` vẫn là thông tin phiên trong JWT.
+
+Ví dụ body tạo địa chỉ:
+
+```json
+{
+  "recipientName": "Nguyễn Văn An",
+  "phoneNumber": "0901234567",
+  "addressLine": "12 Nguyễn Huệ",
+  "ward": "Bến Nghé",
+  "province": "TP. Hồ Chí Minh",
+  "isDefault": true
+}
+```
+
+Tên người nhận, số điện thoại, địa chỉ chi tiết, phường/xã và tỉnh/thành phố là bắt buộc.
+`district` (quận/huyện) tùy chọn, có thể là `null`. Tên người nhận và các đơn vị hành chính tối đa 100 ký tự;
+địa chỉ chi tiết tối đa 255 ký tự. Trường chuỗi bắt buộc không được chỉ chứa khoảng trắng.
+`isDefault` phải là boolean, mặc định `false` khi tạo.
+
+Đổi địa chỉ mặc định bằng `PATCH /api/users/me/addresses/:addressId` với `{"isDefault": true}`.
+Mỗi người có tối đa một địa chỉ mặc định, được bảo vệ bằng transaction, khóa theo người dùng và unique filtered index.
+Sổ địa chỉ có thể không có mặc định; xóa hoặc bỏ mặc định không tự chọn địa chỉ thay thế.
+ID phải là số nguyên dương trong giới hạn SQL INT. Địa chỉ không tồn tại hoặc thuộc người khác đều trả 404.
+Xóa địa chỉ đang được dữ liệu khác tham chiếu trả 409.
+
+Response thành công dùng `{ success, statusCode, message, data, timestamp }`;
+lỗi dùng `{ success, statusCode, message, errors, timestamp }`. Validation trả 400 kèm danh sách
+`{ field, message }`; thiếu/sai token trả 401, tài khoản khóa/chưa kích hoạt trả 403.
+Try-catch chuyển lỗi về middleware chung, lỗi 500 không lộ SQL hoặc stack trace.
+
+Swagger: `/api/docs` và `/api/docs.json`. Chạy `npm test` để kiểm tra auth và user profile/address.
+Các bài kiểm thử HTTP dùng database mock, kiểm tra SQL được parameter hóa, phạm vi người dùng,
+validation, HTTP status, response và commit/rollback; không thay thế kiểm thử trên SQL Server thực tế.
+
+Chạy `npm run test:profile:sql` để kiểm tra trên SQL Server cấu hình trong `.env` sau khi tạo schema.
+Script tạo hai tài khoản thử riêng, kiểm tra dữ liệu được lưu, CRUD, quyền sở hữu, đổi mặc định đồng thời
+và rollback thực tế, rồi xóa dữ liệu thử trong `finally`. Chạy trên database phát triển/kiểm thử.
