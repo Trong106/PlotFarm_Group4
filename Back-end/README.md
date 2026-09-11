@@ -52,7 +52,7 @@ npm run dev
 
 API công khai nhận JSON, kiểm tra đầu vào bằng Zod và tạo tài khoản `Customer` ở trạng thái `ACTIVE`.
 
-Trước khi chạy, khởi tạo SQL Server bằng `database/01_roles_and_users_schema.sql` ở thư mục gốc của repository, rồi cấu hình kết nối trong `.env`. Bảng `Users` phải có unique constraint `UQ_Users_Email` và bảng `Roles` phải có vai trò `Customer`. API dùng unique constraint để xử lý cả hai yêu cầu đăng ký cùng email đến đồng thời.
+Trước khi chạy, khởi tạo SQL Server bằng `database/schema.sql` ở thư mục gốc của repository, rồi cấu hình kết nối trong `.env`. Bảng `Users` phải có unique constraint `UQ_Users_Email` và bảng `Roles` phải có vai trò `Customer`. API dùng unique constraint để xử lý cả hai yêu cầu đăng ký cùng email đến đồng thời.
 
 | Trường | Quy tắc |
 |---|---|
@@ -229,8 +229,7 @@ npm run test:socket
 ```
 # User Profile & Shipping Address APIs
 
-Chạy `database/01_roles_and_users_schema.sql`, sau đó `database/02_user_addresses_schema.sql`
-trên SQL Server trước khi sử dụng sổ địa chỉ. Script thứ hai có thể chạy lại và không xóa dữ liệu.
+Chạy script duy nhất `database/schema.sql` trên SQL Server trước khi khởi động server hoặc kiểm thử. Script này có thể chạy lại nhiều lần (idempotent) mà không xóa hay làm mất dữ liệu.
 
 Tất cả API dưới đây yêu cầu header `Authorization: Bearer <token>` của tài khoản `ACTIVE`.
 `userId` luôn lấy từ JWT. Không được truyền `userId`, `roleId`, `status`, mật khẩu hoặc trường ngoài schema trong body.
