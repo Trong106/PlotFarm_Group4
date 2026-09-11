@@ -10,6 +10,8 @@ export interface UserProfile {
   phoneNumber?: string;
   avatarUrl?: string;
   status?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface AuthState {
@@ -21,6 +23,7 @@ interface AuthState {
   login: (email?: string, password?: string) => Promise<boolean>;
   register: (data: { fullName: string; email: string; password: string; phoneNumber?: string }) => Promise<boolean>;
   fetchProfile: () => Promise<void>;
+  updateProfile: (data: { fullName?: string; phoneNumber?: string | null }) => Promise<boolean>;
   logout: () => void;
   initAuth: () => void;
   rehydrate: () => void;
@@ -99,7 +102,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await api.post('/auth/register', data);
       const resData = response.data.data || response.data;
 
-      // Nếu backend trả về token sau khi đăng ký
       if (resData && resData.token) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', resData.token);
@@ -140,8 +142,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchProfile: async () => {
     set({ isLoading: true });
     try {
-      const res = await api.get('/auth/me');
-      const userData = res.data.data || res.data;
+      // Prioritize /users/me to get the rich profile with phoneNumber, roleName, etc.
+      let userData: any = null;
+      try {
+        const res = await api.get('/users/me');
+        const d = res.data.data || res.data;
+        if (d) {
+          userData = {
+            ...d,
+            role: d.roleName || d.role || 'Customer',
+          };
+        }
+      } catch {
+        // Fallback to /auth/me if /users/me fails
+        const resAuth = await api.get('/auth/me');
+        userData = resAuth.data.data || resAuth.data;
+      }
+
       if (typeof window !== 'undefined' && userData) {
         localStorage.setItem('user', JSON.stringify(userData));
       }
@@ -152,6 +169,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         set({ user: null, isAuthenticated: false, isLoading: false });
       }
+    }
+  },
+
+  updateProfile: async (data: { fullName?: string; phoneNumber?: string | null }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.patch('/users/me', data);
+      const updatedData = response.data.data || response.data;
+
+      const currentUser = get().user;
+      const normalizedUser: UserProfile = {
+        userId: updatedData.userId || currentUser?.userId || 0,
+        fullName: updatedData.fullName || currentUser?.fullName || '',
+        email: updatedData.email || currentUser?.email || '',
+        role: updatedData.roleName || updatedData.role || currentUser?.role || 'Customer',
+        phoneNumber: updatedData.phoneNumber !== undefined ? updatedData.phoneNumber : currentUser?.phoneNumber,
+        avatarUrl: updatedData.avatarUrl || currentUser?.avatarUrl,
+        status: updatedData.status || currentUser?.status,
+        createdAt: updatedData.createdAt || currentUser?.createdAt,
+        updatedAt: updatedData.updatedAt || currentUser?.updatedAt,
+      };
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
+      }
+
+      set({
+        user: normalizedUser,
+        isLoading: false,
+        error: null,
+      });
+
+      toast.success('Cập nhật thông tin hồ sơ thành công!', 'Hồ sơ cá nhân');
+      return true;
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Cập nhật hồ sơ thất bại.';
+      set({ isLoading: false, error: msg });
+      toast.error(msg, 'Lỗi cập nhật');
+      return false;
     }
   },
 
@@ -170,3 +226,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     toast.info('Bạn đã đăng xuất khỏi hệ thống an toàn.', 'Đã đăng xuất');
   },
 }));
+
+export default useAuthStore;
