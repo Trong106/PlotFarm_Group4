@@ -232,7 +232,7 @@ async function seedAddresses(pool, users) {
     const existCheck = await pool
       .request()
       .input("UserId", sql.Int, user.userId)
-      .query("SELECT UserAddressId FROM " + TABLES.USER_ADDRESSES + " WHERE UserId = @UserId");
+      .query("SELECT 1 AS ExistsFlag FROM " + TABLES.USER_ADDRESSES + " WHERE UserId = @UserId");
 
     if (existCheck.recordset.length > 0) {
       warn(" User #" + user.userId + " (" + user.email + ") da co dia chi — bo qua");
