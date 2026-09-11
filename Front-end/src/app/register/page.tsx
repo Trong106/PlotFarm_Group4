@@ -154,13 +154,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col relative overflow-hidden font-sans">
       {/* Background Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-green-500/15 blur-[120px] pointer-events-none" />
 
       {/* Top Navigation Bar */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center max-w-7xl mx-auto w-full z-10">
+      <header className="relative z-30 w-full max-w-7xl mx-auto p-6 flex justify-between items-center">
         <Link href="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
             <Sprout className="w-5 h-5" />
@@ -173,11 +173,11 @@ export default function RegisterPage() {
           </div>
         </Link>
 
-        <div className="text-sm text-slate-600 dark:text-slate-400">
-          Đã có tài khoản?{' '}
+        <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <span>Đã có tài khoản?</span>
           <Link
             href="/login"
-            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4"
+            className="font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4 cursor-pointer hover:opacity-90 active:scale-95"
           >
             Đăng nhập ngay
           </Link>
@@ -185,7 +185,7 @@ export default function RegisterPage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl w-full mx-auto px-4 py-24 sm:px-6 lg:px-8 z-10">
+      <main className="flex-1 flex items-center justify-center max-w-6xl w-full mx-auto px-4 py-8 sm:px-6 lg:px-8 z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
           {/* Left Column: Brand Showcase (Desktop only) */}
