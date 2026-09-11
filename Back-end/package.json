@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node --test tests/auth-register.test.js tests/auth-login.test.js",
+    "test": "node --test tests/*.test.js",
+    "test:profile:sql": "node scripts/test-user-profile-sql.js",
     "test:socket": "node scripts/test-socket.js"
   },
   "keywords": [
