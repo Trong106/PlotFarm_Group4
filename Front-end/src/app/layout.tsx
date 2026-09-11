@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ToastContainer from '@/components/ui/Toast';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const metadata: Metadata = {
   title: 'PlotFarm - Smart Farming & Plot Rental Platform',
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className="antialiased selection:bg-emerald-500 selection:text-white">
-        <ToastContainer />
-        {children}
+        <AuthProvider>
+          <ToastContainer />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -36,6 +36,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import Header from '@/components/Header';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useUIStore } from '@/store/useUIStore';
 import { useSocketStore } from '@/store/useSocketStore';
@@ -88,71 +89,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#080d16] text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-600 to-green-500 text-white shadow-md shadow-emerald-500/20">
-              <Sprout className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300">
-                  PlotFarm
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                Nền tảng quản lý nông trại thông minh & cho thuê đất trồng
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Real Backend Active Badge */}
-            <Badge variant="success" dot size="sm">
-              REST API Realtime Active
-            </Badge>
-
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm"
-              title="Chuyển chế độ sáng / tối"
-            >
-              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </button>
-
-            {/* Register Button in Navbar */}
-            {!isAuthenticated && (
-              <Link href="/register">
-                <Button variant="outline" size="sm" leftIcon={<UserPlus className="w-3.5 h-3.5" />}>
-                  Đăng Ký
-                </Button>
-              </Link>
-            )}
-
-            {/* Auth User Profile Indicator */}
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-slate-800">
-                <div className="text-right">
-                  <p className="text-xs font-bold leading-tight">{user?.fullName}</p>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">
-                    {user?.role}
-                  </span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={logout} title="Đăng xuất">
-                  <LogOut className="w-4 h-4 text-rose-500" />
-                </Button>
-              </div>
-            ) : (
-              <a href="/login">
-                <Button variant="primary" size="sm">
-                  Trang Đăng Nhập
-                </Button>
-              </a>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -613,7 +550,7 @@ export default function Home() {
               <CardContent>
                 <div className="p-4 rounded-2xl bg-slate-950 font-mono text-xs text-slate-200 h-64 overflow-y-auto space-y-2 border border-slate-800 shadow-inner">
                   {socketLogs.length === 0 ? (
-                    <p className="text-slate-500 italic">// Chưa có sự kiện nào. Hãy bấm &quot;Kết Nối Socket.IO&quot; để bắt đầu.</p>
+                    <p className="text-slate-500 italic">{'// Chưa có sự kiện nào. Hãy bấm "Kết Nối Socket.IO" để bắt đầu.'}</p>
                   ) : (
                     socketLogs.map((log) => (
                       <div key={log.id} className="flex items-start gap-2 leading-relaxed">

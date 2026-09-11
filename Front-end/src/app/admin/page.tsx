@@ -2,14 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ShieldCheck, ArrowLeft, Lock, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Lock, CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/context/AuthContext';
 
 export default function AdminDashboardPage() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, isLoading } = useAuth();
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-6 sm:p-12">
@@ -44,17 +44,30 @@ export default function AdminDashboardPage() {
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-start gap-3 text-xs">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-sm">Xác Thực Thành Công Qua Middleware!</p>
+                <p className="font-bold text-sm">Xác Thực Thành Công Qua Middleware & Auth Context!</p>
                 <p className="mt-0.5 leading-relaxed">
-                  Next.js Middleware đã chặn thành công các yêu cầu không hợp lệ và cho phép tài khoản hợp lệ truy cập vùng <code>/admin</code>.
+                  Next.js Middleware và Auth Context bảo vệ tuyến đường và duy trì trạng thái phiên đăng nhập ngay cả khi F5 hoặc chuyển trang.
                 </p>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 space-y-2 text-xs">
-              <p className="text-slate-400">Thông tin Admin đang đăng nhập:</p>
-              <p className="font-bold text-white">{user?.fullName} ({user?.email}) - Chức vụ: <span className="text-emerald-400">{user?.role}</span></p>
-            </div>
+            {isLoading ? (
+              <div className="p-8 rounded-2xl bg-slate-800/60 border border-slate-700 flex flex-col items-center justify-center gap-3 text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+                <p className="text-xs font-medium">Đang kiểm tra và duy trì phiên đăng nhập...</p>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-slate-800 border border-slate-700 space-y-2 text-xs">
+                <p className="text-slate-400">Thông tin Admin đang đăng nhập:</p>
+                <p className="font-bold text-white">
+                  {user?.fullName || 'Quản trị viên'} ({user?.email || 'admin@plotfarm.vn'}) - Chức vụ:{' '}
+                  <span className="text-emerald-400 font-semibold">{user?.role || 'Admin'}</span>
+                </p>
+                {user?.phoneNumber && (
+                  <p className="text-slate-400">Số điện thoại: <span className="text-slate-200">{user.phoneNumber}</span></p>
+                )}
+              </div>
+            )}
 
             <div className="pt-2 flex justify-end">
               <Button variant="danger" onClick={logout}>

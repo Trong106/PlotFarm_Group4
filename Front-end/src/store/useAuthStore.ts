@@ -23,6 +23,7 @@ interface AuthState {
   fetchProfile: () => Promise<void>;
   logout: () => void;
   initAuth: () => void;
+  rehydrate: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -35,11 +36,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initAuth: () => {
     if (typeof window !== 'undefined') {
       const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
       if (storedToken) {
-        set({ token: storedToken, isAuthenticated: true });
+        let user: UserProfile | null = null;
+        if (storedUser) {
+          try {
+            user = JSON.parse(storedUser);
+          } catch {
+            user = null;
+          }
+        }
+        set({ token: storedToken, user, isAuthenticated: true });
         get().fetchProfile();
       }
     }
+  },
+
+  rehydrate: () => {
+    get().initAuth();
   },
 
   login: async (email = 'admin@plotfarm.vn', password = 'password123') => {
@@ -50,6 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
         document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
       }
 
@@ -88,6 +103,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (resData && resData.token) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', resData.token);
+          if (resData.user) {
+            localStorage.setItem('user', JSON.stringify(resData.user));
+          }
           document.cookie = `token=${resData.token}; path=/; max-age=604800; SameSite=Lax`;
         }
         set({
@@ -123,15 +141,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await api.get('/auth/me');
-      set({ user: res.data.data, isAuthenticated: true, isLoading: false });
+      const userData = res.data.data || res.data;
+      if (typeof window !== 'undefined' && userData) {
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+      set({ user: userData, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      if (err.response?.status === 401) {
+        get().logout();
+      } else {
+        set({ user: null, isAuthenticated: false, isLoading: false });
+      }
     }
   },
 
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
     set({

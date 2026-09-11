@@ -34,6 +34,7 @@ const generateToken = (payload, expiresIn = JWT_EXPIRES_IN) => {
     role: payload.role,
     // Các trường tuỳ chọn bổ sung (nếu có)
     ...(payload.email && { email: payload.email }),
+    ...(payload.fullName && { fullName: payload.fullName }),
   };
 
   return jwt.sign(tokenPayload, JWT_SECRET, { expiresIn });
