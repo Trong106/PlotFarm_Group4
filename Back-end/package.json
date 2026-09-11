@@ -7,7 +7,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "node --test tests/auth-register.test.js tests/auth-login.test.js",
-    "test:socket": "node scripts/test-socket.js"
+    "test:socket": "node scripts/test-socket.js",
+    "seed": "node scripts/seed-users.js",
+    "seed:verify": "node -e \"require('dotenv').config(); const {connectDB,closeDB,sql}=require('./src/config/db'); const {TABLES}=require('./src/models'); (async()=>{const p=await connectDB(); const r=await p.request().query('SELECT u.UserId,r.RoleName,u.FullName,u.Email,u.Status FROM Users u JOIN Roles r ON u.RoleId=r.RoleId ORDER BY r.RoleName,u.UserId'); console.table(r.recordset); await closeDB();})();\""
   },
   "keywords": [
     "plotfarm",
