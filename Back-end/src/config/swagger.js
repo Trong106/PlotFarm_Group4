@@ -340,6 +340,7 @@ const finalSpec = {
   paths: {
     ...baseSwaggerSpec.paths,
     ...(swaggerSpec.paths || {}),
+    ...require('./userSwagger'),
   },
 };
 
