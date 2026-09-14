@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
@@ -224,8 +224,8 @@ export default function RegisterPage() {
                   <Activity className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Cảm Biến Môi Trường IoT</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Đo đạc độ ẩm đất, nhiệt độ và tiến độ sinh trưởng tự động.</p>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Theo Dõi Nhiệt Độ & Độ Ẩm</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Nắm bắt nhiệt độ thời tiết và độ ẩm luống rau dễ dàng ngay trên ứng dụng.</p>
                 </div>
               </div>
 

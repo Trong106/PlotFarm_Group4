@@ -1,619 +1,564 @@
 'use client';
-import Link from "next/link";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Sprout,
-  Sun,
-  Moon,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-  Lock,
-  Mail,
-  UserCheck,
-  UserPlus,
-  LogOut,
-  Code2,
-  LayoutGrid,
+  Video,
+  Truck,
+  MapPin,
   Sparkles,
-  Layers,
-  Activity,
-  Server,
-  Zap,
+  Award,
+  ArrowRight,
+  Clock,
   Check,
   ShieldCheck,
-  Radio,
-  Wifi,
-  WifiOff,
-  Terminal,
-  RefreshCw,
-  Send,
-  Trash2,
+  Leaf,
+  Activity,
+  Trees,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Modal } from '@/components/ui/Modal';
-import { Badge } from '@/components/ui/Badge';
 import Header from '@/components/Header';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useUIStore } from '@/store/useUIStore';
-import { useSocketStore } from '@/store/useSocketStore';
-import { toast } from '@/store/useToastStore';
 
-export default function Home() {
-  const { theme, toggleTheme, isDemoModalOpen, setDemoModalOpen, activeTab, setActiveTab } = useUIStore();
-  const { user, isAuthenticated, isLoading, error, login, logout } = useAuthStore();
-  const {
-    isConnected: isSocketConnected,
-    isConnecting: isSocketConnecting,
-    socketId,
-    identifiedUser,
-    latency,
-    logs: socketLogs,
-    connectSocket,
-    disconnectSocket,
-    sendPing,
-    executeAdminAction,
-    checkWhoAmI,
-    clearLogs,
-  } = useSocketStore();
+interface CropInfo {
+  name: string;
+  category: string;
+  growthDays: string;
+  yieldKg: string;
+  price: string;
+  badge: string;
+  badgeVariant: 'success' | 'warning' | 'info' | 'danger';
+  description: string;
+}
 
-  const [btnLoading, setBtnLoading] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [inputError, setInputError] = useState('');
-  const [loginEmail, setLoginEmail] = useState('admin@plotfarm.vn');
-  const [loginPass, setLoginPass] = useState('password123');
-  const [customSocketToken, setCustomSocketToken] = useState('');
+export default function LandingPage() {
+  const { isAuthenticated, initAuth } = useAuthStore();
+  const [selectedCropModal, setSelectedCropModal] = useState<CropInfo | null>(null);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim()) {
-      setInputError('Vui lòng nhập thông tin tên ô đất!');
-      return;
-    }
-    setInputError('');
-    setBtnLoading(true);
-    setTimeout(() => {
-      setBtnLoading(false);
-      alert(`Đã lưu thành công: "${inputValue}"`);
-    }, 800);
-  };
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await login(loginEmail, loginPass);
-  };
+  // Danh mục hạt giống tiêu biểu
+  const featuredCrops: CropInfo[] = [
+    {
+      name: 'Cải Xoăn Kale Thủy Canh',
+      category: 'Rau Ăn Lá',
+      growthDays: '45-50 ngày',
+      yieldKg: '8-12 kg / vụ',
+      price: '180.000đ / luống',
+      badge: 'Bán chạy nhất',
+      badgeVariant: 'success',
+      description: 'Siêu thực phẩm giàu vitamin C, canxi và chất chống oxy hóa. Canh tác chuẩn hữu cơ không hóa chất độc hại.',
+    },
+    {
+      name: 'Cà Chua Bi Cherry Đỏ',
+      category: 'Rau Ăn Quả',
+      growthDays: '60-70 ngày',
+      yieldKg: '15-20 kg / vụ',
+      price: '220.000đ / luống',
+      badge: 'Mọng nước, ngọt thanh',
+      badgeVariant: 'warning',
+      description: 'Giống cà chua bi ngọt lịm, chăm sóc cẩn thận dưới giàn che và hệ thống tưới nhỏ giọt tự động 24/7.',
+    },
+    {
+      name: 'Xà Lách Romaine Hữu Cơ',
+      category: 'Rau Ăn Lá',
+      growthDays: '35-40 ngày',
+      yieldKg: '10-14 kg / vụ',
+      price: '150.000đ / luống',
+      badge: 'Thu hoạch nhanh',
+      badgeVariant: 'info',
+      description: 'Lá xanh giòn ngọt, hoàn hảo cho món salad gia đình. Cây phát triển nhanh, xanh tốt và thích ứng tốt với thời tiết mát mẻ.',
+    },
+    {
+      name: 'Dưa Leo Baby Siêu Trái',
+      category: 'Rau Ăn Quả',
+      growthDays: '40-45 ngày',
+      yieldKg: '18-25 kg / vụ',
+      price: '190.000đ / luống',
+      badge: 'Năng suất cao',
+      badgeVariant: 'success',
+      description: 'Trái nhỏ giòn ngọt, vỏ mỏng không hạt. Thu hoạch liên tục 3 đợt mỗi vụ và giao tươi ngay trong ngày.',
+    },
+  ];
+
+  // 4 Bước từ thuê đất đến nhận rau
+  const workflowSteps = [
+    {
+      step: '01',
+      title: 'Chọn Ô Đất & Giống Rau',
+      description: 'Lựa chọn vị trí ô đất mong muốn trên bản đồ trang trại 3D, chọn hạt giống phù hợp mùa vụ và sở thích ẩm thực gia đình.',
+      icon: <MapPin className="w-6 h-6 text-emerald-500" />,
+      tag: 'Bản đồ trực quan',
+    },
+    {
+      step: '02',
+      title: 'Đăng Ký Gói Canh Tác',
+      description: 'Đội ngũ kỹ thuật viên giàu kinh nghiệm tại trang trại bắt đầu làm đất, gieo hạt, bón phân hữu cơ và bắt sâu hàng ngày.',
+      icon: <Sprout className="w-6 h-6 text-teal-500" />,
+      tag: 'Quy trình chuẩn VietGAP',
+    },
+    {
+      step: '03',
+      title: 'Giám Sát Sinh Trưởng 24/7',
+      description: 'Theo dõi tiến trình sinh trưởng từng ngày qua Camera trực tiếp và nhận thông báo cập nhật độ ẩm, nhiệt độ theo thời gian thực.',
+      icon: <Video className="w-6 h-6 text-cyan-500" />,
+      tag: 'Camera quan sát & Nhiệt độ',
+    },
+    {
+      step: '04',
+      title: 'Thu Hoạch & Giao Tận Bếp',
+      description: 'Khi rau đạt độ chín ngon nhất, trang trại thu hoạch vào sáng sớm, đóng gói tiêu chuẩn và vận chuyển hỏa tốc đến bàn ăn gia đình.',
+      icon: <Truck className="w-6 h-6 text-emerald-600" />,
+      tag: 'Tươi ngon trong ngày',
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080d16] text-slate-900 dark:text-slate-100 transition-colors duration-300">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-300">
       <Header />
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Main Banner */}
-        <div className="relative rounded-3xl p-8 mb-8 overflow-hidden bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 text-white shadow-2xl border border-emerald-500/20">
-          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="relative z-10 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold mb-4">
-              <Sparkles className="w-3.5 h-3.5" /> Đồng bộ hệ thống hoàn tất
+      <main className="flex-1 space-y-24 pb-24">
+        {/* ========================================================================= */}
+        {/* 1. HERO SECTION: GIỚI THIỆU MÔ HÌNH CLOUD FARMING */}
+        {/* ========================================================================= */}
+        <section className="relative overflow-hidden pt-12 sm:pt-20 lg:pt-28 pb-12">
+          {/* Ambient Glows */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[350px] bg-emerald-500/15 dark:bg-emerald-500/10 blur-[130px] rounded-full pointer-events-none" />
+          <div className="absolute top-1/3 right-10 w-[450px] h-[300px] bg-teal-500/15 dark:bg-teal-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100/70 dark:bg-emerald-950/60 border border-emerald-400/30 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold shadow-sm backdrop-blur-md">
+              <Sparkles className="w-4 h-4 text-emerald-500" />
+              Nền Tảng Nông Nghiệp Kỹ Thuật Số Chuẩn VietGAP Đầu Tiên Tại Việt Nam
             </div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">
-              Hệ Thống PlotFarm Integrated Client & Server
+
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.15] max-w-5xl mx-auto">
+              Thuê Đất Trồng Rau Online,{' '}
+              <span className="bg-gradient-to-r from-emerald-600 via-teal-500 to-green-500 bg-clip-text text-transparent">
+                Nhận Rau Sạch Tận Nhà
+              </span>
             </h1>
-            <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
-              Front-end Next.js App Router chuẩn hóa với bộ Base UI Components, Zustand Store, Socket.IO Gateway và RESTful API backend thực tế.
+
+            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
+              Trải nghiệm sở hữu ô đất nông nghiệp thực tế ngay trên điện thoại của bạn. Đội ngũ kỹ sư chăm sóc tận tâm hàng ngày,
+              camera livestream 24/7 và nông sản tươi sạch giao tận bàn ăn gia đình bạn.
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Button variant="primary" onClick={() => setDemoModalOpen(true)} leftIcon={<Layers className="w-4 h-4" />}>
-                Mở Modal Demo UI
-              </Button>
-              <a href="http://localhost:5000/" target="_blank" rel="noreferrer">
-                <Button variant="secondary" leftIcon={<Server className="w-4 h-4" />}>
-                  Swagger API Docs (Cổng 5000)
-                </Button>
-              </a>
-              <Link href="/register">
-                <Button variant="outline" className="bg-white/10 hover:bg-white/20 border-white/30 text-white" leftIcon={<UserPlus className="w-4 h-4" />}>
-                  Đăng Ký Tài Khoản (Ngày 6)
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+              <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="shadow-xl shadow-emerald-500/25 group font-bold text-base px-8 py-3.5"
+                  rightIcon={<ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                >
+                  {isAuthenticated ? 'Vào Khu Vườn Của Tôi' : 'Thuê Ô Đất Ngay Bây Giờ'}
                 </Button>
               </Link>
-              <a href="http://localhost:5000/socket-test" target="_blank" rel="noreferrer">
-                <Button variant="outline" leftIcon={<Activity className="w-4 h-4" />}>
-                  Kiểm thử Socket.IO Realtime
+
+              <a href="#quy-trinh">
+                <Button variant="outline" size="lg" className="font-semibold text-base px-8 py-3.5">
+                  Xem 4 Bước Hoạt Động
                 </Button>
               </a>
             </div>
+
+            {/* Metrics Counter Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 pt-10 border-t border-slate-200/80 dark:border-slate-800/80 max-w-4xl mx-auto">
+              <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 backdrop-blur-sm">
+                <p className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">500+</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Ô đất đang canh tác</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 backdrop-blur-sm">
+                <p className="text-2xl sm:text-3xl font-black text-teal-600 dark:text-teal-400">24/7</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Camera quan sát 24/7</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 backdrop-blur-sm">
+                <p className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400">100%</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Hữu cơ không hóa chất</p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800/70 backdrop-blur-sm">
+                <p className="text-2xl sm:text-3xl font-black text-amber-500">2-4 Giờ</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Giao rau sau thu hoạch</p>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-800 mb-8 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('components')}
-            className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-sm transition-all whitespace-nowrap ${
-              activeTab === 'components'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4" />
-            1. Bộ Base UI Components
-          </button>
-          <button
-            onClick={() => setActiveTab('state')}
-            className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-sm transition-all whitespace-nowrap ${
-              activeTab === 'state'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <Code2 className="w-4 h-4" />
-            2. Kết Nối Express REST API Thật
-          </button>
-          <button
-            onClick={() => setActiveTab('socket')}
-            className={`flex items-center gap-2 px-5 py-3 border-b-2 font-semibold text-sm transition-all whitespace-nowrap ${
-              activeTab === 'socket'
-                ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <Radio className="w-4 h-4" />
-            3. Phân Quyền Role-based Realtime (Socket.IO)
-          </button>
-        </div>
+        {/* ========================================================================= */}
+        {/* 2. SECTION: MÔ HÌNH CLOUD FARMING HOẠT ĐỘNG NHƯ THẾ NÀO */}
+        {/* ========================================================================= */}
+        <section id="mo-hinh" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+            <Badge variant="success" size="sm" className="font-bold">
+              Mô Hình Đột Phá
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Cloud Farming Là Gì?
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed">
+              Chúng tôi xóa bỏ mọi rào cản về diện tích đất, thời gian chăm sóc và kỹ thuật canh tác, giúp bạn tận hưởng trọn vẹn niềm vui có vườn rau riêng.
+            </p>
+          </div>
 
-        {/* TAB 1: BASE UI COMPONENTS */}
-        {activeTab === 'components' && (
-          <div className="space-y-8 animate-fade-in">
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle>Button Components</CardTitle>
-                <CardDescription>Bộ Button được cắt chuẩn hóa cho toàn dự án</CardDescription>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card variant="glass" className="hover:-translate-y-1 transition-all duration-300 border-emerald-500/20">
+              <CardHeader className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">Ô Đất Số Hóa</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Mỗi ô đất trên hệ thống được định danh tọa độ GPS thực tế tại nông trại Củ Chi với đầy đủ thông số thổ nhưỡng.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="primary">Primary Button</Button>
-                  <Button variant="secondary">Secondary</Button>
-                  <Button variant="outline">Outline</Button>
-                  <Button variant="ghost">Ghost</Button>
-                  <Button variant="danger">Danger</Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button variant="primary" size="sm">Small</Button>
-                  <Button variant="primary" size="md">Medium</Button>
-                  <Button variant="primary" size="lg">Large</Button>
-                  <Button variant="primary" isLoading>Đang xử lý</Button>
-                </div>
-              </CardContent>
             </Card>
 
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle>Badge Status Components</CardTitle>
-                <CardDescription>Nhãn trạng thái ô đất, thu hoạch và người dùng</CardDescription>
+            <Card variant="glass" className="hover:-translate-y-1 transition-all duration-300 border-teal-500/20">
+              <CardHeader className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-teal-100 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
+                  <Sprout className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">Kỹ Sư Canh Tác Tận Tâm</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Nông dân giàu kinh nghiệm trực tiếp tưới tiêu, bón phân hữu cơ và tỉa cành bắt sâu sinh học theo tiêu chuẩn VietGAP.
+                </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-4">
-                <Badge variant="success" dot icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
-                  Đang hoạt động (ACTIVE)
-                </Badge>
-                <Badge variant="warning" dot icon={<AlertTriangle className="w-3.5 h-3.5" />}>
-                  Chờ duyệt (PENDING)
-                </Badge>
-                <Badge variant="danger" dot>
-                  Đã khóa (LOCKED)
-                </Badge>
-                <Badge variant="info" icon={<Info className="w-3.5 h-3.5" />}>
-                  Thông tin Staff
-                </Badge>
-                <Badge variant="neutral">Mặc định Neutral</Badge>
-              </CardContent>
             </Card>
 
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle>Input Components</CardTitle>
-                <CardDescription>Ô nhập dữ liệu hỗ trợ label, icon và ẩn/hiện password</CardDescription>
+            <Card variant="glass" className="hover:-translate-y-1 transition-all duration-300 border-cyan-500/20">
+              <CardHeader className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-100 dark:bg-cyan-950/80 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold">
+                  <Video className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">Camera Quan Sát 24/7</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Quan sát trực tiếp luống rau qua Camera 24/7 và theo dõi nhiệt độ môi trường bất kỳ lúc nào ngay trên điện thoại.
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleFormSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Input
-                    label="Tên Ô Đất"
-                    placeholder="Nhập tên ô đất canh tác..."
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    error={inputError}
-                    leftIcon={<Sprout className="w-4 h-4" />}
-                  />
-                  <Input
-                    label="Mật Khẩu Thử Nghiệm"
-                    placeholder="••••••••"
-                    isPassword
-                    leftIcon={<Lock className="w-4 h-4" />}
-                    defaultValue="password123"
-                  />
-                  <div className="md:col-span-2 flex justify-end">
-                    <Button type="submit" variant="primary" isLoading={btnLoading}>
-                      Lưu Thử Nghiệm
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
+            </Card>
+
+            <Card variant="glass" className="hover:-translate-y-1 transition-all duration-300 border-green-500/20">
+              <CardHeader className="space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-950/80 text-green-600 dark:text-green-400 flex items-center justify-center font-bold">
+                  <Truck className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-lg font-bold text-slate-900 dark:text-slate-100">Giao Rau Tận Cửa</CardTitle>
+                <CardDescription className="text-xs leading-relaxed">
+                  Rau được thu hoạch sáng sớm, khử khuẩn ozone, đóng gói cẩn thận và giao tận cửa nhà bạn chỉ trong 2-4 tiếng.
+                </CardDescription>
+              </CardHeader>
             </Card>
           </div>
-        )}
+        </section>
 
-        {/* TAB 2: REAL REST API INTEGRATION */}
-        {activeTab === 'state' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
-            {/* Express Auth API Form */}
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle>Đăng Nhập REST API Thật (Express Server)</CardTitle>
-                <CardDescription>Gọi trực tiếp API POST /api/auth/login trên cổng 5000</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  <Input
-                    label="Email Tài Khoản"
-                    placeholder="nhap.email@domain.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    leftIcon={<Mail className="w-4 h-4" />}
-                  />
-                  <Input
-                    label="Mật Khẩu"
-                    placeholder="••••••••"
-                    isPassword
-                    value={loginPass}
-                    onChange={(e) => setLoginPass(e.target.value)}
-                    leftIcon={<Lock className="w-4 h-4" />}
-                  />
-
-                  {error && (
-                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
-                      {error}
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 pt-2">
-                    {isAuthenticated ? (
-                      <Button variant="danger" onClick={logout} className="w-full" leftIcon={<LogOut className="w-4 h-4" />}>
-                        Đăng Xuất
-                      </Button>
-                    ) : (
-                      <Button variant="primary" type="submit" isLoading={isLoading} className="w-full" leftIcon={<UserCheck className="w-4 h-4" />}>
-                        Đăng Nhập API Thật
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-
-            {/* Current Auth Response Viewer */}
-            <Card variant="glass">
-              <CardHeader>
-                <CardTitle>Phiên Đăng Nhập & User Profile Payload</CardTitle>
-                <CardDescription>Dữ liệu phản hồi thực tế nhận từ Express Backend & SQL Server</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs overflow-x-auto leading-relaxed border border-slate-800">
-                  <p className="text-emerald-400 font-bold mb-2">{'// REST API Payload Response:'}</p>
-                  {isAuthenticated ? (
-                    <pre className="whitespace-pre-wrap">{JSON.stringify(user, null, 2)}</pre>
-                  ) : (
-                    <p className="text-slate-500">{'// Chưa đăng nhập. Hãy nhập Email & Mật khẩu để gọi API thật.'}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        {/* ========================================================================= */}
+        {/* 3. SECTION: 4 BƯỚC TỪ THUÊ ĐẤT ĐẾN NHẬN RAU TẬN BẾP */}
+        {/* ========================================================================= */}
+        <section id="quy-trinh" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+            <Badge variant="info" size="sm" className="font-bold">
+              Quy Trình Khép Kín
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              4 Bước Sở Hữu Mảnh Vườn Xanh Của Riêng Bạn
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">
+              Chỉ với vài thao tác đơn giản trên website, bạn đã có ngay một ô đất trồng rau sạch được chăm sóc bởi đội ngũ chuyên nghiệp.
+            </p>
           </div>
-        )}
 
-        {/* TAB 3: ROLE-BASED & JWT SOCKET.IO GATEWAY */}
-        {activeTab === 'socket' && (
-          <div className="space-y-8 animate-fade-in">
-            {/* Realtime Status Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card variant="glass" className="p-4">
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Trạng thái Kết nối</span>
-                <div className="flex items-center gap-2 mt-2">
-                  <span
-                    className={`w-3 h-3 rounded-full ${
-                      isSocketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
-                    }`}
-                  />
-                  <span className="font-bold text-sm">
-                    {isSocketConnected ? 'ĐÃ KẾT NỐI' : isSocketConnecting ? 'ĐANG KẾT NỐI...' : 'ĐÃ NGẮT'}
-                  </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+            {workflowSteps.map((step, idx) => (
+              <div
+                key={step.step}
+                className="relative flex flex-col p-6 rounded-3xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80 shadow-lg hover:shadow-xl transition-all duration-300 group"
+              >
+                {/* Step badge top right */}
+                <span className="absolute top-6 right-6 text-3xl font-black text-slate-200 dark:text-slate-800 group-hover:text-emerald-500/20 transition-colors">
+                  {step.step}
+                </span>
+
+                {/* Icon Container */}
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                  {step.icon}
                 </div>
-              </Card>
 
-              <Card variant="glass" className="p-4">
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Socket Client ID</span>
-                <p className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-2 truncate">
-                  {socketId || '--'}
+                <Badge variant="neutral" size="sm" className="w-fit mb-3 text-emerald-700 dark:text-emerald-300">
+                  {step.tag}
+                </Badge>
+
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">
+                  {step.title}
+                </h3>
+
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed flex-1">
+                  {step.description}
                 </p>
-              </Card>
 
-              <Card variant="glass" className="p-4">
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Vai trò Được Định Danh</span>
-                <div className="mt-1">
-                  <Badge
-                    variant={
-                      identifiedUser?.role === 'Admin'
-                        ? 'danger'
-                        : identifiedUser?.role === 'Staff'
-                        ? 'warning'
-                        : identifiedUser?.role === 'Customer'
-                        ? 'success'
-                        : 'neutral'
-                    }
-                    size="sm"
-                  >
-                    {identifiedUser?.role || 'GUEST (Khách)'}
-                  </Badge>
+                {/* Bottom Step Indicator */}
+                <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <Check className="w-4 h-4 text-emerald-500" />
+                  <span>Bước {idx + 1}/4 Hoàn tất</span>
                 </div>
-              </Card>
+              </div>
+            ))}
+          </div>
 
-              <Card variant="glass" className="p-4">
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Độ Trễ Khứ Hồi (RTT)</span>
-                <p className="font-mono text-base font-extrabold text-blue-500 mt-1">
-                  {latency !== null ? `${latency} ms` : '-- ms'}
-                </p>
-              </Card>
+          {/* CTA Banner inside Workflow Section */}
+          <div className="mt-12 text-center">
+            <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+              <Button variant="primary" size="lg" className="shadow-lg shadow-emerald-500/20">
+                Bắt Đầu Ngay Với Ô Đất Đầu Tiên
+              </Button>
+            </Link>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 4. SECTION: DANH MỤC NÔNG SẢN TIÊU BIỂU */}
+        {/* ========================================================================= */}
+        <section id="giong-rau" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-12">
+            <div>
+              <Badge variant="warning" size="sm" className="font-bold mb-2">
+                Nông Sản Mùa Vụ
+              </Badge>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Giống Rau Sạch Khuyên Dùng
+              </h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-1">
+                Các giống rau được chọn lọc kỹ càng, thích nghi tối ưu với khí hậu và cho năng suất cao nhất.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Connection Controls & Token Input */}
-              <Card variant="glass">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Radio className="w-5 h-5 text-emerald-500" />
-                    Kết Nối Realtime Gateway & JWT Token
-                  </CardTitle>
-                  <CardDescription>
-                    Middleware Socket.IO tự động giải mã JWT để định danh người dùng và xếp room theo vai trò
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+              <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
+                Xem Toàn Bộ Hạt Giống
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredCrops.map((crop) => (
+              <Card
+                key={crop.name}
+                variant="glass"
+                className="overflow-hidden border-slate-200 dark:border-slate-800 flex flex-col justify-between hover:border-emerald-500/50 transition-colors"
+              >
+                <div className="p-6 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <Badge variant={crop.badgeVariant} size="sm">
+                      {crop.badge}
+                    </Badge>
+                    <span className="text-xs font-semibold text-slate-400">{crop.category}</span>
+                  </div>
+
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
-                      JWT Token xác thực (Tùy chọn hoặc tự lấy khi đã login)
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full px-3.5 py-2 rounded-xl text-xs font-mono border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Để trống để dùng Token đang đăng nhập hoặc kết nối kiểu Khách vãng lai..."
-                      value={customSocketToken}
-                      onChange={(e) => setCustomSocketToken(e.target.value)}
-                    />
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{crop.name}</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                      {crop.description}
+                    </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {isAuthenticated && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const token = localStorage.getItem('token') || '';
-                          setCustomSocketToken(token);
-                          toast.info('Đã điền Token của tài khoản hiện tại', 'JWT Token');
-                        }}
-                      >
-                        Dùng Token Hiện Tại ({user?.role})
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setCustomSocketToken('');
-                        toast.info('Đã xóa token, kết nối sẽ ở vai trò Guest', 'Guest Mode');
-                      }}
-                    >
-                      Xóa Token (Chế độ Khách)
-                    </Button>
+                  <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 space-y-1.5 text-xs">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                      <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-500" /> Thời gian:</span>
+                      <span className="font-semibold">{crop.growthDays}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                      <span className="flex items-center gap-1"><Sprout className="w-3.5 h-3.5 text-teal-500" /> Sản lượng:</span>
+                      <span className="font-semibold">{crop.yieldKg}</span>
+                    </div>
                   </div>
+                </div>
 
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    {isSocketConnected ? (
-                      <Button
-                        variant="danger"
-                        onClick={disconnectSocket}
-                        leftIcon={<WifiOff className="w-4 h-4" />}
-                      >
-                        Ngắt Kết Nối Socket
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        isLoading={isSocketConnecting}
-                        onClick={async () => {
-                          await connectSocket(customSocketToken.trim() || undefined);
-                        }}
-                        leftIcon={<Wifi className="w-4 h-4" />}
-                      >
-                        Kết Nối Socket.IO
-                      </Button>
-                    )}
-
-                    <Button
-                      variant="outline"
-                      disabled={!isSocketConnected}
-                      onClick={async () => {
-                        await sendPing();
-                      }}
-                      leftIcon={<Activity className="w-4 h-4" />}
-                    >
-                      Ping RTT
-                    </Button>
-                  </div>
+                <CardContent className="pt-0 pb-6">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full text-xs font-semibold"
+                    onClick={() => setSelectedCropModal(crop)}
+                  >
+                    Xem Chi Tiết Giống
+                  </Button>
                 </CardContent>
               </Card>
-
-              {/* Role-based Authorization Interactive Tester */}
-              <Card variant="glass">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-blue-500" />
-                    Phân Quyền Role-Based Realtime
-                  </CardTitle>
-                  <CardDescription>
-                    Kiểm tra phân quyền server Socket.IO dựa trên vai trò giải mã từ Token
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {/* Identity Detail Box */}
-                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-500">Định danh Client:</span>
-                      <Badge
-                        variant={
-                          identifiedUser?.role === 'Admin'
-                            ? 'danger'
-                            : identifiedUser?.role === 'Staff'
-                            ? 'warning'
-                            : identifiedUser?.role === 'Customer'
-                            ? 'success'
-                            : 'neutral'
-                        }
-                      >
-                        {identifiedUser?.role || 'Chưa định danh'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">User ID: </span>
-                      <span className="font-bold">{identifiedUser?.userId ?? 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500">Họ tên / Email: </span>
-                      <span className="font-semibold">
-                        {identifiedUser?.fullName || identifiedUser?.email || (identifiedUser?.isAnonymous ? 'Khách Vãng Lai' : 'N/A')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Role Actions */}
-                  <div className="space-y-3">
-                    <Button
-                      variant="secondary"
-                      className="w-full justify-start text-xs"
-                      disabled={!isSocketConnected}
-                      onClick={async () => {
-                        await checkWhoAmI();
-                      }}
-                      leftIcon={<RefreshCw className="w-4 h-4" />}
-                    >
-                      1. Gọi Sự Kiện &quot;whoami&quot; (Xác Minh Lại Định Danh)
-                    </Button>
-
-                    <Button
-                      variant="primary"
-                      className="w-full justify-start text-xs bg-amber-600 hover:bg-amber-700 text-white"
-                      disabled={!isSocketConnected}
-                      onClick={async () => {
-                        await executeAdminAction('BAT_HE_THONG_TUOI_TIEU_TOAN_KHU');
-                      }}
-                      leftIcon={<ShieldCheck className="w-4 h-4" />}
-                    >
-                      2. Thao Tác Yêu Cầu Quyền Quản Trị (Admin/Staff Only)
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                    * Ghi chú: Nếu bạn kết nối với vai trò <strong>Customer</strong> hoặc <strong>Guest</strong>, thao tác quản trị trên sẽ bị Server từ chối ngay với mã lỗi <strong>403 Forbidden</strong> và hiển thị Toast Cảnh báo.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Realtime Event Stream Terminal Viewer */}
-            <Card variant="glass">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-sm">
-                    <Terminal className="w-4 h-4 text-emerald-500" />
-                    Nhật Ký Sự Kiện Realtime (Realtime Event Console)
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Theo dõi trực tiếp các gói tin gửi/nhận, bắt lỗi và phản hồi định danh
-                  </CardDescription>
-                </div>
-                <Button variant="ghost" size="sm" onClick={clearLogs} leftIcon={<Trash2 className="w-3.5 h-3.5" />}>
-                  Xóa Log
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="p-4 rounded-2xl bg-slate-950 font-mono text-xs text-slate-200 h-64 overflow-y-auto space-y-2 border border-slate-800 shadow-inner">
-                  {socketLogs.length === 0 ? (
-                    <p className="text-slate-500 italic">{'// Chưa có sự kiện nào. Hãy bấm "Kết Nối Socket.IO" để bắt đầu.'}</p>
-                  ) : (
-                    socketLogs.map((log) => (
-                      <div key={log.id} className="flex items-start gap-2 leading-relaxed">
-                        <span className="text-slate-500 shrink-0">[{log.time}]</span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
-                            log.type === 'connect'
-                              ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                              : log.type === 'error'
-                              ? 'bg-rose-950 text-rose-400 border border-rose-800'
-                              : log.type === 'pong'
-                              ? 'bg-blue-950 text-blue-400 border border-blue-800'
-                              : 'bg-amber-950 text-amber-400 border border-amber-800'
-                          }`}
-                        >
-                          {log.type.toUpperCase()}
-                        </span>
-                        <span className="text-slate-300">{log.message}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            ))}
           </div>
-        )}
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 5. SECTION: CAM KẾT CHẤT LƯỢNG & BẢO HIỂM MÙA VỤ */}
+        {/* ========================================================================= */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-slate-900 via-[#0a121e] to-emerald-950/80 text-white border border-emerald-500/20 shadow-2xl relative overflow-hidden">
+            <div className="max-w-3xl space-y-6 relative z-10">
+              <Badge variant="success" size="sm" className="font-bold">
+                Chính Sách Bảo Vệ Quyền Lợi Khách Hàng
+              </Badge>
+
+              <h2 className="text-2xl sm:text-4xl font-black tracking-tight">
+                Cam Kết Nông Nghiệp Xanh & Bảo Hiểm Rủi Ro Mùa Vụ
+              </h2>
+
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                Nông nghiệp không thể tránh khỏi các yếu tố thiên nhiên bất thường. Tại PlotFarm, nếu mùa vụ của bạn bị ảnh hưởng do sâu bệnh hoặc thời tiết bất lợi,
+                hệ thống cam kết <strong>tự động gieo lại lứa rau mới hoàn toàn miễn phí</strong> và gia hạn hợp đồng thuê đất cho bạn.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                  <p className="font-bold text-emerald-400 text-sm">Gieo Lại Miễn Phí</p>
+                  <p className="text-slate-400">Tự động kích hoạt khi có sự cố sâu hại hoặc cây chết</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                  <p className="font-bold text-teal-400 text-sm">Đền Bù Sản Lượng</p>
+                  <p className="text-slate-400">Bảo đảm tối thiểu 80% sản lượng rau cam kết ban đầu</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                  <p className="font-bold text-cyan-400 text-sm">Minh Bạch Tuyệt Đối</p>
+                  <p className="text-slate-400">Xem ảnh nghiệm thu thực tế từ kỹ thuật viên phụ trách</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ========================================================================= */}
+        {/* 6. CALL TO ACTION CUỐI TRANG */}
+        {/* ========================================================================= */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
+          <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-tr from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-500/20 shadow-lg space-y-6">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Sẵn Sàng Sở Hữu Mảnh Vườn Xanh Của Riêng Bạn?
+            </h2>
+            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
+              Tham gia cộng đồng hơn 500 hộ gia đình đang chủ động nguồn rau sạch hữu cơ mỗi ngày cùng PlotFarm.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+              <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+                <Button variant="primary" size="lg" className="font-bold px-8 shadow-lg shadow-emerald-500/25">
+                  {isAuthenticated ? 'Truy Cập Ô Đất Canh Tác' : 'Đăng Ký Tài Khoản Ngay'}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
-      {/* Global Interactive Demo Modal */}
-      <Modal
-        isOpen={isDemoModalOpen}
-        onClose={() => setDemoModalOpen(false)}
-        title="Cửa Sổ Modal (Base UI Component)"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setDemoModalOpen(false)}>
-              Đóng
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                alert('Đã xác nhận từ Modal UI!');
-                setDemoModalOpen(false);
-              }}
-            >
-              Đồng Ý
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4 text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
-          <p>
-            Đây là component <strong className="text-emerald-600 dark:text-emerald-400">Modal</strong> dùng chung cho dự án PlotFarm.
-          </p>
-          <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-800/80 space-y-2">
-            <h5 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">Tính năng:</h5>
-            <ul className="list-disc pl-5 text-xs space-y-1 text-slate-600 dark:text-slate-300">
-              <li>Backdrop blur glassmorphic mờ mịn</li>
-              <li>Animation scale-in mượt mà</li>
-              <li>Hỗ trợ phím Esc & click bên ngoài đóng cửa sổ</li>
-            </ul>
+      {/* ========================================================================= */}
+      {/* 7. FOOTER CHUYÊN NGHIỆP */}
+      {/* ========================================================================= */}
+      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div className="space-y-3 md:col-span-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white flex items-center justify-center font-black">
+                  PF
+                </div>
+                <span className="font-extrabold text-lg text-slate-900 dark:text-slate-100">PlotFarm</span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm leading-relaxed">
+                Nền tảng cho thuê ô đất nông nghiệp kỹ thuật số và canh tác nông sản sạch trực tuyến hàng đầu Việt Nam.
+                Đem thiên nhiên xanh tươi về tới từng bữa cơm gia đình bạn.
+              </p>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <p className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Khám Phá</p>
+              <ul className="space-y-1.5 text-slate-500 dark:text-slate-400">
+                <li>
+                  <a href="#mo-hinh" className="hover:text-emerald-500 transition-colors">Mô hình Cloud Farming</a>
+                </li>
+                <li>
+                  <a href="#quy-trinh" className="hover:text-emerald-500 transition-colors">Quy trình 4 bước</a>
+                </li>
+                <li>
+                  <a href="#giong-rau" className="hover:text-emerald-500 transition-colors">Danh mục giống rau sạch</a>
+                </li>
+                <li>
+                  <Link href="/my-farm" className="hover:text-emerald-500 transition-colors">Khu vườn của tôi</Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <p className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Hỗ Trợ & Liên Hệ</p>
+              <ul className="space-y-1.5 text-slate-500 dark:text-slate-400">
+                <li>Hotline: 1900 888 999 (24/7)</li>
+                <li>Email: hotro@plotfarm.vn</li>
+                <li>Trang trại: Khu Nông nghiệp Công nghệ cao Củ Chi, TP. Hồ Chí Minh</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-8 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
+            © {new Date().getFullYear()} PlotFarm Team 4. Bảo lưu mọi quyền.
           </div>
         </div>
+      </footer>
+
+      {/* Modal Chi Tiết Giống Rau */}
+      <Modal
+        isOpen={Boolean(selectedCropModal)}
+        onClose={() => setSelectedCropModal(null)}
+        title={selectedCropModal?.name || 'Chi Tiết Hạt Giống'}
+        footer={
+          <Button variant="primary" size="sm" onClick={() => setSelectedCropModal(null)}>
+            Đóng
+          </Button>
+        }
+      >
+        {selectedCropModal && (
+          <div className="space-y-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedCropModal.category}</span>
+              <Badge variant={selectedCropModal.badgeVariant} size="sm">
+                {selectedCropModal.badge}
+              </Badge>
+            </div>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+              {selectedCropModal.description}
+            </p>
+            <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/80 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Chu kỳ sinh trưởng:</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{selectedCropModal.growthDays}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Sản lượng dự kiến:</span>
+                <span className="font-semibold text-slate-900 dark:text-white">{selectedCropModal.yieldKg}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Chi phí hạt giống & gieo trồng:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{selectedCropModal.price}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Tiêu chuẩn canh tác:</span>
+                <span className="font-semibold text-slate-900 dark:text-white">VietGAP / 100% Organic</span>
+              </div>
+            </div>
+            <div className="pt-2">
+              <Link href={isAuthenticated ? '/my-farm' : '/register'} className="block">
+                <Button variant="primary" size="sm" className="w-full">
+                  Chọn Trồng Giống Này
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
