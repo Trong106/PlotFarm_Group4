@@ -22,6 +22,7 @@ import {
   Package,
   RotateCcw,
   Lock,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -122,6 +123,17 @@ export default function ProfilePage() {
     }
   };
 
+  // Determine user role and admin status accurately
+  const resolvedRole = user?.role || (user?.roleId === 1 ? 'Admin' : user?.roleId === 2 ? 'Staff' : 'Customer');
+  const isAdmin = Boolean(
+    user && (
+      resolvedRole.toLowerCase() === 'admin' ||
+      user.roleId === 1 ||
+      user.email === 'admin@plotfarm.vn'
+    )
+  );
+  const displayRole = isAdmin ? 'Admin' : resolvedRole;
+
   const getRoleBadgeVariant = (role?: string) => {
     switch (role?.toLowerCase()) {
       case 'admin':
@@ -176,6 +188,33 @@ export default function ProfilePage() {
         {/* When authenticated */}
         {(isAuthenticated || isAuthLoading) && (
           <>
+            {/* ADMIN QUICK ACCESS BANNER: Hiển thị nổi bật khi tài khoản có quyền Admin */}
+            {isAdmin && (
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-emerald-500/10 border border-rose-500/30 shadow-lg shadow-rose-500/5 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+                <div className="flex items-center gap-4 text-center sm:text-left">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">
+                        Khu Vực Quản Trị Hệ Thống (Admin Portal)
+                      </h3>
+                      <Badge variant="danger" size="sm">ADMIN ACCESS</Badge>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                      Tài khoản của bạn có đặc quyền Quản trị viên (Admin). Truy cập bảng điều khiển để quản lý người dùng, phân quyền và dữ liệu hệ thống.
+                    </p>
+                  </div>
+                </div>
+                <Link href="/admin" className="shrink-0 w-full sm:w-auto">
+                  <Button variant="danger" size="md" rightIcon={<ArrowRight className="w-4 h-4" />} className="w-full sm:w-auto font-bold shadow-md shadow-rose-500/20">
+                    Truy Cập Trang Admin
+                  </Button>
+                </Link>
+              </div>
+            )}
+
             {/* 1. HERO PROFILE OVERVIEW CARD */}
             <Card variant="glass" className="border-emerald-500/30 overflow-hidden shadow-xl shadow-emerald-500/5">
               <CardHeader className="bg-gradient-to-r from-emerald-900/40 via-slate-900/40 to-teal-900/40 border-b border-slate-200/80 dark:border-slate-800/80 p-6 sm:p-8">
@@ -198,11 +237,11 @@ export default function ProfilePage() {
                           {user?.fullName || 'Người dùng PlotFarm'}
                         </CardTitle>
                         <Badge
-                          variant={getRoleBadgeVariant(user?.role)}
+                          variant={getRoleBadgeVariant(displayRole)}
                           size="sm"
-                          className="uppercase font-bold tracking-wider"
+                          className="uppercase font-extrabold tracking-wider"
                         >
-                          {user?.role || 'Customer'}
+                          {displayRole}
                         </Badge>
                         <Badge variant="success" size="sm" dot>
                           {user?.status || 'ACTIVE'}
@@ -228,18 +267,19 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  {/* Quick Edit Profile Button */}
-                  {!isEditingProfile && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingProfile(true)}
-                      leftIcon={<Edit3 className="w-4 h-4" />}
-                      className="shrink-0"
-                    >
-                      Đổi Tên & SĐT
-                    </Button>
-                  )}
+                  {/* Quick Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!isEditingProfile && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingProfile(true)}
+                        leftIcon={<Edit3 className="w-4 h-4" />}
+                      >
+                        Đổi Tên & SĐT
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
 
@@ -310,10 +350,14 @@ export default function ProfilePage() {
                         </label>
                         <div className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 flex items-center justify-between">
                           <span className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-300">
-                            {user?.role || 'Khách hàng'}
+                            {isAdmin
+                              ? 'Quản trị viên hệ thống (Admin)'
+                              : displayRole === 'Staff'
+                              ? 'Kỹ thuật viên trang trại (Staff)'
+                              : 'Khách hàng thành viên (Customer)'}
                           </span>
-                          <Badge variant={getRoleBadgeVariant(user?.role)} size="sm">
-                            {user?.role || 'Customer'}
+                          <Badge variant={getRoleBadgeVariant(displayRole)} size="sm">
+                            {displayRole}
                           </Badge>
                         </div>
                       </div>

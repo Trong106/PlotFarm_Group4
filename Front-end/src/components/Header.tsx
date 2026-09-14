@@ -1,80 +1,144 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Sprout,
   Sun,
   Moon,
+  LogIn,
+  UserPlus,
+  LogOut,
   User,
   Trees,
-  ShieldCheck,
-  LogOut,
   ChevronDown,
-  UserPlus,
-  LogIn,
-  LayoutDashboard,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useUIStore } from '@/store/useUIStore';
 
 export default function Header() {
-  const router = useRouter();
   const pathname = usePathname();
-  const { theme, toggleTheme } = useUIStore();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, initAuth } = useAuthStore();
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    initAuth();
+
+    // Check system or saved preference
+    const isDark =
+      document.documentElement.classList.contains('dark') ||
+      localStorage.getItem('theme') === 'dark' ||
+      (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      setTheme('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      setTheme('light');
+    }
+  }, [initAuth]);
+
+  // Click outside to close profile dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
-    };
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
-  // Helper function for user initials
-  const getInitials = (name?: string) => {
-    if (!name) return 'U';
-    const words = name.trim().split(' ');
-    if (words.length === 1) return words[0].substring(0, 2).toUpperCase();
-    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+  const toggleTheme = () => {
+    if (theme === 'light') {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setTheme('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setTheme('light');
+    }
   };
 
   const handleLogout = () => {
     setIsDropdownOpen(false);
     logout();
-    router.push('/login');
   };
 
+  const navLinks = [
+    { href: '/', label: 'Trang Chủ' },
+    { href: '/#features', label: 'Tính Năng' },
+    { href: '/#pricing', label: 'Bảng Giá Gói Trồng' },
+    { href: '/#about', label: 'Về PlotFarm' },
+  ];
+
+  // Helper to extract initials for avatar
+  const getInitials = (name?: string) => {
+    if (!name) return 'PF';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  // Role detection
+  const resolvedRole = user?.role || (user?.roleId === 1 ? 'Admin' : user?.roleId === 2 ? 'Staff' : 'Customer');
+  const isAdmin = Boolean(
+    user && (
+      resolvedRole.toLowerCase() === 'admin' ||
+      user.roleId === 1 ||
+      user.email === 'admin@plotfarm.vn'
+    )
+  );
+  const displayRole = isAdmin ? 'ADMIN' : (resolvedRole || 'CUSTOMER');
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand Logo & Title */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="p-2 rounded-xl bg-gradient-to-tr from-emerald-600 to-green-500 text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <Sprout className="w-6 h-6 animate-pulse" />
+        {/* Logo & Brand */}
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
+            <Sprout className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300">
-                PlotFarm
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
-              Nền tảng quản lý nông trại thông minh & cho thuê đất trồng
-            </p>
+          <div className="flex flex-col">
+            <span className="font-black text-xl tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent">
+              PlotFarm
+            </span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 -mt-1 font-medium hidden sm:block">
+              Nông trại số thông minh
+            </span>
           </div>
         </Link>
 
-        {/* Right Section: Theme Toggle & User Auth Dropdown */}
+        {/* Center Navigation */}
+        <nav className="hidden md:flex items-center gap-1 bg-slate-100/60 dark:bg-slate-900/60 p-1 rounded-full border border-slate-200/60 dark:border-slate-800/60">
+          {navLinks.map((link) => {
+            const isActive = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                  isActive
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Right Action Items */}
         <div className="flex items-center gap-3">
           {/* Active Status Badge */}
           <div className="hidden md:block">
@@ -83,13 +147,18 @@ export default function Header() {
             </Badge>
           </div>
 
-          {/* Dark / Light Mode Toggle */}
+          {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            aria-label="Chuyển đổi giao diện sáng tối"
+            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm focus:outline-none"
             title="Chuyển chế độ sáng / tối"
           >
-            {theme === 'light' ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-amber-400" />}
+            {theme === 'light' ? (
+              <Moon className="w-4 h-4 text-slate-700" />
+            ) : (
+              <Sun className="w-4 h-4 text-amber-400" />
+            )}
           </button>
 
           {/* User Auth Dropdown Navigation */}
@@ -105,11 +174,13 @@ export default function Header() {
                 }`}
               >
                 <div className="text-right hidden sm:block">
-                  <p className="text-xs font-bold leading-tight text-slate-900 dark:text-slate-100 max-w-[120px] truncate">
+                  <p className="text-xs font-bold leading-tight text-slate-900 dark:text-slate-100 max-w-[140px] truncate">
                     {user.fullName || user.email}
                   </p>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-                    {user.role}
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider ${
+                    isAdmin ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {displayRole}
                   </span>
                 </div>
 
@@ -141,8 +212,12 @@ export default function Header() {
                         </p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
                         <div className="mt-1">
-                          <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                            {user.role}
+                          <span className={`inline-block px-2 py-0.5 text-[9px] font-bold uppercase rounded-md border ${
+                            isAdmin
+                              ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 font-black'
+                              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          }`}>
+                            {displayRole}
                           </span>
                         </div>
                       </div>
@@ -179,19 +254,24 @@ export default function Header() {
                       <span>Mùa vụ của tôi</span>
                     </Link>
 
-                    {/* Dashboard Admin (If role is ADMIN) */}
-                    {user.role?.toLowerCase() === 'admin' && (
+                    {/* Dashboard Admin (Chỉ hiển thị khi role là ADMIN) */}
+                    {isAdmin && (
                       <Link
                         href="/admin"
                         onClick={() => setIsDropdownOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                           pathname === '/admin'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                            ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                            : 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-300/40 dark:border-rose-700/40'
                         }`}
                       >
-                        <ShieldCheck className="w-4 h-4 text-amber-500" />
-                        <span>Quản trị hệ thống</span>
+                        <div className="flex items-center gap-2.5">
+                          <ShieldCheck className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                          <span>Quản trị hệ thống</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded bg-rose-600 text-white shadow-xs">
+                          ADMIN
+                        </span>
                       </Link>
                     )}
                   </div>
