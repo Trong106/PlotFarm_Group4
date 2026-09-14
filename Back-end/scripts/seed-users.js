@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * PLOTFARM PLATFORM — SEED DATA SCRIPT
- * Module: Quản lý Thông tin cá nhân & Sổ địa chỉ (User Profile)
+ * Module: Quản lý Thông tin cá nhân & Sổ địa chỉ (User Profile & Addresses)
  * Mục tiêu: Khởi tạo 1 tài khoản Admin, 2 tài khoản Staff, 2 tài khoản Customer
  * Kèm theo địa chỉ mặc định (UserAddresses) tương ứng trong SQL Server
  * ============================================================================
@@ -29,9 +29,11 @@ const USERS_DATA = [
     phoneNumber: '0901000001',
     status: 'ACTIVE',
     address: {
+      label: 'Văn phòng chính',
       recipientName: 'Quản Trị Viên PlotFarm',
       phoneNumber: '0901000001',
       addressLine: '123 Đường Công Nghệ Cao',
+      streetAddress: '123 Đường Công Nghệ Cao',
       ward: 'Phường Long Thạnh Mỹ',
       district: 'Thành phố Thủ Đức',
       province: 'Thành phố Hồ Chí Minh',
@@ -48,9 +50,11 @@ const USERS_DATA = [
     phoneNumber: '0902000001',
     status: 'ACTIVE',
     address: {
+      label: 'Trạm kỹ thuật Khu A',
       recipientName: 'Nguyễn Minh Khoa',
       phoneNumber: '0902000001',
       addressLine: 'Khu A - Trạm Kỹ Thuật Nông Trại PlotFarm',
+      streetAddress: 'Khu A - Trạm Kỹ Thuật Nông Trại PlotFarm',
       ward: 'Phường Tân Phú',
       district: 'Thành phố Thủ Đức',
       province: 'Thành phố Hồ Chí Minh',
@@ -65,9 +69,11 @@ const USERS_DATA = [
     phoneNumber: '0902000002',
     status: 'ACTIVE',
     address: {
+      label: 'Vườn ươm Củ Chi Khu B',
       recipientName: 'Trần Thị Hương',
       phoneNumber: '0902000002',
       addressLine: 'Khu B - Vườn Ươm PlotFarm Củ Chi',
+      streetAddress: 'Khu B - Vườn Ươm PlotFarm Củ Chi',
       ward: 'Xã An Nhơn Tây',
       district: 'Huyện Củ Chi',
       province: 'Thành phố Hồ Chí Minh',
@@ -84,9 +90,11 @@ const USERS_DATA = [
     phoneNumber: '0903000001',
     status: 'ACTIVE',
     address: {
+      label: 'Nhà riêng',
       recipientName: 'Lê Văn Bình',
       phoneNumber: '0903000001',
       addressLine: '45/2 Đường Nguyễn Huệ',
+      streetAddress: '45/2 Đường Nguyễn Huệ',
       ward: 'Phường Bến Nghé',
       district: 'Quận 1',
       province: 'Thành phố Hồ Chí Minh',
@@ -101,9 +109,11 @@ const USERS_DATA = [
     phoneNumber: '0903000002',
     status: 'ACTIVE',
     address: {
+      label: 'Nhà riêng',
       recipientName: 'Phạm Ngọc Lan',
       phoneNumber: '0903000002',
       addressLine: '88 Đường Lê Thánh Tôn',
+      streetAddress: '88 Đường Lê Thánh Tôn',
       ward: 'Phường Bến Thành',
       district: 'Quận 1',
       province: 'Thành phố Hồ Chí Minh',
@@ -192,7 +202,6 @@ async function seedUsers(pool) {
       log(`Tạo mới: [${item.role.padEnd(8)}] ${item.fullName} <${item.email}> (UserId: ${userId})`);
     } else {
       userId = check.recordset[0].UserId;
-      // Cập nhật lại password hash và thông tin cơ bản đảm bảo đồng bộ
       await pool
         .request()
         .input('UserId', sql.Int, userId)
@@ -221,6 +230,15 @@ async function seedAddresses(pool, users) {
   sep();
   console.log('  [BƯỚC 3] Khởi tạo Bảng UserAddresses (Sổ địa chỉ mặc định)...');
 
+  // Kiểm tra cột có trong bảng UserAddresses
+  const colsRes = await pool
+    .request()
+    .query(`SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '${TABLES.USER_ADDRESSES}'`);
+  const colNames = colsRes.recordset.map((c) => c.COLUMN_NAME);
+  const hasLabel = colNames.includes('Label');
+  const hasStreetAddress = colNames.includes('StreetAddress');
+  const hasAddressLine = colNames.includes('AddressLine');
+
   for (const user of users) {
     if (!user.address) continue;
     const addr = user.address;
@@ -228,29 +246,48 @@ async function seedAddresses(pool, users) {
     const check = await pool
       .request()
       .input('UserId', sql.Int, user.userId)
-      .query(`SELECT AddressId FROM ${TABLES.USER_ADDRESSES} WHERE UserId = @UserId`);
+      .query(`SELECT 1 AS ExistsFlag FROM ${TABLES.USER_ADDRESSES} WHERE UserId = @UserId`);
 
     if (check.recordset.length === 0) {
-      const ins = await pool
+      const req = pool
         .request()
         .input('UserId', sql.Int, user.userId)
         .input('RecipientName', sql.NVarChar(100), addr.recipientName)
         .input('PhoneNumber', sql.NVarChar(20), addr.phoneNumber)
-        .input('AddressLine', sql.NVarChar(255), addr.addressLine)
         .input('Ward', sql.NVarChar(100), addr.ward)
         .input('District', sql.NVarChar(100), addr.district)
         .input('Province', sql.NVarChar(100), addr.province)
-        .input('IsDefault', sql.Bit, addr.isDefault ? 1 : 0)
-        .query(`
-          INSERT INTO ${TABLES.USER_ADDRESSES}
-            (UserId, RecipientName, PhoneNumber, AddressLine, Ward, District, Province, IsDefault)
-          OUTPUT INSERTED.AddressId
-          VALUES
-            (@UserId, @RecipientName, @PhoneNumber, @AddressLine, @Ward, @District, @Province, @IsDefault)
-        `);
+        .input('IsDefault', sql.Bit, addr.isDefault ? 1 : 0);
+
+      const insertCols = ['UserId', 'RecipientName', 'PhoneNumber', 'Ward', 'District', 'Province', 'IsDefault'];
+      const insertVals = ['@UserId', '@RecipientName', '@PhoneNumber', '@Ward', '@District', '@Province', '@IsDefault'];
+
+      if (hasAddressLine) {
+        req.input('AddressLine', sql.NVarChar(255), addr.addressLine);
+        insertCols.push('AddressLine');
+        insertVals.push('@AddressLine');
+      }
+
+      if (hasLabel) {
+        req.input('Label', sql.NVarChar(100), addr.label);
+        insertCols.push('Label');
+        insertVals.push('@Label');
+      }
+
+      if (hasStreetAddress) {
+        req.input('StreetAddress', sql.NVarChar(255), addr.streetAddress);
+        insertCols.push('StreetAddress');
+        insertVals.push('@StreetAddress');
+      }
+
+      await req.query(`
+        INSERT INTO ${TABLES.USER_ADDRESSES} (${insertCols.join(', ')})
+        VALUES (${insertVals.join(', ')})
+      `);
+
       log(`Thêm địa chỉ: User #${user.userId} (${user.email}) -> ${addr.addressLine}, ${addr.ward}, ${addr.province}`);
     } else {
-      warn(`Địa chỉ User #${user.userId} (${user.email}) đã có (AddressId: ${check.recordset[0].AddressId})`);
+      warn(`Địa chỉ User #${user.userId} (${user.email}) đã tồn tại — bỏ qua`);
     }
   }
 }
