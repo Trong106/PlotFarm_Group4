@@ -33,4 +33,18 @@ const validateParams = (schema) => (req, res, next) => {
   }
 };
 
-module.exports = { validateBody, validateParams };
+const validateQuery = (schema) => (req, res, next) => {
+  try {
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+      return errorResponse(res, 'Tham số truy vấn không hợp lệ', 400,
+        result.error.issues.map((issue) => ({ field: issue.path.join('.') || 'query', message: issue.message })));
+    }
+    req.validatedQuery = result.data;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { validateBody, validateParams, validateQuery };
