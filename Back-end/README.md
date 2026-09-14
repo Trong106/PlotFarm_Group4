@@ -298,3 +298,69 @@ validation, HTTP status, response và commit/rollback; không thay thế kiểm 
 Chạy `npm run test:profile:sql` để kiểm tra trên SQL Server cấu hình trong `.env` sau khi tạo schema.
 Script tạo hai tài khoản thử riêng, kiểm tra dữ liệu được lưu, CRUD, quyền sở hữu, đổi mặc định đồng thời
 và rollback thực tế, rồi xóa dữ liệu thử trong `finally`. Chạy trên database phát triển/kiểm thử.
+
+## Danh sách người dùng dành cho Admin
+
+`GET /api/users?search=Nguy%E1%BB%85n&page=1&limit=10`
+
+Yêu cầu `Authorization: Bearer <token>` có vai trò `Admin`. Backend kiểm tra thêm vai trò và trạng thái
+`ACTIVE` hiện tại trong database; token Admin cũ không dùng được sau khi tài khoản bị khóa, xóa hoặc hạ quyền.
+Customer/Staff nhận HTTP 403. Token thiếu, không hợp lệ, hết hạn hoặc chứa ID sai nhận HTTP 401.
+
+| Query | Mặc định | Quy tắc |
+| --- | --- | --- |
+| `search` | Chuỗi rỗng | Trim, tối đa 150 ký tự; tìm chứa chuỗi trong họ tên, email hoặc số điện thoại |
+| `page` | `1` | Số nguyên dương, tối đa 2147483647; `(page - 1) * limit` không vượt 2147483647 |
+| `limit` | `10` | Số nguyên từ 1 đến 100 |
+
+Query sai, trùng tham số, mảng/object hoặc tham số ngoài schema trả HTTP 400 với `errors: [{field, message}]`.
+`page` và `limit` phải chỉ chứa chữ số thập phân, không có số 0 ở đầu; chuỗi rỗng không dùng giá trị mặc định.
+`search` rỗng/chỉ chứa khoảng trắng lấy tất cả người dùng, gồm cả tài khoản khóa hoặc chờ kích hoạt.
+Các ký tự `%`, `_`, `[` và `~` được tìm theo nghĩa đen. Phân biệt hoa/thường và dấu theo collation của database.
+Dữ liệu sắp xếp theo `CreatedAt DESC, UserId DESC` để ổn định thứ tự khi nhiều tài khoản có cùng ngày tạo.
+
+Ví dụ response thành công:
+
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Lấy danh sách người dùng thành công",
+  "data": {
+    "users": [
+      {
+        "userId": 23,
+        "fullName": "Nguyễn Văn An",
+        "email": "an@example.com",
+        "phoneNumber": "0901234567",
+        "avatarUrl": null,
+        "roleId": 3,
+        "role": "Customer",
+        "status": "ACTIVE",
+        "createdAt": "2026-09-14T00:00:00.000Z",
+        "updatedAt": null
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 10,
+      "total": 1,
+      "totalPages": 1,
+      "hasNextPage": false,
+      "hasPreviousPage": false
+    }
+  },
+  "timestamp": "2026-09-14T01:00:00.000Z"
+}
+```
+
+`total` là tổng số người dùng khớp tìm kiếm. Không có kết quả: `users: []`, `total: 0`, `totalPages: 0`.
+Trang vượt phạm vi vẫn trả 200 với `users: []` và tổng kết quả thực; không tự đổi số trang.
+`hasPreviousPage` cho biết `page > 1`. API chỉ đọc các cột hồ sơ được phép, không trả password/hash/token.
+Các giá trị tìm kiếm/phân trang đều được parameter hóa; lỗi SQL chuyển qua try-catch về response 500 chung.
+API dùng bảng Users/Roles hiện có, không cần migration mới. Tài liệu thử trực tiếp có tại `/api/docs`.
+
+Kiểm thử: `npm test` gồm các bài HTTP cho phân quyền, validation, phân trang, tìm kiếm và lỗi database.
+`npm run test:admin-users:sql` kiểm tra SQL Server thực tế với dữ liệu thử riêng, bao gồm tìm kiếm tiếng Việt,
+email, điện thoại, ký tự LIKE, thứ tự khi trùng thời điểm tạo, trang rỗng và token Admin bị thu hồi quyền.
+Script dùng cấu hình `.env`, tự dọn các tài khoản thử trong `finally`; chạy trên database phát triển/kiểm thử.
