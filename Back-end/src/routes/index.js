@@ -8,6 +8,7 @@ const userRoutes = require('./userRoutes');
 const seedRoutes = require('./seedRoutes');
 const orderRoutes = require('./orderRoutes');
 const cultivationRoutes = require('./cultivationRoutes');
+const notificationRoutes = require('./notificationRoutes');
 
 // Mount Sub-routers
 router.use('/health', healthRoutes);
@@ -17,5 +18,6 @@ router.use('/users', userRoutes);
 router.use('/seeds', seedRoutes);
 router.use('/orders', orderRoutes);
 router.use('/cultivations', cultivationRoutes);
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;

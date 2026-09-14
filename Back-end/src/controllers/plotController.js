@@ -24,7 +24,22 @@ const reserve = async (req, res, next) => {
   }
 };
 
+const updateStatus = async (req, res, next) => {
+  try {
+    const plotId = parseInt(req.params.plotId, 10);
+    const { status } = req.body;
+    if (!status) {
+      return errorResponse(res, 'Trạng thái ô đất (status) là bắt buộc', 400);
+    }
+    const updated = await plotService.updatePlotStatus(plotId, status);
+    return successResponse(res, updated, 'Cập nhật trạng thái ô đất thành công');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getGrid,
   reserve,
+  updateStatus,
 };

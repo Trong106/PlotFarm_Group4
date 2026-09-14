@@ -23,6 +23,11 @@ import {
   RotateCcw,
   Lock,
   ArrowRight,
+  ShoppingCart,
+  KeyRound,
+  ExternalLink,
+  Sprout,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -33,10 +38,35 @@ import { useAddressStore, UserAddress } from '@/store/useAddressStore';
 import Header from '@/components/Header';
 import { AddressModal } from '@/components/profile/AddressModal';
 
+interface MyOrder {
+  OrderId: number;
+  OrderCode: string;
+  PlotId: number;
+  SeedId: number;
+  CarePackageId: number;
+  DurationMonths: number;
+  TotalRentalDays: number;
+  StartDate: string;
+  EndDate: string;
+  RentalFee: number;
+  SeedFee: number;
+  CareFee: number;
+  TotalAmount: number;
+  Status: string;
+  CreatedAt: string;
+  PlotCode: string;
+  SizeM2: number;
+  SeedName: string;
+  SeedImageUrl?: string;
+  PackageName: string;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: isAuthLoading, initAuth, fetchProfile, updateProfile } = useAuthStore();
   const { addresses, isLoading: isAddressLoading, isSubmitting: isAddressSubmitting, fetchAddresses, setDefaultAddress, deleteAddress } = useAddressStore();
+
+  const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'security'>('info');
 
   // Profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -50,6 +80,18 @@ export default function ProfilePage() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [addressFeedback, setAddressFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Order History state
+  const [orders, setOrders] = useState<MyOrder[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Change Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   useEffect(() => {
     initAuth();
   }, [initAuth]);
@@ -58,6 +100,7 @@ export default function ProfilePage() {
     if (isAuthenticated) {
       fetchProfile();
       fetchAddresses();
+      fetchMyOrders();
     }
   }, [isAuthenticated, fetchProfile, fetchAddresses]);
 
@@ -68,7 +111,26 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  // Handle saving profile info
+  const fetchMyOrders = async () => {
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null;
+    if (!token) return;
+
+    try {
+      setIsLoadingOrders(true);
+      const res = await fetch('http://localhost:5000/api/orders/my', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setOrders(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load my orders:', err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileErrors({});
@@ -98,13 +160,14 @@ export default function ProfilePage() {
       });
       setProfileFeedback({
         type: 'success',
-        message: 'Cập nhật thông tin hồ sơ thành công!',
+        message: 'Cập nhật thông tin cá nhân thành công!',
       });
       setIsEditingProfile(false);
+      setTimeout(() => setProfileFeedback(null), 3500);
     } catch (err: any) {
       setProfileFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Không thể cập nhật hồ sơ. Vui lòng thử lại!',
+        message: err.message || 'Không thể lưu thông tin. Vui lòng thử lại.',
       });
     } finally {
       setIsSavingProfile(false);
@@ -112,11 +175,74 @@ export default function ProfilePage() {
   };
 
   const handleCancelEditProfile = () => {
-    setIsEditingProfile(false);
-    setProfileErrors({});
     if (user) {
       setFullName(user.fullName || '');
       setPhoneNumber(user.phoneNumber || '');
+    }
+    setProfileErrors({});
+    setIsEditingProfile(false);
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordErrors({});
+    setPasswordFeedback(null);
+
+    const errors: Record<string, string> = {};
+    if (!currentPassword) {
+      errors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
+    }
+    if (!newPassword) {
+      errors.newPassword = 'Vui lòng nhập mật khẩu mới';
+    } else if (newPassword.length < 6) {
+      errors.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
+    }
+    if (newPassword !== confirmPassword) {
+      errors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
+      return;
+    }
+
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null;
+    if (!token) return;
+
+    try {
+      setIsSavingPassword(true);
+      const res = await fetch('http://localhost:5000/api/users/me/change-password', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setPasswordFeedback({
+          type: 'success',
+          message: 'Đổi mật khẩu thành công! Hãy ghi nhớ mật khẩu mới của bạn.',
+        });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordFeedback(null), 4000);
+      } else {
+        setPasswordFeedback({
+          type: 'error',
+          message: data.message || 'Đổi mật khẩu thất bại',
+        });
+      }
+    } catch (err: any) {
+      setPasswordFeedback({
+        type: 'error',
+        message: err.message || 'Lỗi hệ thống khi đổi mật khẩu',
+      });
+    } finally {
+      setIsSavingPassword(false);
     }
   };
 
@@ -125,19 +251,19 @@ export default function ProfilePage() {
       await setDefaultAddress(addressId);
       setAddressFeedback({
         type: 'success',
-        message: 'Đã đặt địa chỉ làm mặc định!',
+        message: 'Đã thiết lập địa chỉ mặc định!',
       });
       setTimeout(() => setAddressFeedback(null), 3000);
     } catch (err: any) {
       setAddressFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Không thể đặt mặc định. Vui lòng thử lại!',
+        message: err.message || 'Không thể cập nhật địa chỉ mặc định',
       });
     }
   };
 
   const handleDeleteAddress = async (addressId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ nhận rau này không?')) return;
+    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
     try {
       await deleteAddress(addressId);
       setAddressFeedback({
@@ -148,201 +274,217 @@ export default function ProfilePage() {
     } catch (err: any) {
       setAddressFeedback({
         type: 'error',
-        message: err.response?.data?.message || 'Không thể xóa địa chỉ. Vui lòng thử lại!',
+        message: err.message || 'Không thể xóa địa chỉ này',
       });
     }
   };
 
-  // Determine user role badge display
-  const rawRole = (user?.roleName || user?.role || 'Customer').toString().toLowerCase();
-  const isAdmin = rawRole.includes('admin') || user?.roleId === 1 || user?.email === 'admin@plotfarm.vn';
-  const displayRole = isAdmin ? 'Admin' : rawRole.includes('staff') || user?.roleId === 2 ? 'Staff' : 'Customer';
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  };
 
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role.toLowerCase()) {
-      case 'admin':
+  const getRoleBadgeVariant = (roleName?: string) => {
+    switch (roleName) {
+      case 'Admin':
         return 'danger';
-      case 'staff':
+      case 'Staff':
         return 'warning';
       default:
         return 'success';
     }
   };
 
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600 dark:text-emerald-400" />
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Đang tải thông tin hồ sơ người dùng...
+        </p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Header />
+        <div className="max-w-md mx-auto mt-20 p-6 text-center">
+          <Card className="p-8 shadow-xl rounded-3xl border border-slate-200 dark:border-slate-800">
+            <Lock className="w-12 h-12 mx-auto text-emerald-600 mb-4" />
+            <h2 className="text-xl font-black mb-2 text-slate-900 dark:text-white">
+              Yêu Cầu Đăng Nhập
+            </h2>
+            <p className="text-xs text-slate-500 mb-6">
+              Vui lòng đăng nhập để xem thông tin cá nhân và lịch sử đơn hàng của bạn.
+            </p>
+            <Link href="/login">
+              <Button variant="primary" className="w-full">
+                Đăng Nhập Ngay
+              </Button>
+            </Link>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  const displayRole = isAdmin ? 'Admin' : user?.role === 'Staff' || user?.roleId === 2 ? 'Staff' : 'Khách Hàng';
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/50 via-slate-50 to-slate-50 dark:from-[#09121d] dark:via-[#080d16] dark:to-[#080d16] text-slate-900 dark:text-slate-100 transition-colors duration-300 pb-20 selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Header />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Navigation & Security status bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+        {/* Top Back and Navigation Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors shadow-xs"
+              title="Về trang chủ"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                Tài Khoản & Hồ Sơ Cá Nhân
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                Quản lý thông tin tài khoản, đơn hàng đã thuê và sổ địa chỉ nhận nông sản
+              </p>
+            </div>
+          </div>
+
+          <Link href="/my-farm">
             <Button
               variant="outline"
               size="sm"
-              leftIcon={<ArrowLeft className="w-4 h-4" />}
-              className="bg-white dark:bg-slate-800/90 font-bold border-slate-200 dark:border-slate-700 shadow-xs hover:border-emerald-500 hover:text-emerald-600 transition-all"
+              leftIcon={<Sprout className="w-4 h-4 text-emerald-600" />}
+              className="bg-white dark:bg-slate-900 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50"
             >
-              Quay Lại Trang Chủ
+              Đến Nông Trại Của Tôi
             </Button>
           </Link>
-
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/60 shadow-xs">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              Xác thực SSL / JWT Bảo mật
-            </span>
-          </div>
         </div>
 
-        {/* Auth check: If not authenticated */}
-        {!isAuthLoading && !isAuthenticated && (
-          <Card className="border border-amber-200 dark:border-amber-500/30 p-8 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl shadow-md">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white">Vui Lòng Đăng Nhập</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-              Bạn cần đăng nhập tài khoản để truy cập hồ sơ cá nhân và quản lý sổ địa chỉ nhận nông sản.
-            </p>
-            <div>
-              <Link href="/login">
-                <Button variant="primary" size="md" className="font-bold shadow-md shadow-emerald-500/20">
-                  Đến Trang Đăng Nhập
-                </Button>
-              </Link>
-            </div>
-          </Card>
+        {/* Global Feedback Banner */}
+        {profileFeedback && (
+          <div
+            className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 animate-in fade-in duration-200 ${
+              profileFeedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                : 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+            }`}
+          >
+            {profileFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{profileFeedback.message}</span>
+          </div>
         )}
 
-        {/* When authenticated */}
-        {(isAuthenticated || isAuthLoading) && (
-          <>
-            {/* Feedback Alerts */}
-            {profileFeedback && (
-              <div
-                className={`p-4 rounded-2xl flex items-center gap-3 animate-fade-in shadow-xs border ${
-                  profileFeedback.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-800'
-                }`}
-              >
-                {profileFeedback.type === 'success' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-                )}
-                <span className="text-sm font-semibold">{profileFeedback.message}</span>
-              </div>
-            )}
+        {/* 3 Main Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'info'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Hồ Sơ & Sổ Địa Chỉ</span>
+          </button>
 
-            {addressFeedback && (
-              <div
-                className={`p-4 rounded-2xl flex items-center gap-3 animate-fade-in shadow-xs border ${
-                  addressFeedback.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-800'
-                }`}
-              >
-                {addressFeedback.type === 'success' ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-                )}
-                <span className="text-sm font-semibold">{addressFeedback.message}</span>
-              </div>
-            )}
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'orders'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Lịch Sử Đơn Thuê ({orders.length})</span>
+          </button>
 
-            {/* Quick Admin Navigation (Only visible for Admin) */}
-            {isAdmin && (
-              <div className="p-5 rounded-3xl bg-gradient-to-r from-rose-50 via-amber-50 to-emerald-50 dark:from-rose-950/40 dark:via-amber-950/30 dark:to-emerald-950/40 border border-rose-200 dark:border-rose-500/30 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center font-black text-xl shadow-md shadow-rose-500/30 shrink-0">
-                    ⚡
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-base font-black text-slate-900 dark:text-white">
-                        Khu Vực Quản Trị Hệ Thống (Admin Portal)
-                      </h3>
-                      <Badge variant="danger" size="sm">ADMIN ACCESS</Badge>
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                      Tài khoản của bạn có đặc quyền Quản trị viên (Admin). Truy cập bảng điều khiển để quản lý người dùng và phân quyền.
-                    </p>
-                  </div>
-                </div>
-                <Link href="/admin" className="shrink-0 w-full sm:w-auto">
-                  <Button variant="danger" size="md" rightIcon={<ArrowRight className="w-4 h-4" />} className="w-full sm:w-auto font-bold shadow-md shadow-rose-500/20">
-                    Truy Cập Trang Admin
-                  </Button>
-                </Link>
-              </div>
-            )}
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'security'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Đổi Mật Khẩu</span>
+          </button>
+        </div>
 
-            {/* 1. HERO PROFILE OVERVIEW CARD - THIẾT KẾ SÁNG, SẮC NÉT, RÕ RÀNG */}
-            <div className="bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-slate-800 rounded-3xl shadow-lg shadow-emerald-500/5 overflow-hidden transition-all">
-              {/* Banner trên: Gradient xanh tươi sáng, dịu mắt, độ tương phản tuyệt vời */}
-              <div className="bg-gradient-to-r from-emerald-100/80 via-teal-50/70 to-emerald-50 dark:from-emerald-950/40 dark:via-slate-900/80 dark:to-teal-950/40 border-b border-emerald-100 dark:border-slate-800 p-6 sm:p-8">
+        {/* ================= TAB 1: PROFILE INFO & ADDRESS BOOK ================= */}
+        {activeTab === 'info' && (
+          <div className="space-y-8">
+            {/* User Profile Card */}
+            <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-slate-50 via-emerald-50/20 to-teal-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border-b border-slate-200/70 dark:border-slate-800">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
-                  <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 text-center sm:text-left">
-                    {/* Avatar Initials với viền trắng và bóng đổ nổi bật */}
-                    <div className="relative group shrink-0">
-                      <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-500 text-white font-black text-3xl flex items-center justify-center shadow-lg shadow-emerald-500/25 ring-4 ring-white dark:ring-slate-800 group-hover:scale-105 transition-transform duration-300">
-                        {user?.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'PF'}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-center gap-5 text-center sm:text-left">
+                    <div className="relative">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
+                        {getInitials(user?.fullName)}
                       </div>
-                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center shadow-xs">
-                        <Sparkles className="w-3.5 h-3.5 text-white" />
+                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                       </span>
                     </div>
 
-                    {/* Name, Role & Contact Pills */}
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                          {user?.fullName || 'Người dùng PlotFarm'}
-                        </h1>
-                        <Badge
-                          variant={getRoleBadgeVariant(displayRole)}
-                          size="sm"
-                          className="uppercase font-extrabold tracking-wider shadow-xs"
-                        >
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                          {user?.fullName || 'Người Dùng PlotFarm'}
+                        </h2>
+                        <Badge variant={getRoleBadgeVariant(displayRole)} size="sm">
                           {displayRole}
-                        </Badge>
-                        <Badge variant="success" size="sm" dot className="font-bold shadow-xs">
-                          {user?.status || 'ACTIVE'}
                         </Badge>
                       </div>
 
-                      {/* Contact & Member info as clean, modern badges */}
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs">
-                          <Mail className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>{user?.email || 'email@plotfarm.vn'}</span>
+                          <Mail className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>{user?.email}</span>
                         </span>
                         {user?.phoneNumber && (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs">
-                            <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                             <span>{user.phoneNumber}</span>
                           </span>
                         )}
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs">
-                          <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <span>Thành viên PlotFarm</span>
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Quick Edit Profile Button */}
-                  <div className="shrink-0">
+                  <div>
                     {!isEditingProfile && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setIsEditingProfile(true)}
                         leftIcon={<Edit3 className="w-4 h-4" />}
-                        className="bg-white hover:bg-emerald-50 text-emerald-800 dark:bg-slate-800 dark:text-emerald-300 dark:hover:bg-slate-700 font-bold border-emerald-300 dark:border-emerald-700 shadow-xs hover:border-emerald-500 transition-all"
+                        className="bg-white hover:bg-emerald-50 text-emerald-800 dark:bg-slate-800 dark:text-emerald-300 font-bold border-emerald-300"
                       >
                         Đổi Tên & SĐT
                       </Button>
@@ -351,23 +493,15 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Card Body: Form chỉnh sửa HOẶC 4 thẻ thông tin nổi bật */}
-              <div className="p-6 sm:p-8 bg-white dark:bg-slate-900">
-                {isEditingProfile ? (
-                  <form onSubmit={handleSaveProfile} className="space-y-6 animate-fade-in">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                      <div>
-                        <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          <Edit3 className="w-4 h-4 text-emerald-500" /> Chỉnh Sửa Thông Tin Cá Nhân
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Cập nhật họ tên và số điện thoại liên hệ nhận thông báo mùa vụ
-                        </p>
-                      </div>
-                    </div>
+              {/* Form editing profile */}
+              {isEditingProfile && (
+                <div className="p-6 sm:p-8 bg-white dark:bg-slate-900">
+                  <form onSubmit={handleSaveProfile} className="space-y-6">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Edit3 className="w-4 h-4 text-emerald-500" /> Cập Nhật Thông Tin Cá Nhân
+                    </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {/* Full Name */}
                       <Input
                         label="Họ và Tên *"
                         placeholder="Nhập họ và tên đầy đủ"
@@ -378,7 +512,6 @@ export default function ProfilePage() {
                         disabled={isSavingProfile}
                       />
 
-                      {/* Phone Number */}
                       <Input
                         label="Số Điện Thoại"
                         placeholder="Ví dụ: 0901234567"
@@ -386,52 +519,10 @@ export default function ProfilePage() {
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         error={profileErrors.phoneNumber}
-                        helperText="Dùng để nhận tin nhắn SMS khi nông sản được thu hoạch và giao hàng"
                         disabled={isSavingProfile}
                       />
-
-                      {/* Email (Read only) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold tracking-wider text-slate-700 dark:text-slate-300 uppercase flex items-center justify-between">
-                          <span>Email Tài Khoản</span>
-                          <span className="text-[10px] text-slate-400 lowercase font-normal flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> không thể đổi
-                          </span>
-                        </label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-3.5 text-slate-400 flex items-center">
-                            <Mail className="w-4 h-4" />
-                          </div>
-                          <input
-                            type="text"
-                            value={user?.email || ''}
-                            disabled
-                            className="w-full py-2.5 pl-10 pr-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed outline-none font-medium"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Role & Permissions (Read only) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-bold tracking-wider text-slate-700 dark:text-slate-300 uppercase">
-                          Vai Trò & Quyền Hạn
-                        </label>
-                        <div className="py-2.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-900/50 flex items-center justify-between">
-                          <span className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-300">
-                            {isAdmin
-                              ? 'Quản trị viên hệ thống (Admin)'
-                              : displayRole === 'Staff'
-                              ? 'Kỹ thuật viên trang trại (Staff)'
-                              : 'Khách hàng thành viên (Customer)'}
-                          </span>
-                          <Badge variant={getRoleBadgeVariant(displayRole)} size="sm">
-                            {displayRole}
-                          </Badge>
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Action buttons */}
                     <div className="flex items-center justify-end gap-3 pt-2">
                       <Button
                         type="button"
@@ -439,7 +530,6 @@ export default function ProfilePage() {
                         size="sm"
                         onClick={handleCancelEditProfile}
                         disabled={isSavingProfile}
-                        leftIcon={<RotateCcw className="w-4 h-4" />}
                       >
                         Hủy Bỏ
                       </Button>
@@ -448,114 +538,25 @@ export default function ProfilePage() {
                         variant="primary"
                         size="sm"
                         disabled={isSavingProfile}
-                        leftIcon={
-                          isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />
-                        }
+                        isLoading={isSavingProfile}
                       >
-                        {isSavingProfile ? 'Đang Lưu...' : 'Lưu Thay Đổi'}
+                        Lưu Thay Đổi
                       </Button>
                     </div>
                   </form>
-                ) : (
-                  /* 4 Thẻ thông tin tài khoản: Nền trắng sáng, viền sắc nét, icon màu rực rỡ, độ tương phản cao */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Họ và tên */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200/90 dark:border-slate-800 shadow-xs hover:border-emerald-400 hover:shadow-sm transition-all group">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800">
-                          <User className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-[11px] font-extrabold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
-                            Họ và tên
-                          </p>
-                          <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
-                            {user?.fullName || 'Chưa cập nhật họ tên'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                </div>
+              )}
+            </Card>
 
-                    {/* Email tài khoản */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200/90 dark:border-slate-800 shadow-xs hover:border-blue-400 hover:shadow-sm transition-all group">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-800">
-                          <Mail className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-[11px] font-extrabold text-blue-800 dark:text-blue-400 uppercase tracking-wider">
-                            Email tài khoản
-                          </p>
-                          <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white truncate">
-                            {user?.email || 'Chưa cập nhật'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Số điện thoại liên hệ */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200/90 dark:border-slate-800 shadow-xs hover:border-amber-400 hover:shadow-sm transition-all group">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center shrink-0 border border-amber-200 dark:border-amber-800">
-                          <Phone className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-[11px] font-extrabold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
-                            Số điện thoại liên hệ
-                          </p>
-                          <p className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                            {user?.phoneNumber ? (
-                              user.phoneNumber
-                            ) : (
-                              <span className="inline-flex items-center text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-200 dark:border-amber-800">
-                                Chưa liên kết số điện thoại
-                              </span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Số lượng địa chỉ đã lưu */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-purple-200/90 dark:border-slate-800 shadow-xs hover:border-purple-400 hover:shadow-sm transition-all group">
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-11 h-11 rounded-2xl bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 flex items-center justify-center shrink-0 border border-purple-200 dark:border-purple-800">
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        <div className="space-y-0.5 min-w-0">
-                          <p className="text-[11px] font-extrabold text-purple-800 dark:text-purple-400 uppercase tracking-wider">
-                            Số lượng địa chỉ đã lưu
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                              {addresses.length} địa chỉ
-                            </span>
-                            {addresses.some((a) => a.isDefault) && (
-                              <Badge variant="success" size="sm">
-                                Đã có mặc định
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 2. SỔ ĐỊA CHỈ NHẬN NÔNG SẢN THU HOẠCH */}
-            <div className="space-y-4 pt-2">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            {/* Address Book Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 flex items-center justify-center">
-                      <MapPin className="w-5 h-5" />
-                    </span>
-                    Sổ Địa Chỉ Nhận Nông Sản Thu Hoạch
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 font-medium">
-                    Địa chỉ nhận rau củ quả thu hoạch từ các ô đất canh tác trực tuyến của bạn
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-emerald-500" /> Sổ Địa Chỉ Giao Nông Sản
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Địa chỉ nhận rau sạch khi thu hoạch vụ mùa từ trang trại PlotFarm
                   </p>
                 </div>
 
@@ -564,142 +565,255 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={() => setIsAddressModalOpen(true)}
                   leftIcon={<Plus className="w-4 h-4" />}
-                  className="shadow-md shadow-emerald-500/20 shrink-0 font-bold bg-emerald-600 hover:bg-emerald-500 text-white"
+                  className="bg-emerald-600 text-white text-xs font-bold"
                 >
                   Thêm Địa Chỉ Mới
                 </Button>
               </div>
 
-              {/* State A: Loading Skeleton */}
-              {isAddressLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-                  {[1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="h-5 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg" />
-                        <div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded-lg" />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
-                        <div className="h-4 w-full bg-slate-200 dark:bg-slate-800 rounded" />
-                      </div>
-                      <div className="pt-2 flex justify-end gap-2">
-                        <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-                      </div>
-                    </div>
-                  ))}
+              {addressFeedback && (
+                <div
+                  className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                    addressFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{addressFeedback.message}</span>
                 </div>
+              )}
+
+              {isAddressLoading ? (
+                <div className="p-8 text-center text-xs text-slate-500">Đang tải địa chỉ...</div>
               ) : addresses.length === 0 ? (
-                /* State B: Empty State Card - SÁNG SỦA, GỌN GÀNG, ĐẸP MẮT */
-                <div className="bg-white dark:bg-slate-900 border-2 border-dashed border-emerald-200 dark:border-slate-800 p-8 sm:p-12 text-center rounded-3xl shadow-sm">
-                  <div className="max-w-md mx-auto space-y-4">
-                    <div className="w-18 h-18 mx-auto rounded-3xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-sm border border-emerald-200/80 dark:border-emerald-800/40 p-4">
-                      <Package className="w-10 h-10" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                        Chưa có địa chỉ nhận rau nào
-                      </h3>
-                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                        Thêm địa chỉ giao hàng ngay để hệ thống tự động vận chuyển nông sản sạch về tận nhà bạn khi mùa vụ đến ngày thu hoạch!
-                      </p>
-                    </div>
-                    <div className="pt-2">
-                      <Button
-                        variant="primary"
-                        size="md"
-                        onClick={() => setIsAddressModalOpen(true)}
-                        leftIcon={<Plus className="w-4 h-4" />}
-                        className="font-bold shadow-md shadow-emerald-500/25 bg-emerald-600 hover:bg-emerald-500 text-white"
-                      >
-                        Thêm Địa Chỉ Đầu Tiên
-                      </Button>
-                    </div>
-                  </div>
+                <div className="bg-white dark:bg-slate-900 border-2 border-dashed border-emerald-200 dark:border-slate-800 p-8 text-center rounded-3xl space-y-3">
+                  <Package className="w-10 h-10 mx-auto text-emerald-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Chưa có địa chỉ nào</h4>
+                  <p className="text-xs text-slate-500">Thêm địa chỉ giao nhận để nhận rau sạch tận nhà khi thu hoạch.</p>
+                  <Button variant="primary" size="sm" onClick={() => setIsAddressModalOpen(true)}>
+                    Thêm Ngay
+                  </Button>
                 </div>
               ) : (
-                /* State C: Grid of Address Cards */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {addresses.map((address: UserAddress) => (
-                    <Card
-                      key={address.addressId}
-                      className={`relative overflow-hidden transition-all duration-300 rounded-3xl shadow-sm hover:shadow-md ${
-                        address.isDefault
-                          ? 'border-2 border-emerald-500 bg-white dark:bg-slate-900 ring-2 ring-emerald-500/15'
-                          : 'border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
-                      }`}
-                    >
-                      <CardContent className="p-5 sm:p-6 space-y-4">
-                        {/* Header: Name and default badge */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-base text-slate-900 dark:text-white flex items-center gap-1.5">
-                                <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                                {address.recipientName}
-                              </span>
-                              {address.isDefault && (
-                                <Badge variant="success" size="sm" icon={<Star className="w-3 h-3 fill-emerald-500" />}>
-                                  Mặc Định
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                              <Phone className="w-3.5 h-3.5 text-slate-400" />
-                              {address.phoneNumber}
-                            </p>
+                  {addresses.map((addr) => (
+                    <Card key={addr.addressId} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-sm">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-sm text-slate-900 dark:text-white">{addr.recipientName}</span>
+                            {addr.isDefault && (
+                              <Badge variant="success" size="sm">Mặc Định</Badge>
+                            )}
                           </div>
-
-                          {/* Quick Delete */}
-                          <button
-                            onClick={() => handleDeleteAddress(address.addressId)}
-                            disabled={isAddressSubmitting}
-                            className="text-slate-400 hover:text-rose-500 p-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                            title="Xóa địa chỉ này"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <span className="text-xs text-slate-500 font-mono">{addr.phoneNumber}</span>
                         </div>
+                        <button
+                          onClick={() => handleDeleteAddress(addr.addressId)}
+                          className="text-slate-400 hover:text-rose-500 p-1 rounded-lg"
+                          title="Xóa địa chỉ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
 
-                        {/* Detailed Address String */}
-                        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-1">
-                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                            <span>
-                              {address.addressLine}, {address.ward}, {address.district}, {address.province}
-                            </span>
-                          </p>
-                        </div>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl">
+                        {addr.addressLine}, {addr.ward}, {addr.district}, {addr.province}
+                      </p>
 
-                        {/* Actions: Set as default */}
-                        <div className="flex items-center justify-between pt-1">
-                          {!address.isDefault ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleSetDefault(address.addressId)}
-                              disabled={isAddressSubmitting}
-                              leftIcon={<Star className="w-3.5 h-3.5 text-amber-500" />}
-                              className="text-xs font-semibold"
-                            >
-                              Đặt Làm Mặc Định
-                            </Button>
-                          ) : (
-                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Địa chỉ giao nhận chính
-                            </span>
-                          )}
-                        </div>
-                      </CardContent>
+                      {!addr.isDefault && (
+                        <Button variant="outline" size="sm" onClick={() => handleSetDefault(addr.addressId)} className="text-xs">
+                          Đặt làm mặc định
+                        </Button>
+                      )}
                     </Card>
                   ))}
                 </div>
               )}
             </div>
-          </>
+          </div>
+        )}
+
+        {/* ================= TAB 2: ORDER HISTORY ================= */}
+        {activeTab === 'orders' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-emerald-500" /> Lịch Sử Đơn Thuê Đất & Gói Chăm Sóc
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Danh sách các hợp đồng thuê luống đất, giống rau và dịch vụ chăm sóc đã thanh toán
+              </p>
+            </div>
+
+            {isLoadingOrders ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
+                Đang tải lịch sử đơn hàng...
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+                <ShoppingCart className="w-12 h-12 mx-auto text-slate-300" />
+                <div>
+                  <h4 className="font-black text-base text-slate-900 dark:text-white">Bạn chưa có đơn thuê nào</h4>
+                  <p className="text-xs text-slate-500 mt-1">Hãy khám phá bản đồ ô đất và chọn giống cây để bắt đầu vụ rau đầu tiên!</p>
+                </div>
+                <Link href="/plots">
+                  <Button variant="primary" size="sm" leftIcon={<Sprout className="w-4 h-4" />}>
+                    Khám Phá Ô Đất Ngay
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <Card key={order.OrderId} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-mono font-black text-sm text-slate-900 dark:text-white">
+                            {order.OrderCode}
+                          </span>
+                          <Badge variant={order.Status === 'PAID' ? 'success' : 'warning'} size="sm">
+                            {order.Status === 'PAID' ? 'Đã Thanh Toán' : order.Status}
+                          </Badge>
+                        </div>
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
+                          <Clock className="w-3 h-3" /> Ngày đặt: {new Date(order.CreatedAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[11px] text-slate-400 block">Tổng tiền thanh toán</span>
+                        <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(order.TotalAmount)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ô Đất Thuê</span>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{order.PlotCode}</p>
+                        <p className="text-slate-500">Diện tích: {order.SizeM2}m²</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giống Cây & Gói</span>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{order.SeedName}</p>
+                        <p className="text-slate-500">{order.PackageName}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Thời Hạn Thuê</span>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{order.DurationMonths} Tháng ({order.TotalRentalDays} ngày)</p>
+                        <Link href="/my-farm" className="inline-flex items-center gap-1 text-emerald-600 font-bold hover:underline pt-1">
+                          Vào xem nông trại <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 3: CHANGE PASSWORD ================= */}
+        {activeTab === 'security' && (
+          <div className="max-w-xl mx-auto space-y-5">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-emerald-500" /> Đổi Mật Khẩu Tài Khoản
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Cập nhật mật khẩu định kỳ để bảo vệ tài khoản và dữ liệu mùa vụ của bạn
+              </p>
+            </div>
+
+            {passwordFeedback && (
+              <div
+                className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 ${
+                  passwordFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {passwordFeedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{passwordFeedback.message}</span>
+              </div>
+            )}
+
+            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm">
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                    Mật khẩu hiện tại *
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu hiện tại"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {passwordErrors.currentPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1">{passwordErrors.currentPassword}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                    Mật khẩu mới * (ít nhất 6 ký tự)
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu mới"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {passwordErrors.newPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1">{passwordErrors.newPassword}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                    Xác nhận mật khẩu mới *
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu mới"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {passwordErrors.confirmPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1">{passwordErrors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="md"
+                    className="w-full font-bold bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    disabled={isSavingPassword}
+                    isLoading={isSavingPassword}
+                  >
+                    Xác Nhận Đổi Mật Khẩu
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
         )}
       </main>
 

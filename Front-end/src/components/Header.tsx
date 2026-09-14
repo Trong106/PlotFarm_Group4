@@ -14,17 +14,41 @@ import {
   Trees,
   ChevronDown,
   ShieldCheck,
+  Bell,
+  CheckCheck,
+  Clock,
+  Sparkles,
+  Leaf,
+  Truck,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/useAuthStore';
+
+interface NotificationItem {
+  NotificationId: number;
+  UserId: number;
+  Title: string;
+  Message: string;
+  Type: string;
+  RelatedId?: number;
+  IsRead: boolean;
+  CreatedAt: string;
+}
 
 export default function Header() {
   const pathname = usePathname();
   const { user, isAuthenticated, logout, initAuth } = useAuthStore();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [isLoadingNotifs, setIsLoadingNotifs] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initAuth();
@@ -44,11 +68,14 @@ export default function Header() {
     }
   }, [initAuth]);
 
-  // Click outside to close profile dropdown
+  // Click outside handlers
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -57,80 +84,198 @@ export default function Header() {
     };
   }, []);
 
+  // Fetch unread count on login or mount
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/notifications/unread-count', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success && data.data?.unreadCount !== undefined) {
+          setUnreadCount(data.data.unreadCount);
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread notifications count:', err);
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000); // 30s polling
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  // Fetch full notifications list when opening dropdown
+  const handleToggleNotif = async () => {
+    if (isNotifOpen) {
+      setIsNotifOpen(false);
+      return;
+    }
+
+    setIsNotifOpen(true);
+    setIsDropdownOpen(false);
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+
+    try {
+      setIsLoadingNotifs(true);
+      const res = await fetch('http://localhost:5000/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setNotifications(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    } finally {
+      setIsLoadingNotifs(false);
+    }
+  };
+
+  const handleMarkAsRead = async (id: number) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+
+    try {
+      await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.NotificationId === id ? { ...n, IsRead: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+
+    try {
+      await fetch('http://localhost:5000/api/notifications/read-all', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setNotifications((prev) => prev.map((n) => ({ ...n, IsRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Failed to mark all read:', err);
+    }
+  };
+
   const toggleTheme = () => {
-    if (theme === 'light') {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
-      setTheme('dark');
     } else {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
-      setTheme('light');
     }
   };
 
   const handleLogout = () => {
     setIsDropdownOpen(false);
+    setIsNotifOpen(false);
     logout();
   };
 
   const navLinks = [
     { href: '/', label: 'Trang Chủ' },
-    { href: '/plots', label: 'Bản Đồ Thuê Đất' },
-    { href: '/#features', label: 'Tính Năng' },
-    { href: '/#pricing', label: 'Bảng Giá Gói Trồng' },
-    { href: '/#about', label: 'Về PlotFarm' },
+    { href: '/plots', label: 'Bản Đồ Đất' },
+    { href: '/my-farm', label: 'Nông Trại Của Tôi' },
+    { href: '/profile', label: 'Hồ Sơ' },
   ];
 
-  // Helper to extract initials for avatar
   const getInitials = (name?: string) => {
-    if (!name) return 'PF';
+    if (!name) return 'U';
     const parts = name.trim().split(' ');
-    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   };
 
-  // Role detection
-  const resolvedRole = user?.role || (user?.roleId === 1 ? 'Admin' : user?.roleId === 2 ? 'Staff' : 'Customer');
-  const isAdmin = Boolean(
-    user && (
-      resolvedRole.toLowerCase() === 'admin' ||
-      user.roleId === 1 ||
-      user.email === 'admin@plotfarm.vn'
-    )
-  );
-  const displayRole = isAdmin ? 'ADMIN' : (resolvedRole || 'CUSTOMER');
+  const formatTime = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffMins < 1) return 'Vừa xong';
+      if (diffMins < 60) return `${diffMins} phút trước`;
+      if (diffHours < 24) return `${diffHours} giờ trước`;
+      if (diffDays < 7) return `${diffDays} ngày trước`;
+      return date.toLocaleDateString('vi-VN');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getNotifIcon = (type: string) => {
+    switch (type) {
+      case 'HARVEST':
+        return <Leaf className="w-4 h-4 text-amber-500" />;
+      case 'CARE':
+        return <Sparkles className="w-4 h-4 text-emerald-500" />;
+      case 'DELIVERY':
+        return <Truck className="w-4 h-4 text-blue-500" />;
+      default:
+        return <CheckCircle2 className="w-4 h-4 text-purple-500" />;
+    }
+  };
+
+  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  const displayRole = isAdmin ? 'Quản Trị Viên' : user?.role === 'Staff' || user?.roleId === 2 ? 'Kỹ Thuật Viên' : 'Khách Hàng';
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Logo & Brand */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
-            <Sprout className="w-5 h-5" />
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Brand / Logo */}
+        <Link href="/" className="flex items-center gap-2 group shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+            <Sprout className="w-5 h-5 text-white" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-black text-xl tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-emerald-400 dark:via-teal-300 dark:to-emerald-500 bg-clip-text text-transparent">
-              PlotFarm
-            </span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 -mt-1 font-medium hidden sm:block">
-              Nông trại số thông minh
-            </span>
-          </div>
+          <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
+            PlotFarm
+          </span>
+          <Badge variant="success" size="sm" className="hidden sm:inline-flex ml-1">
+            Đà Lạt
+          </Badge>
         </Link>
 
-        {/* Center Navigation */}
-        <nav className="hidden md:flex items-center gap-1 bg-slate-100/60 dark:bg-slate-900/60 p-1 rounded-full border border-slate-200/60 dark:border-slate-800/60">
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-1">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                className={`px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all ${
                   isActive
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
                 }`}
               >
                 {link.label}
@@ -139,28 +284,112 @@ export default function Header() {
           })}
         </nav>
 
-        {/* Right Action Items */}
-        <div className="flex items-center gap-3">
-          {/* Active Status Badge */}
-          <div className="hidden md:block">
-            <Badge variant="success" dot size="sm">
-              Realtime Active
-            </Badge>
-          </div>
-
-          {/* Theme Toggle Button */}
+        {/* Right Actions: Theme Toggle + Notification Bell + Auth */}
+        <div className="flex items-center gap-2.5">
+          {/* Theme Switcher Button */}
           <button
             onClick={toggleTheme}
-            aria-label="Chuyển đổi giao diện sáng tối"
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-sm focus:outline-none"
-            title="Chuyển chế độ sáng / tối"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            title="Đổi giao diện sáng/tối"
           >
             {theme === 'light' ? (
-              <Moon className="w-4 h-4 text-slate-700" />
+              <Moon className="w-4 h-4 text-slate-600" />
             ) : (
               <Sun className="w-4 h-4 text-amber-400" />
             )}
           </button>
+
+          {/* Notification Bell (Visible when Authenticated) */}
+          {isAuthenticated && (
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={handleToggleNotif}
+                className={`relative p-2 rounded-xl transition-all ${
+                  isNotifOpen
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/20'
+                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+                title="Thông báo"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white shadow-sm ring-2 ring-white dark:ring-slate-900 animate-pulse">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {isNotifOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Header */}
+                  <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/60 dark:bg-slate-950/40">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                        Thông Báo
+                      </h4>
+                      {unreadCount > 0 && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
+                          {unreadCount} mới
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" />
+                        Đã đọc tất cả
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                    {isLoadingNotifs ? (
+                      <div className="p-6 text-center text-xs text-slate-500">Đang tải thông báo...</div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                        <Bell className="w-6 h-6 mx-auto text-slate-400 opacity-50 mb-2" />
+                        <p className="font-semibold">Bạn không có thông báo nào</p>
+                      </div>
+                    ) : (
+                      notifications.slice(0, 8).map((notif) => (
+                        <div
+                          key={notif.NotificationId}
+                          onClick={() => !notif.IsRead && handleMarkAsRead(notif.NotificationId)}
+                          className={`p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer flex gap-3 items-start ${
+                            !notif.IsRead ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : ''
+                          }`}
+                        >
+                          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
+                            {getNotifIcon(notif.Type)}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={`text-xs truncate ${!notif.IsRead ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-300'}`}>
+                                {notif.Title}
+                              </p>
+                              {!notif.IsRead && (
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                              {notif.Message}
+                            </p>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 pt-0.5">
+                              <Clock className="w-3 h-3" /> {formatTime(notif.CreatedAt)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* User Auth Dropdown Navigation */}
           {isAuthenticated && user ? (

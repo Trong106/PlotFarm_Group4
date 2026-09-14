@@ -1,4 +1,5 @@
-﻿const db = require('../config/db');
+const bcrypt = require('bcryptjs');
+const db = require('../config/db');
 const { sql } = db;
 const { TABLES } = require('../models');
 
@@ -60,6 +61,38 @@ const updateProfile = async (userId, data) => {
     }
     throw error;
   }
+};
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+  if (!currentPassword || !newPassword) {
+    throw httpError(400, 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới');
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    throw httpError(400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
+  }
+
+  const pool = db.getPool();
+  const userResult = await pool.request()
+    .input('UserId', sql.Int, userId)
+    .query(`SELECT PasswordHash FROM ${TABLES.USERS} WHERE UserId = @UserId`);
+
+  if (!userResult.recordset.length) {
+    throw httpError(404, 'Không tìm thấy người dùng');
+  }
+
+  const user = userResult.recordset[0];
+  const isMatch = await bcrypt.compare(currentPassword, user.PasswordHash);
+  if (!isMatch) {
+    throw httpError(400, 'Mật khẩu hiện tại không chính xác');
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await pool.request()
+    .input('UserId', sql.Int, userId)
+    .input('PasswordHash', sql.NVarChar(255), newHash)
+    .query(`UPDATE ${TABLES.USERS} SET PasswordHash = @PasswordHash, UpdatedAt = SYSDATETIME() WHERE UserId = @UserId`);
+
+  return { message: 'Đổi mật khẩu thành công' };
 };
 
 const listAddresses = async (userId) => {
@@ -137,4 +170,13 @@ const deleteAddress = (userId, addressId) => withAddressTransaction(userId, asyn
   }
 });
 
-module.exports = { getProfile, updateProfile, listAddresses, getAddress, createAddress, updateAddress, deleteAddress };
+module.exports = {
+  getProfile,
+  updateProfile,
+  changePassword,
+  listAddresses,
+  getAddress,
+  createAddress,
+  updateAddress,
+  deleteAddress,
+};

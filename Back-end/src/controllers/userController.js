@@ -27,6 +27,7 @@ module.exports = {
   loadCurrentUser,
   getProfile,
   updateProfile: handle((req) => userService.updateProfile(req.user.userId, req.body), 'Cập nhật thông tin cá nhân thành công'),
+  changePassword: handle((req) => userService.changePassword(req.user.userId, req.body.currentPassword, req.body.newPassword), 'Đổi mật khẩu thành công'),
   listAddresses: handle((req) => userService.listAddresses(req.user.userId), 'Lấy danh sách địa chỉ thành công'),
   getAddress: handle((req) => userService.getAddress(req.user.userId, req.params.addressId), 'Lấy địa chỉ thành công'),
   createAddress: handle((req) => userService.createAddress(req.user.userId, req.body), 'Thêm địa chỉ thành công', 201),

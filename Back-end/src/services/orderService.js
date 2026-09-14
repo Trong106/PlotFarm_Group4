@@ -189,7 +189,7 @@ const createMockCheckout = async (userId, data) => {
 };
 
 /**
- * Lấy danh sách mùa vụ của người dùng (My Farm)
+ * Lấy danh sách mùa vụ của người dùng (My Farm) kèm thông tin Camera giám sát
  */
 const getMyCultivations = async (userId) => {
   const pool = getPool();
@@ -202,16 +202,44 @@ const getMyCultivations = async (userId) => {
         p.PlotCode, p.SizeM2, p.SoilPH, p.StandardHumidity, p.BasePricePerMonth,
         s.SeedName, s.Category, s.GrowthDurationDays, s.ExpectedYieldKgPerM2, s.ImageUrl as SeedImageUrl,
         cp.PackageName, cp.MonthlyFee, cp.ServicesIncluded,
-        ro.OrderCode, ro.TotalAmount, ro.PaidAt, ro.DurationMonths
+        ro.OrderCode, ro.TotalAmount, ro.PaidAt, ro.DurationMonths,
+        cam.CameraCode, cam.CameraName, cam.StreamUrl, cam.Status as CameraStatus
       FROM Cultivations c
       JOIN RentalOrders ro ON c.OrderId = ro.OrderId
       JOIN Plots p ON c.PlotId = p.PlotId
       JOIN Seeds s ON c.SeedId = s.SeedId
       LEFT JOIN CarePackages cp ON ro.CarePackageId = cp.PackageId
+      LEFT JOIN Cameras cam ON p.CameraId = cam.CameraId
       WHERE ro.UserId = @UserId
       ORDER BY c.CreatedAt DESC
     `);
 
+  return result.recordset;
+};
+
+/**
+ * Lấy danh sách đơn hàng của người dùng (Customer Order History)
+ */
+const getMyOrders = async (userId) => {
+  const pool = getPool();
+  const result = await pool.request()
+    .input('UserId', sql.Int, userId)
+    .query(`
+      SELECT 
+        ro.OrderId, ro.OrderCode, ro.PlotId, ro.SeedId, ro.CarePackageId,
+        ro.DurationMonths, ro.TotalRentalDays, ro.StartDate, ro.EndDate,
+        ro.RentalFee, ro.SeedFee, ro.CareFee, ro.DiscountAmount, ro.TotalAmount,
+        ro.Status, ro.CreatedAt, ro.PaidAt,
+        p.PlotCode, p.SizeM2,
+        s.SeedName, s.ImageUrl as SeedImageUrl,
+        cp.PackageName
+      FROM RentalOrders ro
+      JOIN Plots p ON ro.PlotId = p.PlotId
+      JOIN Seeds s ON ro.SeedId = s.SeedId
+      LEFT JOIN CarePackages cp ON ro.CarePackageId = cp.PackageId
+      WHERE ro.UserId = @UserId
+      ORDER BY ro.CreatedAt DESC
+    `);
   return result.recordset;
 };
 
@@ -224,7 +252,8 @@ const getAllOrders = async () => {
     SELECT 
       ro.OrderId, ro.OrderCode, ro.UserId, u.FullName, u.Email,
       p.PlotCode, s.SeedName, cp.PackageName,
-      ro.TotalAmount, ro.Status, ro.CreatedAt, ro.PaidAt
+      ro.TotalAmount, ro.Status, ro.CreatedAt, ro.PaidAt,
+      ro.DurationMonths, ro.StartDate, ro.EndDate
     FROM RentalOrders ro
     JOIN Users u ON ro.UserId = u.UserId
     JOIN Plots p ON ro.PlotId = p.PlotId
@@ -238,5 +267,6 @@ const getAllOrders = async () => {
 module.exports = {
   createMockCheckout,
   getMyCultivations,
+  getMyOrders,
   getAllOrders,
 };

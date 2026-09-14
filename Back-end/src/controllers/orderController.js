@@ -27,6 +27,19 @@ const getMyFarm = async (req, res, next) => {
   }
 };
 
+const getMyOrders = async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return errorResponse(res, 'Vui lòng đăng nhập', 401);
+    }
+    const orders = await orderService.getMyOrders(userId);
+    return successResponse(res, orders, 'Lấy lịch sử đơn hàng thành công');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getAdminOrders = async (req, res, next) => {
   try {
     const orders = await orderService.getAllOrders();
@@ -39,5 +52,6 @@ const getAdminOrders = async (req, res, next) => {
 module.exports = {
   mockCheckout,
   getMyFarm,
+  getMyOrders,
   getAdminOrders,
 };

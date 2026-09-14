@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -71,6 +71,10 @@ interface CultivationItem {
   TotalAmount: number;
   PaidAt: string;
   DurationMonths: number;
+  CameraCode?: string;
+  CameraName?: string;
+  StreamUrl?: string;
+  CameraStatus?: string;
 }
 
 interface CultivationLogItem {
@@ -205,10 +209,10 @@ export default function MyFarmPage() {
   }, []);
 
   // Fetch cultivations
-  const fetchMyFarm = async () => {
+  const fetchMyFarm = useCallback(async () => {
     try {
       setIsLoading(true);
-      const authToken = token || localStorage.getItem('plotfarm_token');
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
       if (!authToken) {
         setIsLoading(false);
         return;
@@ -231,11 +235,11 @@ export default function MyFarmPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchMyFarm();
-  }, [token]);
+  }, [fetchMyFarm]);
 
   // Fetch User Addresses when opening harvest modal
   useEffect(() => {
@@ -263,10 +267,10 @@ export default function MyFarmPage() {
   }, [addresses, user]);
 
   // Fetch Logs when selectedItem changes
-  const fetchLogs = async (cultivationId: number) => {
+  const fetchLogs = useCallback(async (cultivationId: number) => {
     try {
       setIsLoadingLogs(true);
-      const authToken = token || localStorage.getItem('plotfarm_token');
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
       const res = await fetch(`http://localhost:5000/api/cultivations/${cultivationId}/logs`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -281,12 +285,12 @@ export default function MyFarmPage() {
     } finally {
       setIsLoadingLogs(false);
     }
-  };
+  }, [token]);
 
   // Fetch Care Requests & Deliveries
-  const fetchCareAndDeliveries = async () => {
+  const fetchCareAndDeliveries = useCallback(async () => {
     try {
-      const authToken = token || localStorage.getItem('plotfarm_token');
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
       if (!authToken) return;
 
       const [careRes, delRes] = await Promise.all([
@@ -310,14 +314,14 @@ export default function MyFarmPage() {
     } catch (err) {
       console.error('Error fetching care and deliveries:', err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     if (selectedItem) {
       fetchLogs(selectedItem.CultivationId);
       fetchCareAndDeliveries();
     }
-  }, [selectedItem]);
+  }, [selectedItem, fetchLogs, fetchCareAndDeliveries]);
 
   // Submit Care Request
   const handleSubmitCareRequest = async (e: React.FormEvent) => {
@@ -676,7 +680,7 @@ export default function MyFarmPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
                       <span className="text-xs font-black text-red-600 uppercase tracking-wider">
-                        ● LIVE CAM 24/7 - CAMERA #{selectedItem.PlotId}
+                        ● LIVE CAM 24/7 - {selectedItem.CameraName || `CAMERA #${selectedItem.PlotId}`} ({selectedItem.CameraCode || selectedItem.PlotCode})
                       </span>
                     </div>
 
@@ -703,7 +707,7 @@ export default function MyFarmPage() {
                     {/* Top HUD */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-white text-xs font-mono drop-shadow">
                       <span className="bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
-                        CAM-{selectedItem.PlotCode} • 11.9404° N, 108.4583° E (Đà Lạt)
+                        {selectedItem.CameraCode || `CAM-${selectedItem.PlotCode}`} • {selectedItem.CameraName || selectedItem.PlotCode} • 11.9404° N, 108.4583° E (Đà Lạt)
                       </span>
                       <span className="bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
                         {liveTime}
@@ -753,7 +757,7 @@ export default function MyFarmPage() {
                     <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
                       <Activity className="w-5 h-5 text-emerald-500" /> Cảm Biến Môi Trường Luống Đất
                     </h3>
-                    <Badge variant="success" size="sm">LIVE SYNC</Badge>
+                    <Badge variant="warning" size="sm">CHỜ KẾT NỐI IoT</Badge>
                   </div>
 
                   {/* 4 Sensor Cards */}
@@ -797,6 +801,14 @@ export default function MyFarmPage() {
                       <p className="text-2xl font-black text-slate-900 dark:text-white">{selectedItem.SoilPH}</p>
                       <span className="text-[10px] font-semibold text-emerald-600 block">Trung tính giàu mùn</span>
                     </div>
+                  </div>
+
+                  {/* IoT Connection Status Notice */}
+                  <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
+                    <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
+                      Trạng thái: Trạm cảm biến IoT thực địa đang chờ kết nối và đồng bộ thông số...
+                    </p>
                   </div>
 
                   {/* Harvest Yield Expectation */}
