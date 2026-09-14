@@ -786,7 +786,22 @@ export default function PlotsPage() {
                     <Button
                       variant="primary"
                       size="lg"
-                      onClick={() => setIsSuccessModalOpen(true)}
+                      onClick={() => {
+                      localStorage.setItem(
+                        'pending_rental',
+                        JSON.stringify({
+                          plotId: selectedPlot.PlotId,
+                          plotCode: selectedPlot.PlotCode,
+                          sizeM2: selectedPlot.SizeM2,
+                          seedId: selectedSeed ? selectedSeed.SeedId : 1,
+                          seedName: selectedSeed ? selectedSeed.SeedName : 'Xà lách xoong Đà Lạt',
+                          packageId: selectedPackage ? selectedPackage.PackageId : 2,
+                          packageName: selectedPackage ? selectedPackage.PackageName : 'Gói Hữu Cơ Nâng Cao',
+                          totalPrice: totalPrice,
+                        })
+                      );
+                      router.push('/checkout');
+                    }}
                       rightIcon={<ArrowRight className="w-5 h-5" />}
                       className="font-bold shadow-xl shadow-emerald-500/25 px-6 sm:px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white"
                     >
@@ -867,7 +882,7 @@ export default function PlotsPage() {
                       totalPrice: totalPrice,
                     })
                   );
-                  alert('Đã lưu cấu hình ô đất và giống cây! Sẵn sàng cho Buổi Chiều: Thanh toán Sandbox.');
+                  router.push('/checkout');
                 }}
               >
                 Xác Nhận Đặt Thuê
