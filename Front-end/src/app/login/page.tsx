@@ -94,14 +94,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col relative overflow-hidden font-sans">
       {/* Ambient Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-green-500/15 blur-[120px] pointer-events-none" />
 
       {/* Top Navigation Bar */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center max-w-7xl mx-auto w-full z-10">
-        <Link href="/" className="flex items-center gap-3 group">
+      <header className="relative z-50 p-6 flex justify-between items-center max-w-7xl mx-auto w-full shrink-0">
+        <Link href="/" className="flex items-center gap-3 group cursor-pointer">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
             <Sprout className="w-5 h-5" />
           </div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
           Chưa có tài khoản?{' '}
           <Link
             href="/register"
-            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4"
+            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4 cursor-pointer"
           >
             Đăng ký ngay
           </Link>
@@ -125,7 +125,7 @@ export default function LoginPage() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl w-full mx-auto px-4 py-24 sm:px-6 lg:px-8 z-10">
+      <main className="max-w-6xl w-full mx-auto px-4 py-8 sm:px-6 lg:px-8 relative z-10 flex-1 flex items-center">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
 
           {/* Left Column: Brand Showcase (Desktop only - Đồng bộ với trang Đăng ký) */}
