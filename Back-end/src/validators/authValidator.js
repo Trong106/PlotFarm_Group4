@@ -17,8 +17,8 @@ const registerSchema = z.object({
       'Mật khẩu không được vượt quá 72 byte UTF-8'),
   phoneNumber: z.string({ error: 'Số điện thoại phải là chuỗi' })
     .trim()
-    .max(20, 'Số điện thoại không được vượt quá 20 ký tự')
-    .regex(/^(?:\+?[0-9]{9,15})?$/, 'Số điện thoại phải gồm 9–15 chữ số, có thể bắt đầu bằng +')
+    .transform((value) => value.replace(/[\s.-]/g, ''))
+    .pipe(z.string().regex(/^(?:\+?[0-9]{9,15})?$/, 'Số điện thoại phải gồm 9-15 chữ số, có thể bắt đầu bằng +'))
     .transform((value) => value || null)
     .nullable()
     .optional(),

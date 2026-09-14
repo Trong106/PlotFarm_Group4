@@ -186,9 +186,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     } catch (err: any) {
       const isNetworkError = !err.response;
-      const errorMessage = isNetworkError
-        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
-        : err.response?.data?.message || err.message || 'Đăng ký thất bại.';
+      let errorMessage = 'Đăng ký thất bại.';
+      if (isNetworkError) {
+        errorMessage = 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.';
+      } else if (err.response?.data?.errors && Array.isArray(err.response.data.errors) && err.response.data.errors.length > 0) {
+        errorMessage = err.response.data.errors.map((e: any) => e.message).join('. ');
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
 
       set({
         error: errorMessage,
