@@ -135,7 +135,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center space-y-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100/70 dark:bg-emerald-950/60 border border-emerald-400/30 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm font-semibold shadow-sm backdrop-blur-md">
               <Sparkles className="w-4 h-4 text-emerald-500" />
-              Nền Tảng Nông Nghiệp Kỹ Thuật Số Chuẩn VietGAP Đầu Tiên Tại Việt Nam
+              Nền Tảng Nông Nghiệp Kỹ Thuật Số Chuẩn VietGAP Tại Việt Nam
             </div>
 
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-slate-900 dark:text-white leading-[1.15] max-w-5xl mx-auto">
@@ -152,7 +152,7 @@ export default function LandingPage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-              <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+              <Link href="/plots">
                 <Button
                   variant="primary"
                   size="lg"

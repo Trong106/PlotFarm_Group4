@@ -76,6 +76,7 @@ export default function Header() {
 
   const navLinks = [
     { href: '/', label: 'Trang Chủ' },
+    { href: '/plots', label: 'Bản Đồ Thuê Đất' },
     { href: '/#features', label: 'Tính Năng' },
     { href: '/#pricing', label: 'Bảng Giá Gói Trồng' },
     { href: '/#about', label: 'Về PlotFarm' },
