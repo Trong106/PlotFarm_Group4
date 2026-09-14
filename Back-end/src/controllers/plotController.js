@@ -38,7 +38,17 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const getAreas = async (req, res, next) => {
+  try {
+    const areas = await plotService.getAreas();
+    return successResponse(res, areas, 'Lấy danh sách phân khu nông trại thành công');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
+  getAreas,
   getGrid,
   reserve,
   updateStatus,

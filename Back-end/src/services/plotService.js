@@ -113,7 +113,18 @@ const updatePlotStatus = async (plotId, newStatus) => {
   return result.recordset[0];
 };
 
+const getAreas = async () => {
+  const pool = getPool();
+  const result = await pool.request().query(`
+    SELECT AreaId, FarmId, AreaCode, AreaName, SoilType, TotalPlots, Description
+    FROM FarmAreas
+    ORDER BY AreaId ASC
+  `);
+  return result.recordset;
+};
+
 module.exports = {
+  getAreas,
   getPlotGrid,
   reservePlot,
   updatePlotStatus,

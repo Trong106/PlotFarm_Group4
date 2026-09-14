@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500" role="img" aria-label="Ảnh minh họa nông trại không khả dụng">
+  <rect width="800" height="500" fill="#eef4eb"/>
+  <path d="M0 380C120 330 205 365 315 318S520 260 800 335v165H0Z" fill="#d7e8d4"/>
+  <path d="M0 425c120-72 255-24 360-93s223-52 440-8" fill="none" stroke="#7aae79" stroke-width="10" stroke-linecap="round"/>
+  <path d="M400 318V186m0 65c-66 0-93-42-93-80 66 0 93 42 93 80Zm0-90c66 0 93-42 93-80-66 0-93 42-93 80Z" fill="none" stroke="#2e7d32" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="400" y="455" text-anchor="middle" fill="#47674a" font-family="Arial, sans-serif" font-size="23">Ảnh minh họa nông trại</text>
+</svg>

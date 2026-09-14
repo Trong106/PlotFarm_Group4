@@ -36,7 +36,11 @@ import {
   Phone,
   UserCheck,
   CheckCircle,
-  Info
+  Info,
+  QrCode,
+  Moon,
+  CloudSun,
+  Wind
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/Button';
@@ -180,6 +184,9 @@ export default function MyFarmPage() {
   const [lightLux, setLightLux] = useState(860);
   const [liveTime, setLiveTime] = useState('');
   const [cameraAngle, setCameraAngle] = useState<'Góc Toàn Cảnh' | 'Cận Cảnh Gốc Rau'>('Góc Toàn Cảnh');
+  const [isNightVision, setIsNightVision] = useState(false);
+  const [isRefreshingStream, setIsRefreshingStream] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   // Realtime clock
   useEffect(() => {
@@ -197,6 +204,25 @@ export default function MyFarmPage() {
     const interval = setInterval(updateClock, 1000);
     return () => clearInterval(interval);
   }, [initAuth]);
+
+  // Top 4 Summary Stats
+  const activePlotsCount = cultivations.length;
+  const growingCyclesCount = cultivations.filter((c) => c.CultivationStatus === 'GROWING').length;
+  const readyToHarvestCount = cultivations.filter((c) => Number(c.ProgressPercent) >= 90).length;
+  const pendingRequestsCount =
+    careRequests.filter((r) => r.Status !== 'COMPLETED').length +
+    deliveries.filter((d) => d.DeliveryStatus !== 'DELIVERED').length;
+
+  const getHarvestCountdown = (expectedHarvestDateStr: string) => {
+    if (!expectedHarvestDateStr) return 'Đang cập nhật';
+    const target = new Date(expectedHarvestDateStr).getTime();
+    const now = Date.now();
+    const diff = target - now;
+    if (diff <= 0) return 'Đã đến ngày thu hoạch';
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    return `Còn ${days} ngày ${hours} giờ`;
+  };
 
   // Minor sensor fluctuation for lively feel
   useEffect(() => {
@@ -592,6 +618,49 @@ export default function MyFarmPage() {
               </div>
             )}
 
+            {/* TOP 4 KPI SUMMARY METRICS */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-black text-lg">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Ô Đất Đang Thuê</span>
+                  <span className="text-xl font-black text-slate-900 dark:text-white">{activePlotsCount} ô chuẩn</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-teal-100 dark:bg-teal-950 text-teal-600 flex items-center justify-center font-black text-lg">
+                  <Sprout className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Vụ Đang Canh Tác</span>
+                  <span className="text-xl font-black text-teal-600 dark:text-teal-400">{growingCyclesCount} mùa vụ</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center font-black text-lg">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Sẵn Sàng Thu Hoạch</span>
+                  <span className="text-xl font-black text-amber-600 dark:text-amber-400">{readyToHarvestCount} vụ chín</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center font-black text-lg">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Yêu Cầu Đang Xử Lý</span>
+                  <span className="text-xl font-black text-blue-600 dark:text-blue-400">{pendingRequestsCount} yêu cầu</span>
+                </div>
+              </div>
+            </div>
+
             {/* 1. HERO CULTIVATION OVERVIEW CARD */}
             <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-emerald-200/90 dark:border-slate-800 shadow-sm space-y-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-100 dark:border-slate-800">
@@ -622,7 +691,16 @@ export default function MyFarmPage() {
                 </div>
 
                 {/* Quick actions & harvest button */}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-emerald-300 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950 font-bold"
+                    onClick={() => setIsQrModalOpen(true)}
+                  >
+                    <QrCode className="w-4 h-4 mr-1.5 text-emerald-600" />
+                    Mã QR VietGAP
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -662,12 +740,26 @@ export default function MyFarmPage() {
                 </div>
 
                 <div className="grid grid-cols-5 text-center text-[10px] sm:text-xs font-semibold text-slate-400 pt-1">
-                  <span className={selectedItem.ProgressPercent >= 20 ? 'text-emerald-600 font-bold' : ''}>1. Gieo Hạt</span>
-                  <span className={selectedItem.ProgressPercent >= 40 ? 'text-emerald-600 font-bold' : ''}>2. Cây Con</span>
-                  <span className={selectedItem.ProgressPercent >= 65 ? 'text-emerald-600 font-bold' : ''}>3. Tăng Trưởng</span>
-                  <span className={selectedItem.ProgressPercent >= 90 ? 'text-emerald-600 font-bold' : ''}>4. Trưởng Thành</span>
-                  <span className={selectedItem.ProgressPercent >= 100 ? 'text-emerald-600 font-bold' : ''}>5. Thu Hoạch</span>
+                  <span className={selectedItem.ProgressPercent >= 15 ? 'text-emerald-600 font-bold' : ''}>1. Chuẩn Bị Đất</span>
+                  <span className={selectedItem.ProgressPercent >= 35 ? 'text-emerald-600 font-bold' : ''}>2. Gieo Hạt & Ủ Mầm</span>
+                  <span className={selectedItem.ProgressPercent >= 65 ? 'text-emerald-600 font-bold' : ''}>3. Cây Con Phát Triển</span>
+                  <span className={selectedItem.ProgressPercent >= 90 ? 'text-emerald-600 font-bold' : ''}>4. Sinh Trưởng Mạnh</span>
+                  <span className={selectedItem.ProgressPercent >= 100 ? 'text-emerald-600 font-bold' : ''}>5. Sẵn Sàng Thu Hoạch</span>
                 </div>
+
+                {Number(selectedItem.ProgressPercent) >= 90 && (
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 text-xs shadow-md animate-fade-in">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-100 flex-shrink-0" />
+                      <span>
+                        <strong>Ô đất đã đạt chất lượng thu hoạch chuẩn VietGAP!</strong> Bạn có thể bấm nút &quot;Yêu Cầu Thu Hoạch & Giao Hàng&quot; để nhận rau tươi tận nhà.
+                      </span>
+                    </div>
+                    <Badge variant="warning" size="sm" className="bg-white text-emerald-900 border-none font-bold">
+                      ĐÃ ĐẠT ĐỘ NGỌT
+                    </Badge>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -685,12 +777,37 @@ export default function MyFarmPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsNightVision((prev) => !prev)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all ${
+                          isNightVision
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                        }`}
+                        title="Bật/Tắt chế độ quan sát hồng ngoại ban đêm"
+                      >
+                        <Moon className="w-3 h-3" />
+                        {isNightVision ? 'Hồng Ngoại BẬT' : 'Chế Độ Đêm (IR)'}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsRefreshingStream(true);
+                          setTimeout(() => setIsRefreshingStream(false), 600);
+                        }}
+                        disabled={isRefreshingStream}
+                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 transition-colors"
+                        title="Thử lại kết nối Camera"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStream ? 'animate-spin text-emerald-600' : ''}`} />
+                      </button>
+
                       <Badge variant="success" size="sm">1080P HD</Badge>
                       <button
                         onClick={() => setCameraAngle((prev) => (prev === 'Góc Toàn Cảnh' ? 'Cận Cảnh Gốc Rau' : 'Góc Toàn Cảnh'))}
                         className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors"
                       >
-                        Đổi: {cameraAngle}
+                        {cameraAngle}
                       </button>
                     </div>
                   </div>
@@ -700,8 +817,15 @@ export default function MyFarmPage() {
                     <img
                       src="https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80"
                       alt="Camera Feed"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                      className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ${
+                        isNightVision ? 'grayscale contrast-125 brightness-90 hue-rotate-90' : ''
+                      }`}
                     />
+                    {isNightVision && (
+                      <div className="absolute top-10 left-3 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500 text-[10px] font-mono font-bold text-emerald-400">
+                        IR NIGHT VISION • ACTIVE
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
 
                     {/* Top HUD */}
@@ -753,6 +877,30 @@ export default function MyFarmPage() {
               {/* Right 5 Cols: Live Sensor Telemetry */}
               <div className="lg:col-span-5 space-y-4">
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 shadow-sm">
+                  {/* Đà Lạt Microclimate */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-r from-sky-50 to-emerald-50 dark:from-sky-950/30 dark:to-emerald-950/30 border border-sky-200 dark:border-sky-900/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-sky-900 dark:text-sky-300 flex items-center gap-1.5">
+                        <CloudSun className="w-4 h-4 text-sky-600" /> Vi Khí Hậu Nông Trại Đà Lạt
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500">19°C • Mát Mẻ</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-600 dark:text-slate-300">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Độ ẩm khí:</span>
+                        <strong>82% ẩm</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Chỉ số UV:</span>
+                        <strong className="text-emerald-600 font-bold">3 (An toàn)</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Phun sương:</span>
+                        <strong>Tự động</strong>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
                       <Activity className="w-5 h-5 text-emerald-500" /> Cảm Biến Môi Trường Luống Đất

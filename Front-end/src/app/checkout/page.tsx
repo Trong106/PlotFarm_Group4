@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShieldCheck,
   ArrowLeft,
@@ -20,7 +20,9 @@ import {
   Lock,
   ArrowRight,
   Loader2,
-  Check
+  Check,
+  Video,
+  Scale
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/Button';
@@ -28,39 +30,135 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
 import { useAuthStore } from '@/store/useAuthStore';
 
-export default function CheckoutPage() {
+interface PlotData {
+  PlotId: number;
+  PlotCode: string;
+  AreaName?: string;
+  SizeM2: number;
+  SoilPH: number;
+  StandardHumidity: number;
+  BasePricePerMonth: number;
+  CameraCode?: string;
+}
+
+interface SeedData {
+  SeedId: number;
+  SeedName: string;
+  GrowthDurationDays: number;
+  ExpectedYieldKgPerM2: number;
+  SeedPrice: number;
+  Category: string;
+}
+
+interface CarePackageData {
+  PackageId: number;
+  PackageName: string;
+  MonthlyFee: number;
+  ServicesIncluded: string;
+}
+
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, token, isAuthenticated, initAuth } = useAuthStore();
 
-  const [rentalConfig, setRentalConfig] = useState<any>(null);
-  const [durationMonths, setDurationMonths] = useState<number>(1);
+  // Selected Entities
+  const [plot, setPlot] = useState<PlotData | null>(null);
+  const [seed, setSeed] = useState<SeedData | null>(null);
+  const [carePackage, setCarePackage] = useState<CarePackageData | null>(null);
+
+  // Number of crop cycles: 1 Vụ, 2 Vụ, 3 Vụ
+  const [cycles, setCycles] = useState<number>(1);
   const [paymentMethod, setPaymentMethod] = useState<'MOMO' | 'VNPAY' | 'QR_BANK' | 'ATM'>('MOMO');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     initAuth();
-    // Load config from localStorage
-    const saved = localStorage.getItem('pending_rental');
-    if (saved) {
+
+    const loadData = async () => {
       try {
-        setRentalConfig(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
+        setIsLoading(true);
+        // 1. Check search params
+        const paramPlotId = searchParams.get('plotId');
+        const paramSeedId = searchParams.get('seedId');
+        const paramPkgId = searchParams.get('pkgId');
+        const paramCycles = searchParams.get('cycles');
+
+        if (paramCycles) setCycles(Number(paramCycles));
+
+        // 2. Fetch all required entities
+        const [plotsRes, seedsRes, pkgsRes] = await Promise.all([
+          fetch('http://localhost:5000/api/plots/grid').then((r) => r.json()),
+          fetch('http://localhost:5000/api/seeds').then((r) => r.json()),
+          fetch('http://localhost:5000/api/seeds/packages').then((r) => r.json()),
+        ]);
+
+        const allPlots: PlotData[] = plotsRes.data || [];
+        const allSeeds: SeedData[] = seedsRes.data || [];
+        const allPkgs: CarePackageData[] = pkgsRes.data || [];
+
+        // Pick matching or fallback
+        const selectedPlot = paramPlotId
+          ? allPlots.find((p) => p.PlotId === Number(paramPlotId))
+          : allPlots.find((p) => p.PlotId === 1) || allPlots[0];
+
+        const selectedSeed = paramSeedId
+          ? allSeeds.find((s) => s.SeedId === Number(paramSeedId))
+          : allSeeds[0];
+
+        const selectedPkg = paramPkgId
+          ? allPkgs.find((pk) => pk.PackageId === Number(paramPkgId))
+          : allPkgs[1] || allPkgs[0];
+
+        if (selectedPlot) setPlot(selectedPlot);
+        if (selectedSeed) setSeed(selectedSeed);
+        if (selectedPkg) setCarePackage(selectedPkg);
+      } catch (err) {
+        console.error('Failed to load checkout details:', err);
+        setErrorMessage('Không thể tải thông tin đơn hàng. Vui lòng thử lại!');
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [initAuth]);
+    };
 
-  // Pricing
-  const plotBasePrice = 450000;
-  const seedPrice = 45000;
-  const packagePrice = 450000;
+    loadData();
+  }, [initAuth, searchParams]);
 
-  const discountRate = durationMonths === 3 ? 0.05 : durationMonths === 6 ? 0.1 : 0;
-  const subtotal = (plotBasePrice + packagePrice) * durationMonths + seedPrice;
-  const discountAmount = Math.round(((plotBasePrice + packagePrice) * durationMonths) * discountRate);
-  const finalTotal = subtotal - discountAmount;
+  // Crop growth cycle & rental days calculation
+  const growthDays = seed?.GrowthDurationDays || 45;
+  const totalRentalDays = growthDays * cycles;
+
+  // Day-based Transparent Pricing
+  const plotBasePrice = plot?.BasePricePerMonth || 450000;
+  const packageBasePrice = carePackage?.MonthlyFee || 250000;
+  const seedPricePerCycle = seed?.SeedPrice || 45000;
+
+  const plotDailyRate = plotBasePrice / 30;
+  const packageDailyRate = packageBasePrice / 30;
+
+  const rentalFee = Math.round(plotDailyRate * totalRentalDays);
+  const careFee = Math.round(packageDailyRate * totalRentalDays);
+  const totalSeedFee = seedPricePerCycle * cycles;
+
+  const discountRate = cycles === 2 ? 0.05 : cycles >= 3 ? 0.10 : 0;
+  const discountAmount = Math.round((rentalFee + careFee) * discountRate);
+  const finalTotal = rentalFee + careFee + totalSeedFee - discountAmount;
+
+  // Exact Dates calculation
+  const now = new Date();
+  const firstHarvestDate = new Date(now.getTime() + growthDays * 24 * 60 * 60 * 1000);
+  const contractEndDate = new Date(now.getTime() + totalRentalDays * 24 * 60 * 60 * 1000);
+
+  const formatDateVN = (d: Date) => {
+    return d.toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  };
 
   const formatVND = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
@@ -72,8 +170,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!rentalConfig?.plotId) {
-      setErrorMessage('Không tìm thấy thông tin ô đất đã chọn. Vui lòng chọn lại trên Bản đồ thuê đất!');
+    if (!plot) {
+      setErrorMessage('Không tìm thấy thông tin ô đất. Vui lòng chọn lại trên Bản đồ thuê đất!');
       return;
     }
 
@@ -88,17 +186,25 @@ export default function CheckoutPage() {
           Authorization: `Bearer ${token || localStorage.getItem('plotfarm_token')}`,
         },
         body: JSON.stringify({
-          plotId: rentalConfig.plotId,
-          seedId: rentalConfig.seedId || 1,
-          carePackageId: rentalConfig.packageId || 2,
-          durationMonths: durationMonths,
+          plotId: plot.PlotId,
+          seedId: seed?.SeedId || 1,
+          carePackageId: carePackage?.PackageId || 1,
+          cycles: cycles,
+          rentalDays: totalRentalDays,
           paymentMethod: paymentMethod,
         }),
       });
 
       const data = await res.json();
       if (data.success && data.data) {
-        setPaymentSuccess(data.data);
+        setPaymentSuccess({
+          ...data.data,
+          growthDays,
+          totalRentalDays,
+          cycles,
+          firstHarvestDate: formatDateVN(firstHarvestDate),
+          contractEndDate: formatDateVN(contractEndDate),
+        });
         localStorage.removeItem('pending_rental');
       } else {
         setErrorMessage(data.message || 'Thanh toán thất bại. Vui lòng thử lại!');
@@ -126,13 +232,23 @@ export default function CheckoutPage() {
 
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Cổng Thanh Toán Sandbox Bảo Mật
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Thanh Toán Theo Chu Kỳ Sinh Trưởng Thực Tế
             </span>
           </div>
         </div>
 
+        {/* Loading Spinner */}
+        {isLoading && (
+          <div className="py-24 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <Loader2 className="w-10 h-10 animate-spin text-emerald-500 mx-auto" />
+            <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+              Đang chuẩn bị hợp đồng điện tử và biểu phí canh tác...
+            </p>
+          </div>
+        )}
+
         {/* Success View after payment */}
-        {paymentSuccess ? (
+        {!isLoading && paymentSuccess && (
           <div className="max-w-2xl mx-auto bg-white dark:bg-slate-900 p-8 sm:p-12 rounded-3xl border-2 border-emerald-500 shadow-2xl text-center space-y-6 animate-scale-up">
             <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/30">
               <CheckCircle2 className="w-10 h-10" />
@@ -140,13 +256,13 @@ export default function CheckoutPage() {
 
             <div className="space-y-2">
               <span className="text-xs font-extrabold text-emerald-600 uppercase tracking-wider">
-                Giao Dịch Thành Công 100%
+                Giao Dịch Thành Công 100% (Sandbox)
               </span>
               <h2 className="text-3xl font-black text-slate-900 dark:text-white">
-                Chúc Mừng Bạn Đã Sở Hữu Ô Đất!
+                Chúc Mừng Bạn Đã Kích Hoạt Mùa Vụ!
               </h2>
               <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                Mùa vụ canh tác của bạn đã chính thức được kích hoạt. Đội ngũ kỹ sư PlotFarm đang chuẩn bị đất và hạt giống để bắt đầu gieo trồng!
+                Ô đất <strong className="text-emerald-600">{paymentSuccess.plotCode}</strong> đã được khởi tạo thành công với chu kỳ <strong>{paymentSuccess.totalRentalDays} ngày ({paymentSuccess.cycles} vụ)</strong>.
               </p>
             </div>
 
@@ -158,11 +274,21 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Vị trí ô đất:</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{paymentSuccess.plotCode} (10 m²)</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{paymentSuccess.plotCode} ({plot?.SizeM2 || 15} m²)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Giống cây đăng ký:</span>
                 <span className="font-bold text-slate-800 dark:text-slate-200">{paymentSuccess.seedName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Thời gian thuê đất:</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {paymentSuccess.totalRentalDays} ngày ({paymentSuccess.cycles} vụ)
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Thu hoạch dự kiến đợt 1:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{paymentSuccess.firstHarvestDate}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Gói chăm sóc:</span>
@@ -170,7 +296,7 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Phương thức thanh toán:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">{paymentMethod} (Sandbox)</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{paymentMethod}</span>
               </div>
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between text-base font-black">
                 <span>Tổng tiền đã thanh toán:</span>
@@ -186,54 +312,99 @@ export default function CheckoutPage() {
                   rightIcon={<ArrowRight className="w-5 h-5" />}
                   className="w-full sm:w-auto font-bold shadow-xl shadow-emerald-500/25 px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white"
                 >
-                  Vào Xem Vườn Của Tôi Ngay
+                  Vào Xem Nông Trại Của Tôi Ngay
                 </Button>
               </Link>
             </div>
           </div>
-        ) : (
-          /* Normal Checkout Flow */
+        )}
+
+        {/* Normal Checkout Flow */}
+        {!isLoading && !paymentSuccess && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left: Duration & Payment Options */}
+            {/* Left: Crop Cycle Selector & Payment Method */}
             <div className="lg:col-span-7 space-y-6">
               {/* Alert error if any */}
               {errorMessage && (
-                <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-center gap-3 text-red-700 dark:text-red-300 text-xs">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  <span className="font-semibold">{errorMessage}</span>
+                <div className="p-4 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-2xl flex items-center gap-3 text-red-700 dark:text-red-300 text-xs">
+                  <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+                  <span>{errorMessage}</span>
                 </div>
               )}
 
-              {/* 1. Chọn thời hạn thuê */}
+              {/* 1. Chọn thời gian thuê theo CHU KỲ SINH TRƯỞNG CỦA CÂY */}
               <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-emerald-500" /> Chọn Thời Hạn Canh Tác
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Thuê dài hạn giúp rau có đủ thời gian phát triển và nhận ưu đãi giảm giá dịch vụ
-                </p>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-emerald-500" /> Thời Gian Thuê Theo Chu Kỳ Sinh Trưởng
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Chu kỳ sinh trưởng của <strong className="text-emerald-600">{seed?.SeedName || 'cây trồng'}</strong> là <strong>{growthDays} ngày/vụ</strong>. Thời gian thuê đất được khớp chính xác theo vụ, không làm tròn tháng.
+                    </p>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { months: 1, label: '1 Tháng', discount: 'Chuẩn' },
-                    { months: 3, label: '3 Tháng', discount: 'Giảm 5%' },
-                    { months: 6, label: '6 Tháng', discount: 'Giảm 10%' },
+                    {
+                      val: 1,
+                      title: '1 Vụ Thu Hoạch',
+                      days: `${growthDays} ngày`,
+                      discount: 'Chuẩn theo vụ',
+                      badge: 'Phổ biến',
+                    },
+                    {
+                      val: 2,
+                      title: '2 Vụ Liên Tiếp',
+                      days: `${growthDays * 2} ngày`,
+                      discount: 'Giảm 5% phí',
+                      badge: 'Tiết kiệm',
+                    },
+                    {
+                      val: 3,
+                      title: '3 Vụ Trọn Năm',
+                      days: `${growthDays * 3} ngày`,
+                      discount: 'Giảm 10% phí',
+                      badge: 'Ưu đãi cao',
+                    },
                   ].map((item) => (
                     <button
-                      key={item.months}
-                      onClick={() => setDurationMonths(item.months)}
-                      className={`p-4 rounded-2xl border-2 text-center transition-all ${
-                        durationMonths === item.months
-                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200 font-extrabold shadow-sm'
+                      key={item.val}
+                      type="button"
+                      onClick={() => setCycles(item.val)}
+                      className={`p-4 rounded-2xl border-2 text-center transition-all flex flex-col justify-between ${
+                        cycles === item.val
+                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/20 shadow-md'
                           : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 text-slate-700 dark:text-slate-300'
                       }`}
                     >
-                      <span className="text-base font-black block">{item.label}</span>
-                      <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                      <span className="text-xs font-semibold text-slate-400 block">{item.badge}</span>
+                      <span className="text-base font-black block my-1">{item.title}</span>
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block">
+                        {item.days}
+                      </span>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
                         {item.discount}
                       </span>
                     </button>
                   ))}
+                </div>
+
+                {/* Timeline dates preview */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Ngày bắt đầu:</span>
+                    <strong className="text-slate-800 dark:text-slate-200">{formatDateVN(now)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Thu hoạch đợt 1:</span>
+                    <strong className="text-emerald-600 dark:text-emerald-400">{formatDateVN(firstHarvestDate)}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px]">Ngày kết thúc hợp đồng:</span>
+                    <strong className="text-slate-800 dark:text-slate-200">{formatDateVN(contractEndDate)}</strong>
+                  </div>
                 </div>
               </div>
 
@@ -246,7 +417,7 @@ export default function CheckoutPage() {
                   <Badge variant="warning" size="sm">MÔ PHỎNG AN TOÀN</Badge>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Hệ thống sử dụng cổng thanh toán thử nghiệm (Sandbox), bạn không bị trừ tiền thật khi bấm thanh toán
+                  Hệ thống sử dụng cổng thanh toán thử nghiệm (Sandbox), bạn không bị trừ tiền thật khi bấm thanh toán.
                 </p>
 
                 <div className="space-y-3">
@@ -326,94 +497,120 @@ export default function CheckoutPage() {
             <div className="lg:col-span-5 space-y-6">
               <div className="bg-white dark:bg-slate-900 p-6 sm:p-7 rounded-3xl border-2 border-emerald-500/80 shadow-xl space-y-6">
                 <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white">Chi Tiết Hợp Đồng Thuê</h3>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white">Chi Tiết Hợp Đồng Canh Tác</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Hợp đồng canh tác nông nghiệp số chuẩn VietGAP
+                    Tính phí minh bạch theo ngày sinh trưởng thực tế ({totalRentalDays} ngày)
                   </p>
                 </div>
 
                 {/* Items */}
                 <div className="space-y-4 text-xs">
+                  {/* Plot Item */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
                       <div>
                         <span className="font-extrabold text-slate-800 dark:text-slate-200 block">
-                          Ô đất {rentalConfig?.plotCode || 'PLOT_A01'} (10 m²)
+                          Ô đất {plot?.PlotCode || 'PLOT_A01'} ({plot?.SizeM2 || 15} m²)
                         </span>
-                        <span className="text-slate-400">{durationMonths} tháng canh tác</span>
+                        <span className="text-slate-400">
+                          {totalRentalDays} ngày thuê đất ({formatVND(Math.round(plotDailyRate))}/ngày)
+                        </span>
                       </div>
                     </div>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {formatVND(plotBasePrice * durationMonths)}
+                      {formatVND(rentalFee)}
                     </span>
                   </div>
 
+                  {/* Seed Item */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <Sprout className="w-4 h-4 text-teal-500 shrink-0" />
+                      <Sprout className="w-4 h-4 text-emerald-500 shrink-0" />
                       <div>
                         <span className="font-extrabold text-slate-800 dark:text-slate-200 block">
-                          Giống cây: {rentalConfig?.seedName || 'Xà lách xoong Đà Lạt'}
+                          Giống {seed?.SeedName || 'Hạt giống'} ({cycles} vụ)
                         </span>
-                        <span className="text-slate-400">Hạt giống thuần chủng F1</span>
+                        <span className="text-slate-400">
+                          Chu kỳ: {growthDays} ngày/vụ • ~{Math.round((plot?.SizeM2 || 15) * (seed?.ExpectedYieldKgPerM2 || 3))} kg/vụ
+                        </span>
                       </div>
                     </div>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {formatVND(seedPrice)}
+                      {formatVND(totalSeedFee)}
                     </span>
                   </div>
 
+                  {/* Care Package Item */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-cyan-500 shrink-0" />
+                      <Package className="w-4 h-4 text-emerald-500 shrink-0" />
                       <div>
                         <span className="font-extrabold text-slate-800 dark:text-slate-200 block">
-                          {rentalConfig?.packageName || 'Gói Hữu Cơ Nâng Cao (Organic Pro)'}
+                          {carePackage?.PackageName || 'Gói Chăm Sóc'}
                         </span>
-                        <span className="text-slate-400">{durationMonths} tháng chăm sóc 100%</span>
+                        <span className="text-slate-400">
+                          {totalRentalDays} ngày dịch vụ ({formatVND(Math.round(packageDailyRate))}/ngày)
+                        </span>
                       </div>
                     </div>
                     <span className="font-bold text-slate-800 dark:text-slate-200">
-                      {formatVND(packagePrice * durationMonths)}
+                      {formatVND(careFee)}
                     </span>
                   </div>
 
+                  {/* Discount Item if any */}
                   {discountAmount > 0 && (
                     <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-bold pt-2 border-t border-slate-100 dark:border-slate-800">
-                      <span>Ưu đãi thuê dài hạn ({Math.round(discountRate * 100)}%):</span>
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" /> Ưu đãi thuê nhiều vụ (-{discountRate * 100}%):
+                      </span>
                       <span>-{formatVND(discountAmount)}</span>
                     </div>
                   )}
 
-                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  {/* Final Total */}
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex items-baseline justify-between">
                     <div>
-                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block">Tổng Thanh Toán</span>
-                      <span className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-semibold text-slate-500 block">Tổng thanh toán ({totalRentalDays} ngày):</span>
+                      <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                         {formatVND(finalTotal)}
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-medium text-right max-w-[120px] block">
-                      Đã bao gồm thuế và bảo hiểm mùa vụ
-                    </span>
+                    <Badge variant="success" size="sm">MIỄN PHÍ VẬN CHUYỂN ĐỢT 1</Badge>
                   </div>
                 </div>
 
-                {/* Submit Action */}
+                {/* Commitments */}
+                <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Cam Kết Nông Nghiệp Hữu Cơ
+                  </p>
+                  <p className="leading-relaxed">
+                    Theo dõi trực tiếp quá trình gieo trồng qua Camera 1080p và nhận nhật ký chăm sóc hàng tuần trên ứng dụng.
+                  </p>
+                </div>
+
+                {/* Submit button */}
                 <Button
                   variant="primary"
                   size="lg"
+                  className="w-full justify-center shadow-xl shadow-emerald-500/25 py-4 font-black text-base"
                   disabled={isProcessing}
                   onClick={handleConfirmPayment}
-                  leftIcon={isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-5 h-5" />}
-                  className="w-full font-black py-4 text-base shadow-xl shadow-emerald-500/25 bg-emerald-600 hover:bg-emerald-500 text-white"
                 >
-                  {isProcessing ? 'Đang Xử Lý Giao Dịch Sandbox...' : `Xác Nhận Thanh Toán (${paymentMethod})`}
+                  {isProcessing ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Đang Kích Hoạt Hợp Đồng...</span>
+                    </div>
+                  ) : (
+                    `Xác Nhận & Kích Hoạt Vụ (${formatVND(finalTotal)})`
+                  )}
                 </Button>
 
-                <p className="text-[11px] text-center text-slate-400 flex items-center justify-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  Mô phỏng Sandbox • Không phát sinh cước phí thực tế
+                <p className="text-[11px] text-center text-slate-400">
+                  Bằng việc bấm xác nhận, bạn đồng ý với Điều khoản dịch vụ và Chính sách canh tác của PlotFarm.
                 </p>
               </div>
             </div>
@@ -421,5 +618,21 @@ export default function CheckoutPage() {
         )}
       </main>
     </div>
+  );
+}
+
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-600 gap-3">
+          <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
+          <p className="text-sm font-semibold">Đang tải thông tin thanh toán...</p>
+        </div>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   );
 }
