@@ -25,7 +25,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -81,8 +81,8 @@ export default function ProfilePage() {
       errors.fullName = 'Họ và tên tối đa 100 ký tự';
     }
 
-    const trimmedPhone = phoneNumber.trim();
-    if (trimmedPhone && !/^\+?[0-9]{9,15}$/.test(trimmedPhone)) {
+    const cleanPhone = phoneNumber.replace(/[\s.-]/g, '');
+    if (cleanPhone && !/^\+?[0-9]{9,15}$/.test(cleanPhone)) {
       errors.phoneNumber = 'Số điện thoại gồm 9-15 chữ số';
     }
 
@@ -96,7 +96,7 @@ export default function ProfilePage() {
 
     const ok = await updateProfile({
       fullName: trimmedName,
-      phoneNumber: trimmedPhone || null,
+      phoneNumber: cleanPhone || null,
     });
 
     setIsSavingProfile(false);
@@ -146,14 +146,14 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080d16] text-slate-900 dark:text-slate-100 transition-colors duration-300 pb-16">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#080d16] text-slate-900 dark:text-slate-100 transition-colors duration-300 pb-16 selection:bg-emerald-500 selection:text-white">
       <Header />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Navigation & Status bar */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/">
-            <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />}>
+            <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />} className="font-semibold shadow-xs">
               Quay Lại Trang Chủ
             </Button>
           </Link>
@@ -167,14 +167,14 @@ export default function ProfilePage() {
 
         {/* Auth check: If not authenticated */}
         {!isAuthLoading && !isAuthenticated && (
-          <Card variant="glass" className="border-amber-500/30 p-8 text-center space-y-4">
+          <Card className="border border-amber-300 dark:border-amber-500/30 p-8 text-center space-y-4 bg-white dark:bg-slate-900 rounded-3xl shadow-sm">
             <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
               <AlertCircle className="w-8 h-8" />
             </div>
-            <CardTitle className="text-xl font-bold">Vui Lòng Đăng Nhập</CardTitle>
-            <CardDescription className="max-w-md mx-auto">
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Vui Lòng Đăng Nhập</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
               Bạn cần đăng nhập tài khoản để truy cập hồ sơ cá nhân và quản lý sổ địa chỉ nhận nông sản.
-            </CardDescription>
+            </p>
             <div>
               <Link href="/login">
                 <Button variant="primary" size="md">
@@ -190,9 +190,9 @@ export default function ProfilePage() {
           <>
             {/* ADMIN QUICK ACCESS BANNER: Hiển thị nổi bật khi tài khoản có quyền Admin */}
             {isAdmin && (
-              <div className="p-5 rounded-3xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-emerald-500/10 border border-rose-500/30 shadow-lg shadow-rose-500/5 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+              <div className="p-5 rounded-3xl bg-gradient-to-r from-rose-50 via-amber-50 to-emerald-50 dark:from-rose-950/40 dark:via-amber-950/30 dark:to-emerald-950/40 border border-rose-300 dark:border-rose-500/40 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
                 <div className="flex items-center gap-4 text-center sm:text-left">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-300 dark:border-rose-500/40">
                     <ShieldCheck className="w-6 h-6" />
                   </div>
                   <div>
@@ -202,7 +202,7 @@ export default function ProfilePage() {
                       </h3>
                       <Badge variant="danger" size="sm">ADMIN ACCESS</Badge>
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
                       Tài khoản của bạn có đặc quyền Quản trị viên (Admin). Truy cập bảng điều khiển để quản lý người dùng, phân quyền và dữ liệu hệ thống.
                     </p>
                   </div>
@@ -215,76 +215,78 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* 1. HERO PROFILE OVERVIEW CARD */}
-            <Card variant="glass" className="border-emerald-500/30 overflow-hidden shadow-xl shadow-emerald-500/5">
-              <CardHeader className="bg-gradient-to-r from-emerald-900/40 via-slate-900/40 to-teal-900/40 border-b border-slate-200/80 dark:border-slate-800/80 p-6 sm:p-8">
+            {/* 1. HERO PROFILE OVERVIEW CARD - SÁNG SỦA, RÕ RÀNG, ĐỘ TƯƠNG PHẢN CAO */}
+            <div className="bg-white dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden transition-all">
+              {/* Card Header với dải màu chuyển sắc nhẹ nhàng, tươi sáng */}
+              <div className="bg-gradient-to-r from-emerald-100/70 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-slate-900/80 dark:to-teal-950/40 border-b border-slate-200/90 dark:border-slate-800/80 p-6 sm:p-8">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
-                  <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                    {/* Avatar Initials */}
-                    <div className="relative group">
-                      <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white font-black text-3xl flex items-center justify-center shadow-2xl ring-4 ring-emerald-500/30 group-hover:scale-105 transition-transform duration-300">
+                  <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6 text-center sm:text-left">
+                    {/* Avatar Initials với viền trắng sáng */}
+                    <div className="relative group shrink-0">
+                      <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white font-black text-3xl flex items-center justify-center shadow-lg shadow-emerald-500/20 ring-4 ring-white dark:ring-slate-800 group-hover:scale-105 transition-transform duration-300">
                         {user?.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'PF'}
                       </div>
-                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center">
+                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center shadow-xs">
                         <Sparkles className="w-3.5 h-3.5 text-white" />
                       </span>
                     </div>
 
-                    {/* Name & Role */}
-                    <div className="space-y-1.5">
+                    {/* Name, Role & Status */}
+                    <div className="space-y-2">
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                        <CardTitle className="text-2xl sm:text-3xl font-black tracking-tight">
+                        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
                           {user?.fullName || 'Người dùng PlotFarm'}
-                        </CardTitle>
+                        </h1>
                         <Badge
                           variant={getRoleBadgeVariant(displayRole)}
                           size="sm"
-                          className="uppercase font-extrabold tracking-wider"
+                          className="uppercase font-extrabold tracking-wider shadow-xs"
                         >
                           {displayRole}
                         </Badge>
-                        <Badge variant="success" size="sm" dot>
+                        <Badge variant="success" size="sm" dot className="font-semibold shadow-xs">
                           {user?.status || 'ACTIVE'}
                         </Badge>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-slate-500 dark:text-slate-400">
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-medium text-slate-600 dark:text-slate-300">
                         <span className="flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-emerald-500" />
-                          {user?.email || 'email@plotfarm.vn'}
+                          <Mail className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>{user?.email || 'email@plotfarm.vn'}</span>
                         </span>
                         {user?.phoneNumber && (
                           <span className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                            {user.phoneNumber}
+                            <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span>{user.phoneNumber}</span>
                           </span>
                         )}
                         <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-emerald-500" />
-                          Thành viên PlotFarm
+                          <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Thành viên PlotFarm</span>
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Quick Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
+                  {/* Quick Edit Profile Button */}
+                  <div className="shrink-0">
                     {!isEditingProfile && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setIsEditingProfile(true)}
                         leftIcon={<Edit3 className="w-4 h-4" />}
+                        className="bg-white/90 dark:bg-slate-800/90 font-bold border-slate-300 dark:border-slate-700 shadow-xs hover:border-emerald-500"
                       >
                         Đổi Tên & SĐT
                       </Button>
                     )}
                   </div>
                 </div>
-              </CardHeader>
+              </div>
 
-              {/* 2. PROFILE EDIT FORM OR VIEW INFO */}
-              <CardContent className="p-6 sm:p-8">
+              {/* Card Body: Chỉnh sửa hoặc Hiển thị 4 thẻ thông tin sáng sủa */}
+              <div className="p-6 sm:p-8">
                 {isEditingProfile ? (
                   <form onSubmit={handleSaveProfile} className="space-y-6 animate-fade-in">
                     <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -324,7 +326,7 @@ export default function ProfilePage() {
 
                       {/* Email (Read only) */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase flex items-center justify-between">
+                        <label className="text-xs font-bold tracking-wider text-slate-700 dark:text-slate-300 uppercase flex items-center justify-between">
                           <span>Email Tài Khoản</span>
                           <span className="text-[10px] text-slate-400 lowercase font-normal flex items-center gap-1">
                             <Lock className="w-3 h-3" /> không thể đổi
@@ -338,17 +340,17 @@ export default function ProfilePage() {
                             type="text"
                             value={user?.email || ''}
                             disabled
-                            className="w-full py-2.5 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed outline-none"
+                            className="w-full py-2.5 pl-10 pr-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed outline-none font-medium"
                           />
                         </div>
                       </div>
 
                       {/* Role & Permissions (Read only) */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase">
+                        <label className="text-xs font-bold tracking-wider text-slate-700 dark:text-slate-300 uppercase">
                           Vai Trò & Quyền Hạn
                         </label>
-                        <div className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 flex items-center justify-between">
+                        <div className="py-2.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 flex items-center justify-between">
                           <span className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-300">
                             {isAdmin
                               ? 'Quản trị viên hệ thống (Admin)'
@@ -389,53 +391,92 @@ export default function ProfilePage() {
                     </div>
                   </form>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-emerald-500" /> Họ và tên
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200">
-                        {user?.fullName || 'Chưa cập nhật họ tên'}
-                      </p>
+                  /* 4 Thẻ thông tin tài khoản: Nền sáng, icon có màu riêng biệt, viền sắc nét */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Họ và tên */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-50/50 via-white to-emerald-50/30 dark:from-slate-900 dark:to-slate-900/90 border border-emerald-200/80 dark:border-slate-800 shadow-xs hover:border-emerald-400 transition-all group">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-200 dark:border-emerald-800/40">
+                          <User className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Họ và tên
+                          </p>
+                          <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                            {user?.fullName || 'Chưa cập nhật họ tên'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-emerald-500" /> Email tài khoản
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200">
-                        {user?.email || 'Chưa cập nhật'}
-                      </p>
+                    {/* Email tài khoản */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-50/50 via-white to-blue-50/30 dark:from-slate-900 dark:to-slate-900/90 border border-blue-200/80 dark:border-slate-800 shadow-xs hover:border-blue-400 transition-all group">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-200 dark:border-blue-800/40">
+                          <Mail className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Email tài khoản
+                          </p>
+                          <p className="text-base font-extrabold text-slate-900 dark:text-white truncate max-w-[240px] sm:max-w-xs">
+                            {user?.email || 'Chưa cập nhật'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-emerald-500" /> Số điện thoại liên hệ
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200">
-                        {user?.phoneNumber || (
-                          <span className="text-sm font-normal text-slate-400 italic">Chưa liên kết số điện thoại</span>
-                        )}
-                      </p>
+                    {/* Số điện thoại liên hệ */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-50/50 via-white to-amber-50/30 dark:from-slate-900 dark:to-slate-900/90 border border-amber-200/80 dark:border-slate-800 shadow-xs hover:border-amber-400 transition-all group">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-200 dark:border-amber-800/40">
+                          <Phone className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Số điện thoại liên hệ
+                          </p>
+                          <p className="text-base font-extrabold text-slate-900 dark:text-white">
+                            {user?.phoneNumber ? (
+                              user.phoneNumber
+                            ) : (
+                              <span className="text-sm font-normal text-amber-600 dark:text-amber-400 italic">
+                                Chưa liên kết số điện thoại
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500" /> Số lượng địa chỉ đã lưu
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                        <span>{addresses.length} địa chỉ</span>
-                        {addresses.some((a) => a.isDefault) && (
-                          <Badge variant="success" size="sm">
-                            Đã có địa chỉ mặc định
-                          </Badge>
-                        )}
-                      </p>
+                    {/* Số lượng địa chỉ đã lưu */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-violet-50/50 via-white to-violet-50/30 dark:from-slate-900 dark:to-slate-900/90 border border-violet-200/80 dark:border-slate-800 shadow-xs hover:border-violet-400 transition-all group">
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-2xl bg-violet-500/15 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0 border border-violet-200 dark:border-violet-800/40">
+                          <MapPin className="w-5 h-5" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Số lượng địa chỉ đã lưu
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-extrabold text-slate-900 dark:text-white">
+                              {addresses.length} địa chỉ
+                            </span>
+                            {addresses.some((a) => a.isDefault) && (
+                              <Badge variant="success" size="sm">
+                                Đã có mặc định
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* 3. HARVEST SHIPPING ADDRESS BOOK */}
             <div className="space-y-4">
@@ -454,7 +495,7 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={() => setIsAddressModalOpen(true)}
                   leftIcon={<Plus className="w-4 h-4" />}
-                  className="shadow-lg shadow-emerald-500/20 shrink-0"
+                  className="shadow-md shadow-emerald-500/20 shrink-0 font-bold"
                 >
                   Thêm Địa Chỉ Mới
                 </Button>
@@ -466,7 +507,7 @@ export default function ProfilePage() {
                   {[1, 2].map((i) => (
                     <div
                       key={i}
-                      className="p-6 rounded-3xl bg-white/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 space-y-4"
+                      className="p-6 rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-4"
                     >
                       <div className="flex items-center justify-between">
                         <div className="h-5 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg" />
@@ -483,17 +524,17 @@ export default function ProfilePage() {
                   ))}
                 </div>
               ) : addresses.length === 0 ? (
-                /* State B: Empty State Card */
-                <Card variant="glass" className="border-dashed border-2 border-slate-300 dark:border-slate-700/80 p-8 sm:p-12 text-center">
+                /* State B: Empty State Card - SÁNG SỦA, GỌN GÀNG */
+                <Card className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-8 sm:p-12 text-center rounded-3xl shadow-sm">
                   <div className="max-w-md mx-auto space-y-4">
-                    <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-emerald-500/10 via-teal-500/10 to-emerald-500/20 text-emerald-500 flex items-center justify-center shadow-inner">
-                      <Package className="w-10 h-10 animate-bounce" />
+                    <div className="w-18 h-18 mx-auto rounded-3xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-inner border border-emerald-200/60 dark:border-emerald-800/40 p-4">
+                      <Package className="w-10 h-10" />
                     </div>
                     <div className="space-y-1.5">
-                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                         Chưa có địa chỉ nhận rau nào
                       </h3>
-                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
                         Thêm địa chỉ giao hàng ngay để hệ thống tự động vận chuyển nông sản sạch về tận nhà bạn khi mùa vụ đến ngày thu hoạch!
                       </p>
                     </div>
@@ -503,6 +544,7 @@ export default function ProfilePage() {
                         size="md"
                         onClick={() => setIsAddressModalOpen(true)}
                         leftIcon={<Plus className="w-4 h-4" />}
+                        className="font-bold shadow-md shadow-emerald-500/20"
                       >
                         Thêm Địa Chỉ Đầu Tiên
                       </Button>
@@ -515,11 +557,10 @@ export default function ProfilePage() {
                   {addresses.map((address: UserAddress) => (
                     <Card
                       key={address.addressId}
-                      variant="glass"
-                      className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${
+                      className={`relative overflow-hidden transition-all duration-300 rounded-3xl shadow-sm hover:shadow-md ${
                         address.isDefault
-                          ? 'border-emerald-500/60 ring-2 ring-emerald-500/20 bg-gradient-to-br from-emerald-950/20 via-slate-900/60 to-teal-950/20'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                          ? 'border-2 border-emerald-500 bg-white dark:bg-slate-900 ring-2 ring-emerald-500/15'
+                          : 'border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <CardContent className="p-5 sm:p-6 space-y-4">
@@ -527,8 +568,8 @@ export default function ProfilePage() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-base text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                                <User className="w-4 h-4 text-emerald-500" />
+                              <span className="font-black text-base text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                                <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                                 {address.recipientName}
                               </span>
                               {address.isDefault && (
@@ -537,19 +578,19 @@ export default function ProfilePage() {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                              <Phone className="w-3.5 h-3.5 text-emerald-500" />
+                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-mono">
+                              <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                               {address.phoneNumber}
                             </p>
                           </div>
                         </div>
 
                         {/* Detailed address */}
-                        <div className="p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 space-y-1 text-xs">
-                          <p className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
+                        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-1 text-xs">
+                          <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[10px]">
                             Địa chỉ giao nông sản
                           </p>
-                          <p className="font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
+                          <p className="font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">
                             {address.addressLine}
                           </p>
                           <p className="text-slate-500 dark:text-slate-400">
@@ -558,14 +599,14 @@ export default function ProfilePage() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-xs">
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800 text-xs">
                           <div>
                             {!address.isDefault && (
                               <button
                                 type="button"
                                 onClick={() => setDefaultAddress(address.addressId)}
                                 disabled={isAddressSubmitting}
-                                className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 flex items-center gap-1 transition-colors disabled:opacity-50"
+                                className="font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 flex items-center gap-1 transition-colors disabled:opacity-50"
                               >
                                 <Star className="w-3.5 h-3.5" /> Đặt làm mặc định
                               </button>
@@ -577,7 +618,7 @@ export default function ProfilePage() {
                               type="button"
                               onClick={() => handleDeleteAddress(address.addressId)}
                               disabled={deletingId === address.addressId || isAddressSubmitting}
-                              className="p-1.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                              className="p-1.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50"
                               title="Xóa địa chỉ"
                             >
                               {deletingId === address.addressId ? (
