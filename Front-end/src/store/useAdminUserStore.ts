@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import api from '@/lib/axios';
 
 export type UserRole = 'Admin' | 'Staff' | 'Customer';
 export type UserStatus = 'ACTIVE' | 'LOCKED' | 'PENDING';
@@ -194,20 +195,19 @@ export const useAdminUserStore = create<AdminUserStoreState>((set) => ({
   fetchUsers: async () => {
     set({ isLoading: true });
     try {
-      const res = await fetch('/api/admin/users');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.data)) {
-          set({ users: data.data, isLoading: false });
-          return;
-        }
+      const res = await api.get('/users');
+      const payload = res.data?.data || res.data;
+      const dataList = Array.isArray(payload?.users) ? payload.users : (Array.isArray(payload) ? payload : null);
+      if (Array.isArray(dataList) && dataList.length > 0) {
+        set({ users: dataList, isLoading: false });
+        return;
       }
     } catch {
-      // Fallback gracefully to mock data
+      // Fallback gracefully to mock data if backend is offline or empty
     }
     setTimeout(() => {
       set({ isLoading: false });
-    }, 400);
+    }, 300);
   },
 
   toggleLockUser: (userId) => {
