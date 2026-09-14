@@ -18,6 +18,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const resolveRole = (data?: Partial<UserProfile> | null): string => {
+  if (!data) return 'Customer';
+  if (data.roleId === 1 || data.email === 'admin@plotfarm.vn' || data.role?.toLowerCase() === 'admin') {
+    return 'Admin';
+  }
+  if (data.roleId === 2 || data.role?.toLowerCase() === 'staff') {
+    return 'Staff';
+  }
+  return data.role || data.roleName || 'Customer';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -27,15 +38,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Helper function to sync state with Zustand store and localStorage
   const syncAuthState = useCallback((newToken: string | null, newUser: UserProfile | null) => {
+    let normalizedUser = newUser;
+    if (normalizedUser) {
+      const properRole = resolveRole(normalizedUser);
+      normalizedUser = {
+        ...normalizedUser,
+        role: properRole,
+        roleName: properRole,
+      };
+    }
+
     setToken(newToken);
-    setUser(newUser);
-    setIsAuthenticated(!!newToken && !!newUser);
+    setUser(normalizedUser);
+    setIsAuthenticated(!!newToken && !!normalizedUser);
 
     // Sync Zustand
     useAuthStore.setState({
       token: newToken,
-      user: newUser,
-      isAuthenticated: !!newToken && !!newUser,
+      user: normalizedUser,
+      isAuthenticated: !!newToken && !!normalizedUser,
     });
 
     // Sync localStorage and cookies
@@ -48,8 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
       }
 
-      if (newUser) {
-        localStorage.setItem('user', JSON.stringify(newUser));
+      if (normalizedUser) {
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
       } else {
         localStorage.removeItem('user');
       }
@@ -62,16 +83,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   }, [syncAuthState]);
 
-  // Refresh user profile from backend (/api/auth/me)
+  // Refresh user profile from backend (/api/auth/me or /api/users/me)
   const refreshUser = useCallback(async () => {
     try {
-      const res = await api.get('/auth/me');
-      const userData = res.data.data || res.data;
+      let userData: any = null;
+      try {
+        const res = await api.get('/users/me');
+        userData = res.data.data || res.data;
+      } catch {
+        const res = await api.get('/auth/me');
+        userData = res.data.data || res.data;
+      }
+
       if (userData) {
-        setUser(userData);
-        useAuthStore.setState({ user: userData });
+        const properRole = resolveRole(userData);
+        const normalized = {
+          ...userData,
+          role: properRole,
+          roleName: properRole,
+        };
+        setUser(normalized);
+        useAuthStore.setState({ user: normalized });
         if (typeof window !== 'undefined') {
-          localStorage.setItem('user', JSON.stringify(userData));
+          localStorage.setItem('user', JSON.stringify(normalized));
         }
       }
     } catch (err: any) {
@@ -104,6 +138,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (savedUserStr) {
           try {
             parsedUser = JSON.parse(savedUserStr);
+            if (parsedUser) {
+              const properRole = resolveRole(parsedUser);
+              parsedUser.role = properRole;
+              parsedUser.roleName = properRole;
+            }
           } catch {
             parsedUser = null;
           }
@@ -122,13 +161,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Verify token freshness and retrieve latest user profile in background
         try {
-          const res = await api.get('/auth/me', {
-            headers: {
-              Authorization: `Bearer ${savedToken}`,
-            },
-          });
-          const freshUser = res.data.data || res.data;
-          syncAuthState(savedToken, freshUser);
+          let freshUser: any = null;
+          try {
+            const res = await api.get('/users/me', {
+              headers: { Authorization: `Bearer ${savedToken}` },
+            });
+            freshUser = res.data.data || res.data;
+          } catch {
+            const res = await api.get('/auth/me', {
+              headers: { Authorization: `Bearer ${savedToken}` },
+            });
+            freshUser = res.data.data || res.data;
+          }
+
+          const mergedUser = parsedUser ? { ...parsedUser, ...freshUser } : freshUser;
+          syncAuthState(savedToken, mergedUser);
         } catch (apiErr: any) {
           // If token has expired or is invalid, clean up
           if (apiErr.response?.status === 401) {
@@ -178,7 +225,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const response = await api.post('/auth/register', data);
         const { token: newToken, user: newUser } = response.data.data || response.data;
 
-        // If backend returned token and user upon registration, log in directly
         if (newToken && newUser) {
           syncAuthState(newToken, newUser);
         }

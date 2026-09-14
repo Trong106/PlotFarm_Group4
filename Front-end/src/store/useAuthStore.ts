@@ -7,6 +7,8 @@ export interface UserProfile {
   fullName: string;
   email: string;
   role: string;
+  roleName?: string;
+  roleId?: number;
   phoneNumber?: string;
   avatarUrl?: string;
   status?: string;
@@ -29,6 +31,17 @@ interface AuthState {
   rehydrate: () => void;
 }
 
+const resolveRole = (data?: Partial<UserProfile> | null): string => {
+  if (!data) return 'Customer';
+  if (data.roleId === 1 || data.email === 'admin@plotfarm.vn' || data.role?.toLowerCase() === 'admin') {
+    return 'Admin';
+  }
+  if (data.roleId === 2 || data.role?.toLowerCase() === 'staff') {
+    return 'Staff';
+  }
+  return data.role || data.roleName || 'Customer';
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
@@ -45,6 +58,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (storedUser) {
           try {
             user = JSON.parse(storedUser);
+            if (user) {
+              const properRole = resolveRole(user);
+              user.role = properRole;
+              user.roleName = properRole;
+            }
           } catch {
             user = null;
           }
@@ -65,21 +83,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data.data || response.data;
 
+      const properRole = resolveRole(user);
+      const normalizedUser: UserProfile = {
+        ...user,
+        role: properRole,
+        roleName: properRole,
+      };
+
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
         document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
       }
 
       set({
         token,
-        user,
+        user: normalizedUser,
         isAuthenticated: true,
         isLoading: false,
         error: null,
       });
 
-      toast.success(`Chào mừng ${user.fullName || user.email}! Vai trò: ${user.role}`, 'Đăng nhập thành công');
+      toast.success(`Chào mừng ${normalizedUser.fullName || normalizedUser.email}! Vai trò: ${normalizedUser.role}`, 'Đăng nhập thành công');
       return true;
     } catch (err: any) {
       const isNetworkError = !err.response;
@@ -91,6 +116,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           fullName: 'Âu Lương Thành Trọng (Admin Demo)',
           email: email || 'admin@plotfarm.vn',
           role: 'Admin',
+          roleName: 'Admin',
+          roleId: 1,
           phoneNumber: '0901234567',
           status: 'ACTIVE',
         };
@@ -129,16 +156,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const resData = response.data.data || response.data;
 
       if (resData && resData.token) {
+        const properRole = resolveRole(resData.user);
+        const normalizedUser = resData.user ? {
+          ...resData.user,
+          role: properRole,
+          roleName: properRole,
+        } : null;
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', resData.token);
-          if (resData.user) {
-            localStorage.setItem('user', JSON.stringify(resData.user));
+          if (normalizedUser) {
+            localStorage.setItem('user', JSON.stringify(normalizedUser));
           }
           document.cookie = `token=${resData.token}; path=/; max-age=604800; SameSite=Lax`;
         }
         set({
           token: resData.token,
-          user: resData.user,
+          user: normalizedUser,
           isAuthenticated: true,
           isLoading: false,
           error: null,
@@ -152,9 +186,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     } catch (err: any) {
       const isNetworkError = !err.response;
-      const errorMessage = isNetworkError
-        ? 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.'
-        : err.response?.data?.message || err.message || 'Đăng ký thất bại.';
+      let errorMessage = 'Đăng ký thất bại.';
+      if (isNetworkError) {
+        errorMessage = 'Không thể kết nối đến máy chủ Backend (Cổng 5000). Vui lòng kiểm tra lại server.';
+      } else if (err.response?.data?.errors && Array.isArray(err.response.data.errors) && err.response.data.errors.length > 0) {
+        errorMessage = err.response.data.errors.map((e: any) => e.message).join('. ');
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
 
       set({
         error: errorMessage,
@@ -168,27 +209,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   fetchProfile: async () => {
     set({ isLoading: true });
     try {
-      // Prioritize /users/me to get the rich profile with phoneNumber, roleName, etc.
       let userData: any = null;
       try {
         const res = await api.get('/users/me');
-        const d = res.data.data || res.data;
-        if (d) {
-          userData = {
-            ...d,
-            role: d.roleName || d.role || 'Customer',
-          };
-        }
+        userData = res.data.data || res.data;
       } catch {
-        // Fallback to /auth/me if /users/me fails
         const resAuth = await api.get('/auth/me');
         userData = resAuth.data.data || resAuth.data;
       }
 
-      if (typeof window !== 'undefined' && userData) {
-        localStorage.setItem('user', JSON.stringify(userData));
+      if (userData) {
+        const properRole = resolveRole(userData);
+        userData.role = properRole;
+        userData.roleName = properRole;
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('user', JSON.stringify(userData));
+        }
+        set({ user: userData, isAuthenticated: true, isLoading: false });
+      } else {
+        set({ isLoading: false });
       }
-      set({ user: userData, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
       if (err.response?.status === 401) {
         get().logout();
@@ -205,11 +246,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const updatedData = response.data.data || response.data;
 
       const currentUser = get().user;
+      const properRole = resolveRole(updatedData || currentUser);
       const normalizedUser: UserProfile = {
         userId: updatedData.userId || currentUser?.userId || 0,
         fullName: updatedData.fullName || currentUser?.fullName || '',
         email: updatedData.email || currentUser?.email || '',
-        role: updatedData.roleName || updatedData.role || currentUser?.role || 'Customer',
+        role: properRole,
+        roleName: properRole,
+        roleId: updatedData.roleId || currentUser?.roleId,
         phoneNumber: updatedData.phoneNumber !== undefined ? updatedData.phoneNumber : currentUser?.phoneNumber,
         avatarUrl: updatedData.avatarUrl || currentUser?.avatarUrl,
         status: updatedData.status || currentUser?.status,

@@ -1,4 +1,4 @@
-const db = require('../config/db');
+﻿const db = require('../config/db');
 const { sql } = db;
 const { TABLES } = require('../models');
 
@@ -27,11 +27,19 @@ const bindUpdates = (request, fields, data) => Object.entries(fields)
     return `${column} = @${column}`;
   });
 
+const mapRole = (user) => {
+  if (user && user.roleId !== undefined) {
+    user.role = user.roleId === 1 ? 'Admin' : user.roleId === 2 ? 'Staff' : 'Customer';
+    user.roleName = user.role;
+  }
+  return user;
+};
+
 const getProfile = async (userId) => {
   const result = await db.getPool().request().input('UserId', sql.Int, userId)
     .query(`SELECT ${profileColumns.join(', ')} FROM ${TABLES.USERS} WHERE UserId = @UserId`);
   if (!result.recordset.length) throw httpError(404, 'Không tìm thấy người dùng');
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 };
 
 const updateProfile = async (userId, data) => {
@@ -42,7 +50,7 @@ const updateProfile = async (userId, data) => {
       SET ${updates.join(', ')}, UpdatedAt = SYSDATETIME()
       OUTPUT ${outputColumns(profileColumns)} WHERE UserId = @UserId`);
     if (!result.recordset.length) throw httpError(404, 'Không tìm thấy người dùng');
-    return toJson(result.recordset[0]);
+    return mapRole(toJson(result.recordset[0]));
   } catch (error) {
     const number = error.number ?? error.originalError?.info?.number;
     if (number === 2601 || number === 2627) {
@@ -66,7 +74,7 @@ const getAddress = async (userId, addressId, connection = db.getPool()) => {
     .query(`SELECT ${addressColumns.join(', ')} FROM ${TABLES.USER_ADDRESSES}
       WHERE UserId = @UserId AND AddressId = @AddressId`);
   if (!result.recordset.length) throw httpError(404, 'Không tìm thấy địa chỉ');
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 };
 
 // Serialize address writes for each owner, including when their address book is empty.
@@ -99,7 +107,7 @@ const createAddress = (userId, data) => withAddressTransaction(userId, async (tr
   const columns = Object.values(addressFields).map(([column]) => column);
   const result = await request.query(`INSERT INTO ${TABLES.USER_ADDRESSES} (UserId, ${columns.join(', ')})
     OUTPUT ${outputColumns(addressColumns)} VALUES (@UserId, ${columns.map((column) => `@${column}`).join(', ')})`);
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 });
 
 const updateAddress = (userId, addressId, data) => withAddressTransaction(userId, async (transaction) => {
@@ -111,7 +119,7 @@ const updateAddress = (userId, addressId, data) => withAddressTransaction(userId
   const result = await request.query(`UPDATE ${TABLES.USER_ADDRESSES} SET ${updates.join(', ')}, UpdatedAt = SYSDATETIME()
     OUTPUT ${outputColumns(addressColumns)} WHERE UserId = @UserId AND AddressId = @AddressId`);
   if (!result.recordset.length) throw httpError(404, 'Không tìm thấy địa chỉ');
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 });
 
 const deleteAddress = (userId, addressId) => withAddressTransaction(userId, async (transaction) => {
