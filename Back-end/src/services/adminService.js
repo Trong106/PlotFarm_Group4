@@ -49,6 +49,23 @@ const getAnalytics = async () => {
     WHERE c.Status = 'GROWING'
   `);
 
+  // C.2. Dự báo chi tiết sản lượng theo từng phân khu A - E
+  const areaForecastRes = await pool.request().query(`
+    SELECT 
+      fa.AreaId,
+      fa.AreaCode,
+      fa.AreaName,
+      ISNULL(COUNT(c.CultivationId), 0) as PlotsHarvesting,
+      ISNULL(SUM(CASE WHEN c.CultivationId IS NOT NULL THEN p.SizeM2 ELSE 0 END), 0) as TotalAreaM2,
+      ISNULL(SUM(CASE WHEN c.CultivationId IS NOT NULL THEN p.SizeM2 * s.ExpectedYieldKgPerM2 ELSE 0 END), 0) as ExpectedYieldKg
+    FROM FarmAreas fa
+    LEFT JOIN Plots p ON fa.AreaId = p.AreaId
+    LEFT JOIN Cultivations c ON p.PlotId = c.PlotId AND c.Status = 'GROWING'
+    LEFT JOIN Seeds s ON c.SeedId = s.SeedId
+    GROUP BY fa.AreaId, fa.AreaCode, fa.AreaName
+    ORDER BY fa.AreaId ASC
+  `);
+
   // D. Top 5 giống cây trồng được ưa chuộng nhất
   const topSeedsRes = await pool.request().query(`
     SELECT TOP 5
@@ -57,18 +74,24 @@ const getAnalytics = async () => {
       s.Category,
       s.GrowthDurationDays,
       s.ImageUrl,
+      s.ExpectedYieldKgPerM2,
       COUNT(ro.OrderId) as RentCount,
       ISNULL(SUM(ro.TotalAmount), 0) as TotalGeneratedRevenue
     FROM Seeds s
     LEFT JOIN RentalOrders ro ON s.SeedId = ro.SeedId AND ro.Status = 'PAID'
-    GROUP BY s.SeedId, s.SeedName, s.Category, s.GrowthDurationDays, s.ImageUrl
+    GROUP BY s.SeedId, s.SeedName, s.Category, s.GrowthDurationDays, s.ImageUrl, s.ExpectedYieldKgPerM2
     ORDER BY RentCount DESC, TotalGeneratedRevenue DESC
   `);
 
   return {
     revenue: revenueRes.recordset[0],
     occupancy: occupancyRes.recordset,
-    yieldForecast: yieldRes.recordset[0],
+    yieldForecast: {
+      TotalExpectedYieldKg: yieldRes.recordset[0]?.TotalExpectedYieldKg || 0,
+      ActiveCultivationsCount: yieldRes.recordset[0]?.ActiveCultivationsCount || 0,
+      ReadyToHarvestCount: yieldRes.recordset[0]?.ReadyToHarvestCount || 0,
+      AreaForecasts: areaForecastRes.recordset,
+    },
     topSeeds: topSeedsRes.recordset,
   };
 };

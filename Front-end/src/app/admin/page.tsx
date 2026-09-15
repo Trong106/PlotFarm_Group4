@@ -757,32 +757,36 @@ export default function AdminDashboardPage() {
                   </div>
 
                   <div className="space-y-4">
-                    {analytics.occupancy.map((area) => (
-                      <div key={area.AreaId} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-slate-900 dark:text-white">
-                              {area.AreaCode} - {area.AreaName}
-                            </span>
-                            <span className="text-slate-400">({area.SoilType})</span>
+                    {(analytics.occupancy || []).map((area: any) => {
+                      const occupied = area.OccupiedPlots ?? area.RentedPlots ?? 0;
+                      const rate = area.OccupancyRate ?? area.OccupancyRatePercent ?? 0;
+                      return (
+                        <div key={area.AreaId} className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 dark:text-white">
+                                {area.AreaCode} - {area.AreaName}
+                              </span>
+                              <span className="text-slate-400">({area.SoilType})</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-slate-500 font-semibold">
+                                Đã thuê: <strong className="text-emerald-600">{occupied}</strong> / {area.TotalPlots || 20} ô
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black">
+                                {rate}%
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-slate-500 font-semibold">
-                              Đã thuê: <strong className="text-emerald-600">{area.OccupiedPlots}</strong> / {area.TotalPlots} ô
-                            </span>
-                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black">
-                              {area.OccupancyRate}%
-                            </span>
+                          <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                              style={{ width: `${Math.max(rate, 3)}%` }}
+                            />
                           </div>
                         </div>
-                        <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.max(area.OccupancyRate, 3)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -805,13 +809,13 @@ export default function AdminDashboardPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {analytics.yieldForecast.AreaForecasts.map((af) => (
+                          {((analytics.yieldForecast && analytics.yieldForecast.AreaForecasts) || []).map((af: any) => (
                             <tr key={af.AreaId}>
                               <td className="p-3 font-bold">{af.AreaCode} - {af.AreaName}</td>
-                              <td className="p-3 text-center font-semibold text-emerald-600">{af.PlotsHarvesting}</td>
-                              <td className="p-3 text-right text-slate-500">{af.TotalAreaM2} m²</td>
+                              <td className="p-3 text-center font-semibold text-emerald-600">{af.PlotsHarvesting || 0}</td>
+                              <td className="p-3 text-right text-slate-500">{af.TotalAreaM2 || 0} m²</td>
                               <td className="p-3 text-right font-black text-amber-600 dark:text-amber-400">
-                                {af.ExpectedYieldKg.toLocaleString('vi-VN')} kg
+                                {Number(af.ExpectedYieldKg || 0).toLocaleString('vi-VN')} kg
                               </td>
                             </tr>
                           ))}
@@ -837,16 +841,20 @@ export default function AdminDashboardPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {analytics.topSeeds.map((seed) => (
-                            <tr key={seed.SeedId}>
-                              <td className="p-3 font-bold text-slate-900 dark:text-white">{seed.SeedName}</td>
-                              <td className="p-3 text-slate-500">{seed.Category}</td>
-                              <td className="p-3 text-center font-black text-emerald-600">{seed.RentalCount}</td>
-                              <td className="p-3 text-right font-semibold text-slate-600 dark:text-slate-300">
-                                {seed.ExpectedYieldKgPerM2} kg/m²
-                              </td>
-                            </tr>
-                          ))}
+                          {((analytics && analytics.topSeeds) || []).map((seed: any) => {
+                            const count = seed.RentalCount ?? seed.RentCount ?? 0;
+                            const yieldVal = seed.ExpectedYieldKgPerM2 ?? 3.0;
+                            return (
+                              <tr key={seed.SeedId}>
+                                <td className="p-3 font-bold text-slate-900 dark:text-white">{seed.SeedName}</td>
+                                <td className="p-3 text-slate-500">{seed.Category}</td>
+                                <td className="p-3 text-center font-black text-emerald-600">{count}</td>
+                                <td className="p-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                                  {yieldVal} kg/m²
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
