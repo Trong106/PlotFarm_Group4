@@ -157,14 +157,14 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col relative overflow-hidden font-sans">
       {/* Background Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-green-500/15 blur-[120px] pointer-events-none" />
 
       {/* Top Navigation Bar */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center max-w-7xl mx-auto w-full z-10">
-        <Link href="/" className="flex items-center gap-3 group">
+      <header className="relative z-50 p-6 flex justify-between items-center max-w-7xl mx-auto w-full shrink-0">
+        <Link href="/" className="flex items-center gap-3 group cursor-pointer">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
             <Sprout className="w-5 h-5" />
           </div>
@@ -178,14 +178,14 @@ export default function RegisterPage() {
 
         <div className="text-sm text-slate-600 dark:text-slate-400">
           Đã có tài khoản?{' '}
-          <Link href="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+          <Link href="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 hover:underline cursor-pointer transition-colors">
             Đăng nhập ngay
           </Link>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 pt-24 pb-16 z-10">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 pb-16 relative z-10">
         <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
 
           {/* Left Column: Value Proposition & Platform Highlights */}
@@ -547,6 +547,16 @@ export default function RegisterPage() {
                       </Button>
                     </div>
                   </form>
+
+                  {/* Quick Login link inside Card */}
+                  <div className="text-center pt-2 pb-1 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Đã có tài khoản?{' '}
+                      <Link href="/login" className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">
+                        Đăng nhập ngay tại đây
+                      </Link>
+                    </p>
+                  </div>
 
                   {/* Footer note */}
                   <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2">

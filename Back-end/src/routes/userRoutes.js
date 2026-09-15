@@ -11,6 +11,7 @@ router.use(verifyToken);
 router.get('/', checkRole(ROLES.ADMIN), validateQuery(listUsersQuerySchema), requireActiveAdmin, adminUserController.listUsers);
 router.get('/me', controller.loadCurrentUser, controller.getProfile);
 router.patch('/me', validateBody(updateProfileSchema), controller.loadCurrentUser, controller.updateProfile);
+router.post('/me/change-password', controller.loadCurrentUser, controller.changePassword);
 router.get('/me/addresses', controller.loadCurrentUser, controller.listAddresses);
 router.post('/me/addresses', validateBody(createAddressSchema), controller.loadCurrentUser, controller.createAddress);
 router.get('/me/addresses/:addressId', validateParams(addressParamsSchema), controller.loadCurrentUser, controller.getAddress);
