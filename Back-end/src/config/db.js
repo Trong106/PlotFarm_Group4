@@ -1,24 +1,40 @@
-const sql = require('mssql');
+const mssqlTedious = require('mssql');
+let mssqlNative = null;
+try {
+  mssqlNative = require('mssql/msnodesqlv8');
+} catch (e) {}
+
 require('dotenv').config();
 
+const serverName = process.env.DB_SERVER || '(localdb)\\MSSQLLocalDB';
+const isLocalDB = serverName.toLowerCase().includes('localdb');
+
+const sql = isLocalDB && mssqlNative ? mssqlNative : mssqlTedious;
+
 const config = {
-  user: process.env.DB_USER || 'sa',
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER || '127.0.0.1',
+  server: serverName,
   database: process.env.DB_DATABASE || 'PlotFarmDB',
-  port: parseInt(process.env.DB_PORT, 10) || 1433,
   options: {
     encrypt: process.env.DB_ENCRYPT === 'true',
     trustServerCertificate: process.env.DB_TRUST_SERVER_CERT !== 'false',
     enableArithAbort: true,
   },
   pool: {
-    max: 10,                 // Maximum active connections in pool
-    min: 2,                  // Minimum warm connections maintained
-    idleTimeoutMillis: 30000,// Close idle connection after 30s
-    acquireTimeoutMillis: 15000, // Timeout when acquiring connection
+    max: 10,
+    min: 2,
+    idleTimeoutMillis: 30000,
+    acquireTimeoutMillis: 15000,
   },
 };
+
+if (isLocalDB && mssqlNative) {
+  config.driver = 'msnodesqlv8';
+  config.options.trustedConnection = true;
+} else {
+  if (process.env.DB_USER) config.user = process.env.DB_USER;
+  if (process.env.DB_PASSWORD) config.password = process.env.DB_PASSWORD;
+  config.port = parseInt(process.env.DB_PORT, 10) || 1433;
+}
 
 let pool = null;
 

@@ -40,3 +40,7 @@ Không dùng đồng thời các file cấu hình Next.js/PostCSS của bộ phi
 ## Kết nối backend
 
 Mặc định frontend gọi API tại `http://localhost:5000/api`. Chức năng đăng nhập cần backend và cơ sở dữ liệu hoạt động. Có thể thay URL bằng biến `NEXT_PUBLIC_API_BASE_URL` trong `.env.local`, rồi khởi động lại frontend.
+
+Khi deploy, đặt `NEXT_PUBLIC_API_BASE_URL=https://<ten-mien-backend>/api` trong môi trường build của dịch vụ hosting **trước khi chạy build**, rồi build/deploy lại. Trang hồ sơ và Header dùng chung cấu hình này. Backend cần cho phép CORS từ tên miền frontend; nếu frontend dùng HTTPS thì URL backend cũng cần HTTPS. Không đặt `localhost` cho bản deploy vì trình duyệt sẽ gọi vào máy của người truy cập.
+
+Chạy `npm.cmd run test:auth` để kiểm tra hồi quy việc tải hồ sơ, khởi tạo lại Header, hết hạn phiên và lỗi kết nối.

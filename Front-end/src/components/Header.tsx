@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/useAuthStore';
+import api from '@/lib/axios';
 
 interface NotificationItem {
   NotificationId: number;
@@ -97,10 +98,7 @@ export default function Header() {
 
     const fetchCount = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/notifications/unread-count', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
+        const { data } = await api.get('/notifications/unread-count');
         if (data.success && data.data?.unreadCount !== undefined) {
           setUnreadCount(data.data.unreadCount);
         }
@@ -129,10 +127,7 @@ export default function Header() {
 
     try {
       setIsLoadingNotifs(true);
-      const res = await fetch('http://localhost:5000/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const { data } = await api.get('/notifications');
       if (data.success && Array.isArray(data.data)) {
         setNotifications(data.data);
       }
@@ -148,10 +143,7 @@ export default function Header() {
     if (!token) return;
 
     try {
-      await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.patch(`/notifications/${id}/read`);
 
       setNotifications((prev) =>
         prev.map((n) => (n.NotificationId === id ? { ...n, IsRead: true } : n))
@@ -167,10 +159,7 @@ export default function Header() {
     if (!token) return;
 
     try {
-      await fetch('http://localhost:5000/api/notifications/read-all', {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.patch('/notifications/read-all');
 
       setNotifications((prev) => prev.map((n) => ({ ...n, IsRead: true })));
       setUnreadCount(0);
@@ -481,6 +470,22 @@ export default function Header() {
                       <Trees className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                       <span>Mùa vụ của tôi</span>
                     </Link>
+
+                    {/* Cổng Nhân Viên Thực Địa (Staff Portal) */}
+                    {(user.role === 'Staff' || user.role === 'Admin') && (
+                      <Link
+                        href="/staff"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
+                          pathname === '/staff'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
+                        }`}
+                      >
+                        <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <span>Cổng Nhân Viên (/staff)</span>
+                      </Link>
+                    )}
 
                     {/* Dashboard Admin (Chỉ hiển thị khi role là ADMIN) */}
                     {isAdmin && (

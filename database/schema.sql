@@ -2,7 +2,7 @@
 -- DỰ ÁN: NỀN TẢNG CHO THUÊ Ô ĐẤT CANH TÁC NÔNG TRẠI THÔNG MINH (PLOTFARM)
 -- DATABASE MASTER SCRIPT: PlotFarmDB
 -- HỆ QUẢN TRỊ CSDL: Microsoft SQL Server 2019+
--- TÁC GIẢ: Âu Lương Thành Trọng (Leader / Database Architect) - PlotFarm Team 4
+-- TÁC GIẢ: Âu Lương Thành Trọng (Leader / Database Architect) & PlotFarm Team 4
 -- LƯU Ý: ĐÂY LÀ FILE DUY NHẤT ĐỂ KHỞI TẠO VÀ CẬP NHẬT TOÀN BỘ CSDL CHO HỆ THỐNG.
 --       MỌI BẢNG, RÀNG BUỘC, CHỈ MỤC HOẶC MIGRATION MỚI SAU NÀY SẼ BỔ SUNG TRỰC TIẾP VÀO ĐÂY.
 -- =====================================================================================
@@ -87,16 +87,12 @@ BEGIN
         CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Users_CreatedAt DEFAULT SYSDATETIME(),
         UpdatedAt DATETIME2(0) NULL,
 
-        -- Khóa ngoại tham chiếu bảng Roles
         CONSTRAINT FK_Users_Roles FOREIGN KEY (RoleId) 
             REFERENCES dbo.Roles(RoleId) 
             ON DELETE NO ACTION 
             ON UPDATE CASCADE,
 
-        -- Ràng buộc giá trị hợp lệ cho Status
         CONSTRAINT CK_Users_Status CHECK (Status IN ('ACTIVE', 'LOCKED', 'PENDING')),
-
-        -- Ràng buộc định dạng Email cơ bản
         CONSTRAINT CK_Users_Email CHECK (Email LIKE '%@%.%')
     );
     PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Users.';
@@ -116,7 +112,6 @@ BEGIN
 END
 GO
 
--- Chỉ mục cho bảng Users
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Users_Email' AND object_id = OBJECT_ID('dbo.Users'))
 BEGIN
     CREATE NONCLUSTERED INDEX IX_Users_Email 
@@ -170,24 +165,18 @@ ELSE
 BEGIN
     PRINT N'[THÔNG TIN] Bảng dbo.UserAddresses đã tồn tại. Đang kiểm tra và chuẩn hóa cấu trúc...';
 
-    -- 3.1 Kiểm tra và bổ sung cột AddressLine
     IF COL_LENGTH('dbo.UserAddresses', 'AddressLine') IS NULL
     BEGIN
         ALTER TABLE dbo.UserAddresses ADD AddressLine NVARCHAR(255) NULL;
         IF COL_LENGTH('dbo.UserAddresses', 'AddressDetail') IS NOT NULL
-        BEGIN
             EXEC(N'UPDATE dbo.UserAddresses SET AddressLine = AddressDetail WHERE AddressLine IS NULL;');
-        END
         IF COL_LENGTH('dbo.UserAddresses', 'StreetAddress') IS NOT NULL
-        BEGIN
             EXEC(N'UPDATE dbo.UserAddresses SET AddressLine = StreetAddress WHERE AddressLine IS NULL;');
-        END
         EXEC(N'UPDATE dbo.UserAddresses SET AddressLine = N'''' WHERE AddressLine IS NULL;');
         ALTER TABLE dbo.UserAddresses ALTER COLUMN AddressLine NVARCHAR(255) NOT NULL;
         PRINT N'[CẬP NHẬT] Đã bổ sung và chuẩn hóa cột AddressLine NVARCHAR(255) NOT NULL.';
     END
 
-    -- 3.2 Bổ sung cột Label và StreetAddress hỗ trợ dữ liệu seed
     IF COL_LENGTH('dbo.UserAddresses', 'Label') IS NULL
     BEGIN
         ALTER TABLE dbo.UserAddresses ADD Label NVARCHAR(100) NULL;
@@ -200,56 +189,30 @@ BEGIN
         PRINT N'[CẬP NHẬT] Đã bổ sung cột StreetAddress NVARCHAR(255) NULL.';
     END
 
-    -- Đồng bộ StreetAddress sang AddressLine nếu AddressLine rỗng
     EXEC(N'UPDATE dbo.UserAddresses SET AddressLine = StreetAddress WHERE (AddressLine IS NULL OR AddressLine = N'''') AND StreetAddress IS NOT NULL;');
 
-    -- 3.3 Cho phép AddressDetail NULL nếu bảng cũ tồn tại cột này
     IF COL_LENGTH('dbo.UserAddresses', 'AddressDetail') IS NOT NULL
-    BEGIN
         ALTER TABLE dbo.UserAddresses ALTER COLUMN AddressDetail NVARCHAR(255) NULL;
-    END
 
-    -- 3.4 Kiểm tra và bổ sung cột UpdatedAt
     IF COL_LENGTH('dbo.UserAddresses', 'UpdatedAt') IS NULL
-    BEGIN
         ALTER TABLE dbo.UserAddresses ADD UpdatedAt DATETIME2(0) NULL;
-        PRINT N'[CẬP NHẬT] Đã bổ sung cột UpdatedAt DATETIME2(0) NULL.';
-    END
 
-    -- 3.5 Chuẩn hóa cột District cho phép NULL
     ALTER TABLE dbo.UserAddresses ALTER COLUMN District NVARCHAR(100) NULL;
 
-    -- 3.6 Kiểm tra và bổ sung khóa ngoại FK_UserAddresses_Users
     IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_UserAddresses_Users' AND parent_object_id = OBJECT_ID('dbo.UserAddresses'))
-    BEGIN
-        ALTER TABLE dbo.UserAddresses WITH CHECK ADD CONSTRAINT FK_UserAddresses_Users FOREIGN KEY (UserId)
-            REFERENCES dbo.Users (UserId) ON DELETE CASCADE;
-        PRINT N'[CẬP NHẬT] Đã tạo khóa ngoại FK_UserAddresses_Users liên kết tới Users(UserId).';
-    END
+        ALTER TABLE dbo.UserAddresses WITH CHECK ADD CONSTRAINT FK_UserAddresses_Users FOREIGN KEY (UserId) REFERENCES dbo.Users (UserId) ON DELETE CASCADE;
 
-    -- 3.7 Kiểm tra và bổ sung Default Constraint cho IsDefault
     IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('dbo.UserAddresses') AND col_name(parent_object_id, parent_column_id) = 'IsDefault')
-    BEGIN
         ALTER TABLE dbo.UserAddresses ADD CONSTRAINT DF_UserAddresses_IsDefault DEFAULT 0 FOR IsDefault;
-        PRINT N'[CẬP NHẬT] Đã tạo ràng buộc mặc định DF_UserAddresses_IsDefault (DEFAULT 0).';
-    END
 
-    -- 3.8 Kiểm tra và bổ sung Default Constraint cho CreatedAt
     IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('dbo.UserAddresses') AND col_name(parent_object_id, parent_column_id) = 'CreatedAt')
-    BEGIN
         ALTER TABLE dbo.UserAddresses ADD CONSTRAINT DF_UserAddresses_CreatedAt DEFAULT SYSDATETIME() FOR CreatedAt;
-        PRINT N'[CẬP NHẬT] Đã tạo ràng buộc mặc định DF_UserAddresses_CreatedAt (DEFAULT SYSDATETIME()).';
-    END
 
-    -- 3.9 Default constraint cho AddressLine
     IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE parent_object_id = OBJECT_ID('dbo.UserAddresses') AND col_name(parent_object_id, parent_column_id) = 'AddressLine')
-    BEGIN
         ALTER TABLE dbo.UserAddresses ADD CONSTRAINT DF_UserAddresses_AddressLine DEFAULT '' FOR AddressLine;
-    END
 END;
 GO
 
--- 3.10 Chỉ mục tìm kiếm theo UserId (Index tối ưu hóa truy vấn sổ địa chỉ người dùng)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_UserAddresses_UserId' AND object_id = OBJECT_ID('dbo.UserAddresses'))
 BEGIN
     CREATE NONCLUSTERED INDEX IX_UserAddresses_UserId 
@@ -258,19 +221,443 @@ BEGIN
 END;
 GO
 
--- 3.11 Chỉ mục duy nhất có điều kiện (Filtered Unique Index):
--- Nghiệp vụ cốt lõi: Mỗi người dùng (UserId) chỉ được phép có TỐI ĐA 1 địa chỉ nhận rau mặc định (IsDefault = 1)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_UserAddresses_Default' AND object_id = OBJECT_ID('dbo.UserAddresses'))
 BEGIN
     CREATE UNIQUE NONCLUSTERED INDEX UX_UserAddresses_Default 
     ON dbo.UserAddresses (UserId) 
     WHERE IsDefault = 1;
-    PRINT N'[THÀNH CÔNG] Đã tạo Filtered Unique Index UX_UserAddresses_Default (Đảm bảo duy nhất 1 địa chỉ mặc định/user).';
+    PRINT N'[THÀNH CÔNG] Đã tạo Filtered Unique Index UX_UserAddresses_Default.';
 END;
 GO
 
 -- =====================================================================================
--- 4. BẢNG dbo.CareSchedules (Lịch trình chăm sóc dự kiến — Tự động sinh theo mùa vụ)
+-- 4. PHÂN HỆ NÔNG TRẠI, Ô ĐẤT & THIẾT BỊ GIÁM SÁT IOT
+-- =====================================================================================
+
+-- 4.1 BẢNG dbo.Farms (Thông tin trang trại)
+IF OBJECT_ID('dbo.Farms', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Farms (
+        FarmId INT IDENTITY(1,1) CONSTRAINT PK_Farms PRIMARY KEY,
+        FarmName NVARCHAR(150) NOT NULL,
+        Address NVARCHAR(255) NOT NULL,
+        Hotline NVARCHAR(20) NOT NULL,
+        TotalAreaM2 DECIMAL(10,2) NOT NULL,
+        Description NVARCHAR(MAX) NULL,
+        Latitude DECIMAL(10,7) NULL,
+        Longitude DECIMAL(10,7) NULL,
+        MaxDeliveryRadiusKm INT NOT NULL DEFAULT 30,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Farms_CreatedAt DEFAULT SYSDATETIME()
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Farms.';
+END
+GO
+
+-- 4.2 BẢNG dbo.FarmAreas (Phân khu canh tác)
+IF OBJECT_ID('dbo.FarmAreas', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FarmAreas (
+        AreaId INT IDENTITY(1,1) CONSTRAINT PK_FarmAreas PRIMARY KEY,
+        FarmId INT NOT NULL,
+        AreaCode NVARCHAR(50) NOT NULL CONSTRAINT UQ_FarmAreas_AreaCode UNIQUE,
+        AreaName NVARCHAR(100) NOT NULL,
+        SoilType NVARCHAR(100) NOT NULL,
+        TotalPlots INT NOT NULL DEFAULT 20,
+        Description NVARCHAR(255) NULL,
+        CONSTRAINT FK_FarmAreas_Farms FOREIGN KEY (FarmId) REFERENCES dbo.Farms(FarmId)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.FarmAreas.';
+END
+GO
+
+-- 4.3 BẢNG dbo.Cameras (Thiết bị camera giám sát ô đất)
+IF OBJECT_ID('dbo.Cameras', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Cameras (
+        CameraId INT IDENTITY(1,1) CONSTRAINT PK_Cameras PRIMARY KEY,
+        CameraCode NVARCHAR(50) NOT NULL CONSTRAINT UQ_Cameras_CameraCode UNIQUE,
+        CameraName NVARCHAR(100) NOT NULL,
+        StreamUrl NVARCHAR(500) NOT NULL,
+        TimelapseUrl NVARCHAR(500) NULL,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_Cameras_Status DEFAULT 'ONLINE'
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Cameras.';
+END
+GO
+
+-- 4.4 BẢNG dbo.Plots (Thông tin chi tiết ô đất canh tác)
+IF OBJECT_ID('dbo.Plots', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Plots (
+        PlotId INT IDENTITY(1,1) CONSTRAINT PK_Plots PRIMARY KEY,
+        AreaId INT NOT NULL,
+        CameraId INT NULL,
+        PlotCode NVARCHAR(50) NOT NULL CONSTRAINT UQ_Plots_PlotCode UNIQUE,
+        RowNum INT NOT NULL,
+        ColNum INT NOT NULL,
+        SizeM2 DECIMAL(6,2) NOT NULL DEFAULT 15.0,
+        SoilPH DECIMAL(3,1) NOT NULL DEFAULT 6.5,
+        StandardHumidity INT NOT NULL DEFAULT 75,
+        BasePricePerMonth DECIMAL(12,2) NOT NULL DEFAULT 500000.0,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_Plots_Status DEFAULT 'AVAILABLE',
+        ReservedUntil DATETIME2(0) NULL,
+        ReservedByUserId INT NULL,
+        FallowingUntil DATETIME2(0) NULL,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Plots_CreatedAt DEFAULT SYSDATETIME(),
+        UpdatedAt DATETIME2(0) NULL,
+        CONSTRAINT FK_Plots_FarmAreas FOREIGN KEY (AreaId) REFERENCES dbo.FarmAreas(AreaId),
+        CONSTRAINT FK_Plots_Cameras FOREIGN KEY (CameraId) REFERENCES dbo.Cameras(CameraId),
+        CONSTRAINT FK_Plots_Users FOREIGN KEY (ReservedByUserId) REFERENCES dbo.Users(UserId),
+        CONSTRAINT CK_Plots_Status CHECK (Status IN ('AVAILABLE', 'RESERVED', 'RENTED', 'FALLOWING', 'MAINTENANCE'))
+    );
+    CREATE INDEX IX_Plots_AreaId ON dbo.Plots(AreaId);
+    CREATE INDEX IX_Plots_Status ON dbo.Plots(Status);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Plots.';
+END
+GO
+
+-- 4.5 BẢNG dbo.SensorData (Dữ liệu cảm biến môi trường IoT)
+IF OBJECT_ID('dbo.SensorData', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SensorData (
+        SensorDataId BIGINT IDENTITY(1,1) CONSTRAINT PK_SensorData PRIMARY KEY,
+        PlotId INT NOT NULL,
+        Temperature DECIMAL(4,1) NOT NULL,
+        AirHumidity INT NOT NULL,
+        SoilMoisture INT NOT NULL,
+        LightLux INT NULL,
+        RecordedAt DATETIME2(0) NOT NULL CONSTRAINT DF_SensorData_RecordedAt DEFAULT SYSDATETIME(),
+        CONSTRAINT FK_SensorData_Plots FOREIGN KEY (PlotId) REFERENCES dbo.Plots(PlotId) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_SensorData_PlotId_RecordedAt ON dbo.SensorData(PlotId, RecordedAt DESC);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.SensorData.';
+END
+GO
+
+-- =====================================================================================
+-- 5. PHÂN HỆ HẠT GIỐNG & GÓI CHĂM SÓC
+-- =====================================================================================
+
+-- 5.1 BẢNG dbo.Seeds (Danh mục hạt giống cây trồng)
+IF OBJECT_ID('dbo.Seeds', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Seeds (
+        SeedId INT IDENTITY(1,1) CONSTRAINT PK_Seeds PRIMARY KEY,
+        SeedName NVARCHAR(100) NOT NULL,
+        Category NVARCHAR(50) NOT NULL,
+        GrowthDurationDays INT NOT NULL,
+        MinRentalDays INT NOT NULL CONSTRAINT DF_Seeds_MinRentalDays DEFAULT 30,
+        ExpectedYieldKgPerM2 DECIMAL(5,2) NOT NULL CONSTRAINT DF_Seeds_ExpectedYield DEFAULT 3.0,
+        SuitableSoilType NVARCHAR(100) NOT NULL,
+        Season NVARCHAR(50) NOT NULL,
+        SeedPrice DECIMAL(12,2) NOT NULL CONSTRAINT DF_Seeds_SeedPrice DEFAULT 0,
+        ImageUrl NVARCHAR(500) NULL,
+        Description NVARCHAR(MAX) NULL,
+        IsAvailable BIT NOT NULL CONSTRAINT DF_Seeds_IsAvailable DEFAULT 1
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Seeds.';
+END
+GO
+
+-- 5.2 BẢNG dbo.GrowthStages (Các giai đoạn phát triển cây)
+IF OBJECT_ID('dbo.GrowthStages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.GrowthStages (
+        StageId INT IDENTITY(1,1) CONSTRAINT PK_GrowthStages PRIMARY KEY,
+        SeedId INT NOT NULL,
+        StageOrder INT NOT NULL,
+        StageName NVARCHAR(100) NOT NULL,
+        DurationDays INT NOT NULL,
+        Description NVARCHAR(500) NULL,
+        SampleImageUrl NVARCHAR(500) NULL,
+        CONSTRAINT FK_GrowthStages_Seeds FOREIGN KEY (SeedId) REFERENCES dbo.Seeds(SeedId) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_GrowthStages_SeedId ON dbo.GrowthStages(SeedId);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.GrowthStages.';
+END
+GO
+
+-- 5.3 BẢNG dbo.CarePackages (Gói dịch vụ chăm sóc)
+IF OBJECT_ID('dbo.CarePackages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CarePackages (
+        PackageId INT IDENTITY(1,1) CONSTRAINT PK_CarePackages PRIMARY KEY,
+        PackageName NVARCHAR(100) NOT NULL,
+        MonthlyFee DECIMAL(12,2) NOT NULL CONSTRAINT DF_CarePackages_MonthlyFee DEFAULT 0,
+        Description NVARCHAR(500) NULL,
+        ServicesIncluded NVARCHAR(MAX) NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_CarePackages_IsActive DEFAULT 1
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.CarePackages.';
+END
+GO
+
+-- =====================================================================================
+-- 6. PHÂN HỆ ĐƠN THUÊ ĐẤT, THANH TOÁN & CANH TÁC
+-- =====================================================================================
+
+-- 6.1 BẢNG dbo.RentalOrders (Đơn thuê ô đất)
+IF OBJECT_ID('dbo.RentalOrders', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.RentalOrders (
+        OrderId INT IDENTITY(1,1) CONSTRAINT PK_RentalOrders PRIMARY KEY,
+        OrderCode NVARCHAR(50) NOT NULL CONSTRAINT UQ_RentalOrders_OrderCode UNIQUE,
+        UserId INT NOT NULL,
+        PlotId INT NOT NULL,
+        SeedId INT NOT NULL,
+        CarePackageId INT NOT NULL,
+        DurationMonths INT NOT NULL DEFAULT 1,
+        TotalRentalDays INT NOT NULL DEFAULT 30,
+        StartDate DATE NOT NULL,
+        EndDate DATE NOT NULL,
+        RentalFee DECIMAL(12,2) NOT NULL,
+        SeedFee DECIMAL(12,2) NOT NULL,
+        CareFee DECIMAL(12,2) NOT NULL,
+        DiscountAmount DECIMAL(12,2) NOT NULL DEFAULT 0,
+        TotalAmount DECIMAL(12,2) NOT NULL,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_RentalOrders_Status DEFAULT 'PENDING_PAYMENT',
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_RentalOrders_CreatedAt DEFAULT SYSDATETIME(),
+        PaidAt DATETIME2(0) NULL,
+        CONSTRAINT FK_RentalOrders_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId),
+        CONSTRAINT FK_RentalOrders_Plots FOREIGN KEY (PlotId) REFERENCES dbo.Plots(PlotId),
+        CONSTRAINT FK_RentalOrders_Seeds FOREIGN KEY (SeedId) REFERENCES dbo.Seeds(SeedId),
+        CONSTRAINT FK_RentalOrders_CarePackages FOREIGN KEY (CarePackageId) REFERENCES dbo.CarePackages(PackageId),
+        CONSTRAINT CK_RentalOrders_Status CHECK (Status IN ('PENDING_PAYMENT', 'PAID', 'CANCELLED', 'COMPLETED'))
+    );
+    CREATE INDEX IX_RentalOrders_UserId ON dbo.RentalOrders(UserId);
+    CREATE INDEX IX_RentalOrders_PlotId ON dbo.RentalOrders(PlotId);
+    CREATE INDEX IX_RentalOrders_Status ON dbo.RentalOrders(Status);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.RentalOrders.';
+END
+GO
+
+-- 6.2 BẢNG dbo.OrderDetails (Chi tiết đơn thuê)
+IF OBJECT_ID('dbo.OrderDetails', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OrderDetails (
+        DetailId INT IDENTITY(1,1) CONSTRAINT PK_OrderDetails PRIMARY KEY,
+        OrderId INT NOT NULL,
+        ItemType NVARCHAR(50) NOT NULL,
+        ItemName NVARCHAR(150) NOT NULL,
+        Quantity INT NOT NULL DEFAULT 1,
+        UnitPrice DECIMAL(12,2) NOT NULL,
+        TotalPrice DECIMAL(12,2) NOT NULL,
+        CONSTRAINT FK_OrderDetails_RentalOrders FOREIGN KEY (OrderId) REFERENCES dbo.RentalOrders(OrderId) ON DELETE CASCADE
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.OrderDetails.';
+END
+GO
+
+-- 6.3 BẢNG dbo.Payments (Giao dịch thanh toán)
+IF OBJECT_ID('dbo.Payments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Payments (
+        PaymentId INT IDENTITY(1,1) CONSTRAINT PK_Payments PRIMARY KEY,
+        OrderId INT NOT NULL,
+        TransactionCode NVARCHAR(50) NOT NULL CONSTRAINT UQ_Payments_TransactionCode UNIQUE,
+        PaymentMethod NVARCHAR(30) NOT NULL,
+        Amount DECIMAL(12,2) NOT NULL,
+        PaymentDate DATETIME2(0) NOT NULL CONSTRAINT DF_Payments_PaymentDate DEFAULT SYSDATETIME(),
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_Payments_Status DEFAULT 'SUCCESS',
+        GatewayResponse NVARCHAR(MAX) NULL,
+        CONSTRAINT FK_Payments_RentalOrders FOREIGN KEY (OrderId) REFERENCES dbo.RentalOrders(OrderId)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Payments.';
+END
+GO
+
+-- 6.4 BẢNG dbo.Cultivations (Vụ mùa canh tác)
+IF OBJECT_ID('dbo.Cultivations', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Cultivations (
+        CultivationId INT IDENTITY(1,1) CONSTRAINT PK_Cultivations PRIMARY KEY,
+        OrderId INT NOT NULL,
+        PlotId INT NOT NULL,
+        SeedId INT NOT NULL,
+        CurrentStageId INT NULL,
+        StartDate DATE NOT NULL,
+        ExpectedHarvestDate DATE NOT NULL,
+        ActualHarvestDate DATE NULL,
+        ProgressPercent DECIMAL(5,2) NOT NULL DEFAULT 0.0,
+        ReplantCount INT NOT NULL DEFAULT 0,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_Cultivations_Status DEFAULT 'PLANTING',
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Cultivations_CreatedAt DEFAULT SYSDATETIME(),
+        UpdatedAt DATETIME2(0) NULL,
+        CONSTRAINT FK_Cultivations_RentalOrders FOREIGN KEY (OrderId) REFERENCES dbo.RentalOrders(OrderId),
+        CONSTRAINT FK_Cultivations_Plots FOREIGN KEY (PlotId) REFERENCES dbo.Plots(PlotId),
+        CONSTRAINT FK_Cultivations_Seeds FOREIGN KEY (SeedId) REFERENCES dbo.Seeds(SeedId),
+        CONSTRAINT FK_Cultivations_GrowthStages FOREIGN KEY (CurrentStageId) REFERENCES dbo.GrowthStages(StageId),
+        CONSTRAINT CK_Cultivations_Status CHECK (Status IN ('PLANTING', 'GROWING', 'READY_TO_HARVEST', 'HARVESTED', 'FAILED'))
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Cultivations.';
+END
+GO
+
+-- 6.5 BẢNG dbo.CultivationLogs (Nhật ký canh tác hình ảnh/video)
+IF OBJECT_ID('dbo.CultivationLogs', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CultivationLogs (
+        LogId INT IDENTITY(1,1) CONSTRAINT PK_CultivationLogs PRIMARY KEY,
+        CultivationId INT NOT NULL,
+        StaffId INT NOT NULL,
+        LogDate DATETIME2(0) NOT NULL CONSTRAINT DF_CultivationLogs_LogDate DEFAULT SYSDATETIME(),
+        ActivityType NVARCHAR(50) NOT NULL,
+        Title NVARCHAR(150) NOT NULL,
+        Notes NVARCHAR(MAX) NULL,
+        ImageUrl NVARCHAR(500) NULL,
+        PlantHealthStatus NVARCHAR(30) NOT NULL CONSTRAINT DF_CultivationLogs_Health DEFAULT 'GOOD',
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_CultivationLogs_CreatedAt DEFAULT SYSDATETIME(),
+        CONSTRAINT FK_CultivationLogs_Cultivations FOREIGN KEY (CultivationId) REFERENCES dbo.Cultivations(CultivationId) ON DELETE CASCADE,
+        CONSTRAINT FK_CultivationLogs_Users FOREIGN KEY (StaffId) REFERENCES dbo.Users(UserId)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.CultivationLogs.';
+END
+GO
+
+-- 6.6 BẢNG dbo.CareRequests (Yêu cầu chăm sóc bổ sung)
+IF OBJECT_ID('dbo.CareRequests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CareRequests (
+        RequestId INT IDENTITY(1,1) CONSTRAINT PK_CareRequests PRIMARY KEY,
+        CultivationId INT NOT NULL,
+        UserId INT NOT NULL,
+        AssignedStaffId INT NULL,
+        ServiceType NVARCHAR(100) NOT NULL,
+        CustomerNote NVARCHAR(500) NULL,
+        AdditionalFee DECIMAL(12,2) NOT NULL DEFAULT 0,
+        IsFeeAccepted BIT NOT NULL DEFAULT 1,
+        PaymentStatus NVARCHAR(30) NOT NULL DEFAULT 'PAID',
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_CareRequests_Status DEFAULT 'PENDING',
+        ResultNote NVARCHAR(500) NULL,
+        ResultImageUrl NVARCHAR(500) NULL,
+        RequestedAt DATETIME2(0) NOT NULL CONSTRAINT DF_CareRequests_RequestedAt DEFAULT SYSDATETIME(),
+        CompletedAt DATETIME2(0) NULL,
+        CONSTRAINT FK_CareRequests_Cultivations FOREIGN KEY (CultivationId) REFERENCES dbo.Cultivations(CultivationId),
+        CONSTRAINT FK_CareRequests_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId),
+        CONSTRAINT FK_CareRequests_Staff FOREIGN KEY (AssignedStaffId) REFERENCES dbo.Users(UserId),
+        CONSTRAINT CK_CareRequests_Status CHECK (Status IN ('PENDING', 'AWAITING_FEE', 'IN_PROGRESS', 'COMPLETED', 'REJECTED'))
+    );
+    CREATE INDEX IX_CareRequests_CultivationId ON dbo.CareRequests(CultivationId);
+    CREATE INDEX IX_CareRequests_Status ON dbo.CareRequests(Status);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.CareRequests.';
+END
+GO
+
+-- 6.7 BẢNG dbo.StaffAssignments (Phân công nhân viên)
+IF OBJECT_ID('dbo.StaffAssignments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StaffAssignments (
+        AssignmentId INT IDENTITY(1,1) CONSTRAINT PK_StaffAssignments PRIMARY KEY,
+        StaffId INT NOT NULL,
+        AreaId INT NOT NULL,
+        PlotId INT NULL,
+        Shift NVARCHAR(50) NOT NULL CONSTRAINT DF_StaffAssignments_Shift DEFAULT N'SÁNG',
+        AssignedDate DATE NOT NULL CONSTRAINT DF_StaffAssignments_AssignedDate DEFAULT CAST(SYSDATETIME() AS DATE),
+        AssignedAt DATETIME2(0) NOT NULL CONSTRAINT DF_StaffAssignments_AssignedAt DEFAULT SYSDATETIME(),
+        Notes NVARCHAR(255) NULL,
+        CONSTRAINT FK_StaffAssignments_Users FOREIGN KEY (StaffId) REFERENCES dbo.Users(UserId) ON DELETE CASCADE,
+        CONSTRAINT FK_StaffAssignments_FarmAreas FOREIGN KEY (AreaId) REFERENCES dbo.FarmAreas(AreaId),
+        CONSTRAINT FK_StaffAssignments_Plots FOREIGN KEY (PlotId) REFERENCES dbo.Plots(PlotId)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.StaffAssignments.';
+END
+ELSE
+BEGIN
+    IF COL_LENGTH('dbo.StaffAssignments', 'PlotId') IS NULL
+    BEGIN
+        ALTER TABLE dbo.StaffAssignments ADD PlotId INT NULL;
+        ALTER TABLE dbo.StaffAssignments ADD CONSTRAINT FK_StaffAssignments_Plots FOREIGN KEY (PlotId) REFERENCES dbo.Plots(PlotId);
+    END;
+    IF COL_LENGTH('dbo.StaffAssignments', 'AssignedAt') IS NULL
+    BEGIN
+        ALTER TABLE dbo.StaffAssignments ADD AssignedAt DATETIME2(0) NOT NULL CONSTRAINT DF_StaffAssignments_AssignedAt DEFAULT SYSDATETIME();
+    END;
+END
+GO
+
+-- 6.8 BẢNG dbo.HarvestRequests (Yêu cầu thu hoạch)
+IF OBJECT_ID('dbo.HarvestRequests', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.HarvestRequests (
+        HarvestRequestId INT IDENTITY(1,1) CONSTRAINT PK_HarvestRequests PRIMARY KEY,
+        CultivationId INT NOT NULL,
+        UserId INT NOT NULL,
+        HarvestType NVARCHAR(50) NOT NULL,
+        RequestDate DATETIME2(0) NOT NULL CONSTRAINT DF_HarvestRequests_RequestDate DEFAULT SYSDATETIME(),
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_HarvestRequests_Status DEFAULT 'REQUESTED',
+        CustomerNote NVARCHAR(500) NULL,
+        CONSTRAINT FK_HarvestRequests_Cultivations FOREIGN KEY (CultivationId) REFERENCES dbo.Cultivations(CultivationId),
+        CONSTRAINT FK_HarvestRequests_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId),
+        CONSTRAINT CK_HarvestRequests_Status CHECK (Status IN ('REQUESTED', 'PROCESSING', 'HARVESTED', 'SHIPPING', 'DELIVERED', 'COMPLETED', 'CANCELLED'))
+    );
+    CREATE INDEX IX_HarvestRequests_CultivationId ON dbo.HarvestRequests(CultivationId);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.HarvestRequests.';
+END
+GO
+
+-- 6.9 BẢNG dbo.HarvestResults (Kết quả thu hoạch nghiệm thu)
+IF OBJECT_ID('dbo.HarvestResults', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.HarvestResults (
+        ResultId INT IDENTITY(1,1) CONSTRAINT PK_HarvestResults PRIMARY KEY,
+        HarvestRequestId INT NOT NULL CONSTRAINT UQ_HarvestResults_RequestId UNIQUE,
+        StaffId INT NOT NULL,
+        ActualYieldKg DECIMAL(6,2) NOT NULL,
+        QualityGrade NVARCHAR(50) NOT NULL CONSTRAINT DF_HarvestResults_Grade DEFAULT 'GRADE_A',
+        HarvestDate DATETIME2(0) NOT NULL CONSTRAINT DF_HarvestResults_Date DEFAULT SYSDATETIME(),
+        InspectionNote NVARCHAR(500) NULL,
+        ProductImageUrl NVARCHAR(500) NULL,
+        CONSTRAINT FK_HarvestResults_HarvestRequests FOREIGN KEY (HarvestRequestId) REFERENCES dbo.HarvestRequests(HarvestRequestId),
+        CONSTRAINT FK_HarvestResults_Users FOREIGN KEY (StaffId) REFERENCES dbo.Users(UserId)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.HarvestResults.';
+END
+GO
+
+-- 6.10 BẢNG dbo.Deliveries (Vận chuyển giao rau tận nhà)
+IF OBJECT_ID('dbo.Deliveries', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Deliveries (
+        DeliveryId INT IDENTITY(1,1) CONSTRAINT PK_Deliveries PRIMARY KEY,
+        HarvestRequestId INT NOT NULL CONSTRAINT UQ_Deliveries_RequestId UNIQUE,
+        RecipientName NVARCHAR(100) NOT NULL,
+        PhoneNumber NVARCHAR(20) NOT NULL,
+        DeliveryAddress NVARCHAR(255) NOT NULL,
+        CarrierName NVARCHAR(100) NOT NULL DEFAULT N'Nông trại giao hỏa tốc',
+        TrackingCode NVARCHAR(100) NULL,
+        ShippingFee DECIMAL(12,2) NOT NULL DEFAULT 0,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_Deliveries_Status DEFAULT 'PACKING',
+        ShippedAt DATETIME2(0) NULL,
+        DeliveredAt DATETIME2(0) NULL,
+        ProofImageUrl NVARCHAR(500) NULL,
+        CONSTRAINT FK_Deliveries_HarvestRequests FOREIGN KEY (HarvestRequestId) REFERENCES dbo.HarvestRequests(HarvestRequestId),
+        CONSTRAINT CK_Deliveries_Status CHECK (Status IN ('PACKING', 'SHIPPING', 'DELIVERED', 'FAILED'))
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Deliveries.';
+END
+GO
+
+-- 6.11 BẢNG dbo.Notifications (Hệ thống thông báo)
+IF OBJECT_ID('dbo.Notifications', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Notifications (
+        NotificationId INT IDENTITY(1,1) CONSTRAINT PK_Notifications PRIMARY KEY,
+        UserId INT NOT NULL,
+        Title NVARCHAR(150) NOT NULL,
+        Message NVARCHAR(MAX) NOT NULL,
+        Type NVARCHAR(50) NOT NULL CONSTRAINT DF_Notifications_Type DEFAULT 'GENERAL',
+        RelatedId INT NULL,
+        IsRead BIT NOT NULL CONSTRAINT DF_Notifications_IsRead DEFAULT 0,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_Notifications_CreatedAt DEFAULT SYSDATETIME(),
+        CONSTRAINT FK_Notifications_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_Notifications_UserId_IsRead ON dbo.Notifications(UserId, IsRead);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.Notifications.';
+END
+GO
+
+-- =====================================================================================
+-- 7. BẢNG dbo.CareSchedules (Lịch trình chăm sóc dự kiến — Tự động sinh theo mùa vụ)
 -- =====================================================================================
 IF OBJECT_ID('dbo.CareSchedules', 'U') IS NULL
 BEGIN
@@ -278,7 +665,7 @@ BEGIN
         CareScheduleId  INT IDENTITY(1,1) CONSTRAINT PK_CareSchedules PRIMARY KEY,
         CultivationId   INT NOT NULL,
         PackageId       INT NULL,
-        ActivityType    NVARCHAR(50)  NOT NULL,   -- 'WATERING','FERTILIZING','PRUNING'
+        ActivityType    NVARCHAR(50)  NOT NULL,
         ScheduledDate   DATE          NOT NULL,
         Notes           NVARCHAR(255) NULL,
         Status          NVARCHAR(30)  NOT NULL CONSTRAINT DF_CareSchedules_Status DEFAULT 'PENDING',
@@ -299,16 +686,13 @@ BEGIN
 END
 ELSE
 BEGIN
-    -- Bổ sung cột ResultImageUrl nếu thiếu (migration-safe)
     IF COL_LENGTH('dbo.CareSchedules', 'ResultImageUrl') IS NULL
         ALTER TABLE dbo.CareSchedules ADD ResultImageUrl NVARCHAR(500) NULL;
     IF COL_LENGTH('dbo.CareSchedules', 'ResultNote') IS NULL
         ALTER TABLE dbo.CareSchedules ADD ResultNote NVARCHAR(500) NULL;
-    PRINT N'[THÔNG TIN] Bảng dbo.CareSchedules đã tồn tại.';
 END
 GO
 
--- Index: Tìm lịch theo CultivationId + ngày (Staff Portal dashboard)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CareSchedules_Cultivation_Date'
                AND object_id = OBJECT_ID('dbo.CareSchedules'))
 BEGIN
@@ -319,7 +703,6 @@ BEGIN
 END
 GO
 
--- Index: Tìm lịch theo ngày + trạng thái (Staff xem lịch hôm nay)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CareSchedules_Date_Status'
                AND object_id = OBJECT_ID('dbo.CareSchedules'))
 BEGIN
@@ -331,10 +714,9 @@ END
 GO
 
 -- =====================================================================================
--- 5. TỐI ƯU HÓA HIỆU NĂNG — COMPOSITE & COVERING INDEXES
+-- 8. TỐI ƯU HÓA HIỆU NĂNG — COMPOSITE & COVERING INDEXES
 -- =====================================================================================
 
--- [P1] RentalOrders: Tăng tốc getMyOrders (UserId + Status + phân trang)
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_RentalOrders_UserId_Status_Created'
                AND object_id = OBJECT_ID('dbo.RentalOrders'))
 BEGIN
@@ -347,7 +729,6 @@ BEGIN
 END
 GO
 
--- [P2] Cultivations: Tăng tốc truy vấn ô đất theo trạng thái
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Cultivations_PlotId_Status'
                AND object_id = OBJECT_ID('dbo.Cultivations'))
 BEGIN
@@ -358,7 +739,6 @@ BEGIN
 END
 GO
 
--- [P3] CareRequests: Tăng tốc Staff Portal — lọc theo nhân viên + trạng thái
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CareRequests_Staff_Status'
                AND object_id = OBJECT_ID('dbo.CareRequests'))
 BEGIN
@@ -369,7 +749,6 @@ BEGIN
 END
 GO
 
--- [P4] HarvestRequests: Tăng tốc xuất đơn thu hoạch theo trạng thái + ngày
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_HarvestRequests_Status_Date'
                AND object_id = OBJECT_ID('dbo.HarvestRequests'))
 BEGIN
@@ -380,7 +759,6 @@ BEGIN
 END
 GO
 
--- [P5] CultivationLogs: Tăng tốc timeline nhật ký canh tác
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CultivationLogs_CultivationId_LogDate'
                AND object_id = OBJECT_ID('dbo.CultivationLogs'))
 BEGIN
@@ -391,7 +769,6 @@ BEGIN
 END
 GO
 
--- [P6] Deliveries: Tăng tốc tracking vận chuyển theo trạng thái
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Deliveries_Status_ShippedAt'
                AND object_id = OBJECT_ID('dbo.Deliveries'))
 BEGIN
@@ -403,32 +780,29 @@ END
 GO
 
 -- =====================================================================================
--- 6. STORED PROCEDURES — XUẤT DỮ LIỆU TỐI ƯU HÓA
+-- 9. STORED PROCEDURES — XUẤT DỮ LIỆU TỐI ƯU HÓA
 -- =====================================================================================
 
--- SP1: Xuất lịch sử đơn hàng với phân trang + filter
 IF OBJECT_ID('dbo.sp_ExportOrderHistory', 'P') IS NOT NULL
     DROP PROCEDURE dbo.sp_ExportOrderHistory;
 GO
 
 CREATE PROCEDURE dbo.sp_ExportOrderHistory
-    @UserId        INT           = NULL,       -- NULL = xuất tất cả (Admin)
-    @Status        NVARCHAR(30)  = NULL,       -- Lọc theo trạng thái đơn
-    @FromDate      DATE          = NULL,       -- Ngày bắt đầu
-    @ToDate        DATE          = NULL,       -- Ngày kết thúc
-    @PageNumber    INT           = 1,          -- Phân trang (bắt đầu từ 1)
-    @PageSize      INT           = 20,         -- Số bản ghi mỗi trang (tối đa 100)
-    @TotalCount    INT           = NULL OUTPUT -- Trả về tổng số bản ghi (để phân trang phía client)
+    @UserId        INT           = NULL,
+    @Status        NVARCHAR(30)  = NULL,
+    @FromDate      DATE          = NULL,
+    @ToDate        DATE          = NULL,
+    @PageNumber    INT           = 1,
+    @PageSize      INT           = 20,
+    @TotalCount    INT           = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET ARITHABORT ON;
 
-    -- Giới hạn PageSize tối đa 100 để bảo vệ hiệu năng
     IF @PageSize > 100 SET @PageSize = 100;
     IF @PageNumber < 1  SET @PageNumber = 1;
 
-    -- Đếm tổng số bản ghi (cho phân trang)
     SELECT @TotalCount = COUNT(*)
     FROM dbo.RentalOrders ro WITH (NOLOCK)
     WHERE (@UserId IS NULL OR ro.UserId = @UserId)
@@ -436,7 +810,6 @@ BEGIN
       AND (@FromDate IS NULL OR CAST(ro.CreatedAt AS DATE) >= @FromDate)
       AND (@ToDate   IS NULL OR CAST(ro.CreatedAt AS DATE) <= @ToDate);
 
-    -- Xuất dữ liệu có phân trang
     SELECT
         ro.OrderId, ro.OrderCode, ro.UserId,
         u.FullName    AS CustomerName,
@@ -469,17 +842,16 @@ GO
 PRINT N'[THÀNH CÔNG] Đã tạo Stored Procedure dbo.sp_ExportOrderHistory.';
 GO
 
--- SP2: Xuất lịch sử canh tác kèm nhật ký và thống kê
 IF OBJECT_ID('dbo.sp_ExportCultivationHistory', 'P') IS NOT NULL
     DROP PROCEDURE dbo.sp_ExportCultivationHistory;
 GO
 
 CREATE PROCEDURE dbo.sp_ExportCultivationHistory
-    @UserId        INT           = NULL,       -- NULL = xuất tất cả (Admin)
-    @PlotId        INT           = NULL,       -- Lọc theo ô đất cụ thể
-    @Status        NVARCHAR(30)  = NULL,       -- Lọc theo trạng thái mùa vụ
-    @FromDate      DATE          = NULL,       -- Ngày bắt đầu mùa vụ
-    @ToDate        DATE          = NULL,       -- Ngày kết thúc
+    @UserId        INT           = NULL,
+    @PlotId        INT           = NULL,
+    @Status        NVARCHAR(30)  = NULL,
+    @FromDate      DATE          = NULL,
+    @ToDate        DATE          = NULL,
     @PageNumber    INT           = 1,
     @PageSize      INT           = 20,
     @TotalCount    INT           = NULL OUTPUT
@@ -491,7 +863,6 @@ BEGIN
     IF @PageSize > 100 SET @PageSize = 100;
     IF @PageNumber < 1  SET @PageNumber = 1;
 
-    -- Đếm tổng bản ghi
     SELECT @TotalCount = COUNT(*)
     FROM dbo.Cultivations c WITH (NOLOCK)
     INNER JOIN dbo.RentalOrders ro WITH (NOLOCK) ON c.OrderId = ro.OrderId
@@ -501,7 +872,6 @@ BEGIN
       AND (@FromDate IS NULL OR c.StartDate >= @FromDate)
       AND (@ToDate   IS NULL OR c.StartDate <= @ToDate);
 
-    -- Xuất dữ liệu canh tác kèm thống kê log
     SELECT
         c.CultivationId, c.Status AS CultivationStatus,
         c.StartDate, c.ExpectedHarvestDate, c.ActualHarvestDate,
@@ -514,7 +884,6 @@ BEGIN
         u.FullName  AS CustomerName,
         u.Email     AS CustomerEmail,
         cp.PackageName,
-        -- Thống kê nhật ký (sub-query tối ưu hơn JOIN nhiều hàng)
         (SELECT COUNT(*) FROM dbo.CultivationLogs cl WITH (NOLOCK)
          WHERE cl.CultivationId = c.CultivationId)                     AS TotalLogCount,
         (SELECT COUNT(*) FROM dbo.CareRequests cr WITH (NOLOCK)
@@ -545,7 +914,7 @@ PRINT N'[THÀNH CÔNG] Đã tạo Stored Procedure dbo.sp_ExportCultivationHisto
 GO
 
 -- =====================================================================================
--- TỔNG KẾT KIỂM TRA SCHEMA CSDL
+-- 10. TỔNG KẾT KIỂM TRA SCHEMA CSDL
 -- =====================================================================================
 PRINT N'-------------------------------------------------------------------------';
 PRINT N'HOÀN TẤT ĐỒNG BỘ TOÀN BỘ CSDL PLOTFARM THÀNH CÔNG 100%!';
@@ -563,6 +932,12 @@ JOIN sys.columns c ON t.object_id = c.object_id
 JOIN sys.types ty ON c.user_type_id = ty.user_type_id
 LEFT JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.column_id = c.column_id
 LEFT JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id = ic.index_id AND i.is_primary_key = 1
-WHERE t.name IN ('Roles', 'Users', 'UserAddresses', 'CareSchedules')
+WHERE t.name IN (
+    'Roles', 'Users', 'UserAddresses', 'Farms', 'FarmAreas', 'Cameras',
+    'Plots', 'SensorData', 'Seeds', 'GrowthStages', 'CarePackages',
+    'RentalOrders', 'OrderDetails', 'Payments', 'Cultivations',
+    'CultivationLogs', 'CareRequests', 'StaffAssignments', 'HarvestRequests',
+    'HarvestResults', 'Deliveries', 'Notifications', 'CareSchedules'
+)
 ORDER BY t.name, c.column_id;
 GO
