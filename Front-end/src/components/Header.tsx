@@ -499,8 +499,8 @@ export default function Header() {
                       </Link>
                     )}
 
-                    {/* Cổng làm việc Staff (Chỉ hiển thị cho Kỹ Thuật Viên) */}
-                    {isStaff && (
+                    {/* Cổng Nhân Viên Kỹ Thuật (Hiển thị cho Staff hoặc Admin) */}
+                    {(isStaff || isAdmin) && (
                       <Link
                         href="/staff"
                         onClick={() => setIsDropdownOpen(false)}
@@ -512,7 +512,7 @@ export default function Header() {
                       >
                         <div className="flex items-center gap-2.5">
                           <Sprout className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                          <span>Trạm Kỹ Thuật Viên</span>
+                          <span>Cổng Nhân Viên Kỹ Thuật</span>
                         </div>
                         <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded bg-teal-600 text-white shadow-xs">
                           STAFF
@@ -520,7 +520,6 @@ export default function Header() {
                       </Link>
                     )}
 
-                    {/* Dashboard Admin (Chỉ hiển thị cho ADMIN) */}
                     {isAdmin && (
                       <Link
                         href="/admin"

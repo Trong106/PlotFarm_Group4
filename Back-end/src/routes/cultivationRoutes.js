@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const orderController = require('../controllers/orderController');
 const cultivationController = require('../controllers/cultivationController');
-const { verifyToken } = require('../middlewares/authMiddleware');
+const { verifyToken, requireStaffOrAdmin } = require('../middlewares/authMiddleware');
 
 // Get current user's farm plots & cultivations
 router.get('/my-farm', verifyToken, orderController.getMyFarm);
@@ -17,6 +17,6 @@ router.get('/deliveries/my', verifyToken, cultivationController.getMyDeliveries)
 
 // Cultivation Logs (Journal Timeline)
 router.get('/:id/logs', verifyToken, cultivationController.getLogs);
-router.post('/:id/logs', verifyToken, cultivationController.createLog);
+router.post('/:id/logs', verifyToken, requireStaffOrAdmin, cultivationController.createLog);
 
 module.exports = router;
