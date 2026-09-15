@@ -270,6 +270,67 @@ END;
 GO
 
 -- =====================================================================================
+-- 4. BẢNG dbo.CarePackages (Gói dịch vụ chăm sóc nông trại)
+-- =====================================================================================
+IF OBJECT_ID('dbo.CarePackages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CarePackages (
+        PackageId INT IDENTITY(1,1) NOT NULL,
+        PackageName NVARCHAR(100) NOT NULL,
+        MonthlyFee DECIMAL(12,2) NOT NULL CONSTRAINT DF_CarePackages_MonthlyFee DEFAULT 0,
+        Description NVARCHAR(500) NULL,
+        ServicesIncluded NVARCHAR(MAX) NOT NULL,
+        IsActive BIT NOT NULL CONSTRAINT DF_CarePackages_IsActive DEFAULT 1,
+        CONSTRAINT PK_CarePackages PRIMARY KEY CLUSTERED (PackageId ASC)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo mới bảng dbo.CarePackages.';
+END
+GO
+
+-- =====================================================================================
+-- 5. BẢNG dbo.Seeds (Danh mục hạt giống và nông sản)
+-- =====================================================================================
+IF OBJECT_ID('dbo.Seeds', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Seeds (
+        SeedId INT IDENTITY(1,1) NOT NULL,
+        SeedName NVARCHAR(100) NOT NULL,
+        Category NVARCHAR(50) NOT NULL,
+        GrowthDurationDays INT NOT NULL,
+        MinRentalDays INT NOT NULL DEFAULT 30,
+        ExpectedYieldKgPerM2 DECIMAL(5,2) NOT NULL,
+        SuitableSoilType NVARCHAR(100) NOT NULL,
+        Season NVARCHAR(50) NOT NULL,
+        SeedPrice DECIMAL(12,2) NOT NULL DEFAULT 0,
+        ImageUrl NVARCHAR(500) NULL,
+        Description NVARCHAR(MAX) NULL,
+        IsAvailable BIT NOT NULL CONSTRAINT DF_Seeds_IsAvailable DEFAULT 1,
+        CONSTRAINT PK_Seeds PRIMARY KEY CLUSTERED (SeedId ASC)
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo mới bảng dbo.Seeds.';
+END
+GO
+
+-- =====================================================================================
+-- 6. BẢNG dbo.StaffAssignments (Phân công nhân sự kỹ thuật theo khu vực)
+-- =====================================================================================
+IF OBJECT_ID('dbo.StaffAssignments', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.StaffAssignments (
+        AssignmentId INT IDENTITY(1,1) NOT NULL,
+        StaffId INT NOT NULL,
+        AreaId INT NOT NULL,
+        Shift NVARCHAR(50) NOT NULL CONSTRAINT DF_StaffAssignments_Shift DEFAULT N'SÁNG',
+        AssignedDate DATE NOT NULL CONSTRAINT DF_StaffAssignments_AssignedDate DEFAULT CAST(SYSDATETIME() AS DATE),
+        Notes NVARCHAR(255) NULL,
+        CONSTRAINT PK_StaffAssignments PRIMARY KEY CLUSTERED (AssignmentId ASC),
+        CONSTRAINT FK_StaffAssignments_Users FOREIGN KEY (StaffId) REFERENCES dbo.Users(UserId) ON DELETE CASCADE
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo mới bảng dbo.StaffAssignments với PK và FK tham chiếu Users(UserId).';
+END
+GO
+
+-- =====================================================================================
 -- TỔNG KẾT KIỂM TRA SCHEMA CSDL
 -- =====================================================================================
 PRINT N'-------------------------------------------------------------------------';
@@ -288,6 +349,6 @@ JOIN sys.columns c ON t.object_id = c.object_id
 JOIN sys.types ty ON c.user_type_id = ty.user_type_id
 LEFT JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.column_id = c.column_id
 LEFT JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id = ic.index_id AND i.is_primary_key = 1
-WHERE t.name IN ('Roles', 'Users', 'UserAddresses')
+WHERE t.name IN ('Roles', 'Users', 'UserAddresses', 'CarePackages', 'Seeds', 'StaffAssignments')
 ORDER BY t.name, c.column_id;
 GO
