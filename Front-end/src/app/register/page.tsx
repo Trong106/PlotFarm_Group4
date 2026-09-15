@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -26,7 +26,12 @@ import { Button } from '@/components/ui/Button';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, isLoading, error: serverError } = useAuthStore();
+  const { register, isLoading, error: serverError, clearError } = useAuthStore();
+
+  useEffect(() => {
+    clearError();
+    return clearError;
+  }, [clearError]);
 
   // Form State
   const [formData, setFormData] = useState({

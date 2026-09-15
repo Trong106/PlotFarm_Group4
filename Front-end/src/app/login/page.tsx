@@ -25,7 +25,12 @@ import { Button } from '@/components/ui/Button';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading, error: serverError, isAuthenticated, user } = useAuthStore();
+  const { login, isLoading, error: serverError, isAuthenticated, user, clearError } = useAuthStore();
+
+  useEffect(() => {
+    clearError();
+    return clearError;
+  }, [clearError]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

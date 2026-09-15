@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import api from '@/lib/axios';
-import { toast } from '@/store/useToastStore';
+import { toast, useToastStore } from '@/store/useToastStore';
 
 export interface UserProfile {
   userId: number;
@@ -22,6 +22,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  clearError: () => void;
   login: (email?: string, password?: string) => Promise<boolean>;
   register: (data: { fullName: string; email: string; password: string; phoneNumber?: string }) => Promise<boolean>;
   fetchProfile: () => Promise<void>;
@@ -42,6 +43,8 @@ const resolveRole = (data?: Partial<UserProfile> | null): string => {
   return data.role || data.roleName || 'Customer';
 };
 
+let authErrorToastId: string | null = null;
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
@@ -49,10 +52,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
 
+  clearError: () => {
+    set({ error: null });
+    if (authErrorToastId) {
+      useToastStore.getState().removeToast(authErrorToastId);
+      authErrorToastId = null;
+    }
+  },
+
   initAuth: () => {
     if (typeof window !== 'undefined') {
       const storedToken = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
+      // Headers remount during navigation/loading. Restore each session only once.
+      if (storedToken && get().token === storedToken && get().isAuthenticated) return;
       if (storedToken) {
         let user: UserProfile | null = null;
         if (storedUser) {
@@ -78,6 +91,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email = 'admin@plotfarm.vn', password = 'password123') => {
+    get().clearError();
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -144,12 +158,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: errorMessage,
         isLoading: false,
       });
-      toast.error(errorMessage, 'Đăng nhập không thành công');
+      authErrorToastId = toast.error(errorMessage, 'Đăng nhập không thành công');
       return false;
     }
   },
 
   register: async (data) => {
+    get().clearError();
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/register', data);
@@ -201,23 +216,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: errorMessage,
         isLoading: false,
       });
-      toast.error(errorMessage, 'Đăng ký không thành công');
+      authErrorToastId = toast.error(errorMessage, 'Đăng ký không thành công');
       return false;
     }
   },
 
   fetchProfile: async () => {
-    set({ isLoading: true });
+    const token = get().token;
+    if (!token || get().isLoading) return;
+    set({ isLoading: true, error: null });
     try {
       let userData: any = null;
       try {
         const res = await api.get('/users/me');
         userData = res.data.data || res.data;
-      } catch {
+      } catch (err: any) {
+        if (err.response?.status !== 404) throw err;
         const resAuth = await api.get('/auth/me');
         userData = resAuth.data.data || resAuth.data;
       }
 
+      // Ignore a response from a session that has since logged out or changed.
+      if (get().token !== token) return;
       if (userData) {
         const properRole = resolveRole(userData);
         userData.role = properRole;
@@ -231,10 +251,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: false });
       }
     } catch (err: any) {
-      if (err.response?.status === 401) {
+      if (get().token !== token) return;
+      if (err.response?.status === 401 || err.response?.status === 403) {
         get().logout();
       } else {
-        set({ user: null, isAuthenticated: false, isLoading: false });
+        set({ error: 'Không thể tải hồ sơ. Vui lòng kiểm tra kết nối và thử lại.', isLoading: false });
       }
     }
   },
@@ -292,6 +313,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
+      isLoading: false,
       error: null,
     });
     toast.info('Bạn đã đăng xuất khỏi hệ thống an toàn.', 'Đã đăng xuất');

@@ -15,16 +15,16 @@ export const ToastItemComponent: React.FC<{ toast: ToastItem }> = ({ toast }) =>
   };
 
   const borderStyles = {
-    success: 'border-emerald-500/30 bg-white/95 dark:bg-slate-900/95 shadow-emerald-500/10',
-    error: 'border-rose-500/30 bg-white/95 dark:bg-slate-900/95 shadow-rose-500/10',
-    warning: 'border-amber-500/30 bg-white/95 dark:bg-slate-900/95 shadow-amber-500/10',
-    info: 'border-blue-500/30 bg-white/95 dark:bg-slate-900/95 shadow-blue-500/10',
+    success: 'border-emerald-500/30 shadow-emerald-500/10',
+    error: 'border-rose-500/30 shadow-rose-500/10',
+    warning: 'border-amber-500/30 shadow-amber-500/10',
+    info: 'border-blue-500/30 shadow-blue-500/10',
   };
 
   return (
     <div
       role="alert"
-      className={`flex items-start gap-3 w-80 sm:w-96 p-3.5 rounded-2xl border shadow-xl backdrop-blur-md transition-all duration-300 animate-in fade-in slide-in-from-top-3 ${borderStyles[toast.type]}`}
+      className={`pointer-events-auto flex items-start gap-3 w-full p-3.5 rounded-2xl border bg-white dark:bg-slate-900 shadow-xl ${borderStyles[toast.type]}`}
     >
       {icons[toast.type]}
       <div className="flex-1 min-w-0">
@@ -38,6 +38,7 @@ export const ToastItemComponent: React.FC<{ toast: ToastItem }> = ({ toast }) =>
         </p>
       </div>
       <button
+        type="button"
         onClick={() => removeToast(toast.id)}
         className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         aria-label="Đóng thông báo"
@@ -56,7 +57,7 @@ export const ToastContainer: React.FC = () => {
   return (
     <div
       aria-live="polite"
-      className="fixed top-5 right-5 z-50 flex flex-col gap-2.5 pointer-events-auto max-w-[calc(100vw-2.5rem)]"
+      className="fixed top-5 right-5 z-[100] flex w-80 sm:w-96 flex-col gap-2.5 pointer-events-none max-w-[calc(100vw-2.5rem)]"
     >
       {toasts.map((item) => (
         <ToastItemComponent key={item.id} toast={item} />

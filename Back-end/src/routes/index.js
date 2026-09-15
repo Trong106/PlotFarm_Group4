@@ -10,6 +10,7 @@ const orderRoutes = require('./orderRoutes');
 const cultivationRoutes = require('./cultivationRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const adminRoutes = require('./adminRoutes');
+const staffRoutes = require('./staffRoutes');
 
 // Mount Sub-routers
 router.use('/health', healthRoutes);
@@ -21,5 +22,7 @@ router.use('/orders', orderRoutes);
 router.use('/cultivations', cultivationRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
+router.use('/staff', staffRoutes);           // Cổng Nhân Viên Kỹ Thuật Nông Trại
 
 module.exports = router;
+
