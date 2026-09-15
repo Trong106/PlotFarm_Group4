@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import api from '@/lib/axios';
 import { toast, useToastStore } from '@/store/useToastStore';
-
 export interface UserProfile {
   userId: number;
   fullName: string;
@@ -15,7 +14,6 @@ export interface UserProfile {
   createdAt?: string;
   updatedAt?: string;
 }
-
 interface AuthState {
   user: UserProfile | null;
   token: string | null;
@@ -31,7 +29,6 @@ interface AuthState {
   initAuth: () => void;
   rehydrate: () => void;
 }
-
 const resolveRole = (data?: Partial<UserProfile> | null): string => {
   if (!data) return 'Customer';
   if (data.roleId === 1 || data.email === 'admin@plotfarm.vn' || data.role?.toLowerCase() === 'admin') {
@@ -42,16 +39,13 @@ const resolveRole = (data?: Partial<UserProfile> | null): string => {
   }
   return data.role || data.roleName || 'Customer';
 };
-
 let authErrorToastId: string | null = null;
-
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isAuthenticated: false,
   isLoading: false,
   error: null,
-
   clearError: () => {
     set({ error: null });
     if (authErrorToastId) {
@@ -59,7 +53,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       authErrorToastId = null;
     }
   },
-
   initAuth: () => {
     if (typeof window !== 'undefined') {
       const storedToken = localStorage.getItem('token');
@@ -85,31 +78,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
   },
-
   rehydrate: () => {
     get().initAuth();
   },
-
   login: async (email = 'admin@plotfarm.vn', password = 'password123') => {
     get().clearError();
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data.data || response.data;
-
       const properRole = resolveRole(user);
       const normalizedUser: UserProfile = {
         ...user,
         role: properRole,
         roleName: properRole,
       };
-
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(normalizedUser));
         document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Lax`;
       }
-
       set({
         token,
         user: normalizedUser,
@@ -117,7 +105,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
-
       toast.success(`Chào mừng ${normalizedUser.fullName || normalizedUser.email}! Vai trò: ${normalizedUser.role}`, 'Đăng nhập thành công');
       return true;
     } catch (err: any) {
@@ -150,10 +137,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         toast.info('Đã bật phiên Admin Demo (Máy chủ Backend 5000 đang chờ bắt đầu)', 'Đăng Nhập Admin Demo');
         return true;
       }
-
       const errorMessage =
         err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
-
       set({
         error: errorMessage,
         isLoading: false,
@@ -162,14 +147,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
   },
-
   register: async (data) => {
     get().clearError();
     set({ isLoading: true, error: null });
     try {
       const response = await api.post('/auth/register', data);
       const resData = response.data.data || response.data;
-
       if (resData && resData.token) {
         const properRole = resolveRole(resData.user);
         const normalizedUser = resData.user ? {
@@ -177,7 +160,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           role: properRole,
           roleName: properRole,
         } : null;
-
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', resData.token);
           if (normalizedUser) {
@@ -197,7 +179,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: false });
         toast.success('Đăng ký tài khoản thành công! Bạn có thể đăng nhập ngay.', 'Đăng ký thành công');
       }
-
       return true;
     } catch (err: any) {
       const isNetworkError = !err.response;
@@ -211,7 +192,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else if (err.message) {
         errorMessage = err.message;
       }
-
       set({
         error: errorMessage,
         isLoading: false,
@@ -220,7 +200,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
   },
-
   fetchProfile: async () => {
     const token = get().token;
     if (!token || get().isLoading) return;
@@ -235,14 +214,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const resAuth = await api.get('/auth/me');
         userData = resAuth.data.data || resAuth.data;
       }
-
       // Ignore a response from a session that has since logged out or changed.
       if (get().token !== token) return;
       if (userData) {
         const properRole = resolveRole(userData);
         userData.role = properRole;
         userData.roleName = properRole;
-
         if (typeof window !== 'undefined') {
           localStorage.setItem('user', JSON.stringify(userData));
         }
@@ -259,13 +236,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }
   },
-
   updateProfile: async (data: { fullName?: string; phoneNumber?: string | null }) => {
     set({ isLoading: true, error: null });
     try {
       const response = await api.patch('/users/me', data);
       const updatedData = response.data.data || response.data;
-
       const currentUser = get().user;
       const properRole = resolveRole(updatedData || currentUser);
       const normalizedUser: UserProfile = {
@@ -281,17 +256,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         createdAt: updatedData.createdAt || currentUser?.createdAt,
         updatedAt: updatedData.updatedAt || currentUser?.updatedAt,
       };
-
       if (typeof window !== 'undefined') {
         localStorage.setItem('user', JSON.stringify(normalizedUser));
       }
-
       set({
         user: normalizedUser,
         isLoading: false,
         error: null,
       });
-
       toast.success('Cập nhật thông tin hồ sơ thành công!', 'Hồ sơ cá nhân');
       return true;
     } catch (err: any) {
@@ -301,12 +273,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
   },
-
   logout: (redirectTo: string = '/login') => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      sessionStorage.setItem('logged_out', '1');
+      if (typeof sessionStorage !== 'undefined') { sessionStorage.setItem('logged_out', '1'); }
       document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
     set({
@@ -317,10 +288,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       error: null,
     });
     toast.info('Bạn đã đăng xuất khỏi hệ thống an toàn.', 'Đã đăng xuất');
-    if (typeof window !== 'undefined' && redirectTo) {
+    if (typeof window !== 'undefined' && window.location && redirectTo) {
       window.location.href = redirectTo;
     }
   },
 }));
-
 export default useAuthStore;

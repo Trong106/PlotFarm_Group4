@@ -4,7 +4,6 @@ const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const { connectDB, closeDB } = require('../src/config/db');
 const { generateToken } = require('../src/utils/jwtHelper');
-const { connectDB, closeDB } = require('../src/config/db');
 
 let server;
 let baseUrl;
