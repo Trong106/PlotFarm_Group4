@@ -86,9 +86,17 @@ export default function LoginPage() {
     const success = await login(email.trim().toLowerCase(), password);
     if (success) {
       setIsSuccess(true);
-      // Wait a moment for visual confirmation, then route
+      const currentUser = useAuthStore.getState().user;
+      const userRole = (currentUser?.role || currentUser?.roleName || '').toLowerCase();
+      // Role-based Smart Redirection
       setTimeout(() => {
-        router.push('/my-farm');
+        if (userRole === 'admin' || currentUser?.roleId === 1) {
+          router.push('/admin');
+        } else if (userRole === 'staff' || currentUser?.roleId === 2) {
+          router.push('/staff');
+        } else {
+          router.push('/my-farm');
+        }
       }, 800);
     }
   };

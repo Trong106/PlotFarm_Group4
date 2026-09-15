@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   UserCheck,
@@ -13,7 +14,6 @@ import {
   Sparkles,
   Server,
   LogOut,
-  UserCheck2,
   LayoutDashboard,
   ShoppingCart,
   MapPin,
@@ -27,6 +27,21 @@ import {
   RefreshCw,
   AlertTriangle,
   ChevronRight,
+  Package,
+  Sprout,
+  UserPlus,
+  PlusCircle,
+  Edit2,
+  Trash2,
+  Scale,
+  Calendar,
+  Layers,
+  Percent,
+  Check,
+  X,
+  Eye,
+  BarChart3,
+  BadgeAlert
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -40,6 +55,88 @@ import UserDetailModal from '@/components/admin/UserDetailModal';
 import EditUserModal from '@/components/admin/EditUserModal';
 import AddUserModal from '@/components/admin/AddUserModal';
 
+interface AnalyticsData {
+  revenue: {
+    TotalRevenue: number;
+    TotalRentalFee: number;
+    TotalCareFee: number;
+    TotalSeedFee: number;
+    TotalOrders: number;
+  };
+  occupancy: Array<{
+    AreaId: number;
+    AreaCode: string;
+    AreaName: string;
+    SoilType: string;
+    TotalPlots: number;
+    OccupiedPlots: number;
+    AvailablePlots: number;
+    OccupancyRate: number;
+  }>;
+  yieldForecast: {
+    TotalExpectedYieldKg: number;
+    AreaForecasts: Array<{
+      AreaId: number;
+      AreaCode: string;
+      AreaName: string;
+      PlotsHarvesting: number;
+      TotalAreaM2: number;
+      ExpectedYieldKg: number;
+    }>;
+  };
+  topSeeds: Array<{
+    SeedId: number;
+    SeedName: string;
+    Category: string;
+    RentalCount: number;
+    TotalAreaM2: number;
+    ExpectedYieldKgPerM2: number;
+  }>;
+}
+
+interface CarePackageItem {
+  PackageId: number;
+  PackageName: string;
+  Description: string;
+  MonthlyFee: number;
+  ServicesIncluded: string;
+  IsActive: boolean;
+  CreatedAt: string;
+}
+
+interface SeedItem {
+  SeedId: number;
+  SeedName: string;
+  Category: string;
+  GrowthDurationDays: number;
+  ExpectedYieldKgPerM2: number;
+  SeedPrice: number;
+  Description: string;
+  ImageUrl: string;
+  IsActive: boolean;
+}
+
+interface StaffAssignmentItem {
+  AssignmentId: number;
+  StaffId: number;
+  StaffName: string;
+  StaffEmail: string;
+  StaffPhone?: string;
+  AreaId: number;
+  AreaCode: string;
+  AreaName: string;
+  Shift: string;
+  AssignedDate: string;
+  Notes?: string;
+}
+
+interface StaffUserItem {
+  UserId: number;
+  FullName: string;
+  Email: string;
+  PhoneNumber?: string;
+}
+
 interface OrderItem {
   OrderId: number;
   OrderCode: string;
@@ -52,51 +149,179 @@ interface OrderItem {
   TotalAmount: number;
   Status: string;
   CreatedAt: string;
-  PaidAt?: string;
-  DurationMonths?: number;
 }
 
 interface PlotItem {
   PlotId: number;
   PlotCode: string;
   AreaName?: string;
-  RowNum: number;
-  ColNum: number;
   SizeM2: number;
-  SoilPH: number;
-  StandardHumidity: number;
-  BasePricePerMonth: number;
   Status: string;
-  CameraCode?: string;
-  CameraName?: string;
+  BasePricePerMonth: number;
 }
 
 export default function AdminDashboardPage() {
-  const { user, logout, isLoading: isAuthLoading, initAuth } = useAuthStore();
+  const router = useRouter();
+  const { user, logout, token, initAuth } = useAuthStore();
   const { users, fetchUsers } = useAdminUserStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'orders' | 'plots'>('overview');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'packages' | 'seeds' | 'staff' | 'users' | 'plots' | 'orders'>('analytics');
 
-  // Orders State
-  const [orders, setOrders] = useState<OrderItem[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [orderSearch, setOrderSearch] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState('ALL');
+  // Analytics State
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
 
-  // Plots State
+  // Care Packages State
+  const [packages, setPackages] = useState<CarePackageItem[]>([]);
+  const [isLoadingPackages, setIsLoadingPackages] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<CarePackageItem | null>(null);
+  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
+  const [pkgForm, setPkgForm] = useState({
+    packageName: '',
+    description: '',
+    monthlyFee: 0,
+    servicesList: ['Tưới nước tự động 2 lần/ngày', 'Bón phân hữu cơ vi sinh định kỳ', 'Giám sát camera 24/7'],
+    newServiceInput: '',
+    isActive: true,
+  });
+
+  // Seeds State
+  const [seeds, setSeeds] = useState<SeedItem[]>([]);
+  const [isLoadingSeeds, setIsLoadingSeeds] = useState(false);
+  const [editingSeed, setEditingSeed] = useState<SeedItem | null>(null);
+  const [isSeedModalOpen, setIsSeedModalOpen] = useState(false);
+  const [seedForm, setSeedForm] = useState({
+    seedName: '',
+    category: 'RAU_AN_LA',
+    growthDurationDays: 35,
+    expectedYieldKgPerM2: 2.5,
+    seedPrice: 50000,
+    description: '',
+    imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999',
+    isActive: true,
+  });
+
+  // Staff Assignments State
+  const [assignments, setAssignments] = useState<StaffAssignmentItem[]>([]);
+  const [staffUsers, setStaffUsers] = useState<StaffUserItem[]>([]);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignForm, setAssignForm] = useState({
+    staffId: 0,
+    areaId: 1,
+    shift: 'Ca Sáng (06:00 - 14:00)',
+    notes: 'Phụ trách tưới tiêu và giám sát sinh trưởng',
+  });
+
+  // Plots & Orders State
   const [plots, setPlots] = useState<PlotItem[]>([]);
+  const [orders, setOrders] = useState<OrderItem[]>([]);
   const [isLoadingPlots, setIsLoadingPlots] = useState(false);
-  const [isUpdatingPlot, setIsUpdatingPlot] = useState<number | null>(null);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
+  // Auth Guard
   useEffect(() => {
     initAuth();
-    fetchUsers();
-    fetchOrdersData();
-    fetchPlotsData();
-  }, [initAuth, fetchUsers]);
+  }, [initAuth]);
 
-  const fetchOrdersData = async () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  useEffect(() => {
+    if (user) {
+      const role = (user.role || user.roleName || '').toLowerCase();
+      if (role !== 'admin' && user.roleId !== 1) {
+        router.replace('/my-farm');
+      }
+    }
+  }, [user, router]);
+
+  // Loaders
+  const loadAnalytics = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsLoadingAnalytics(true);
+      const res = await fetch('http://localhost:5000/api/admin/analytics', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setAnalytics(data.data);
+    } catch (e) {
+      console.error('Failed to load analytics:', e);
+    } finally {
+      setIsLoadingAnalytics(false);
+    }
+  }, [token]);
+
+  const loadPackages = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsLoadingPackages(true);
+      const res = await fetch('http://localhost:5000/api/admin/care-packages', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setPackages(data.data);
+    } catch (e) {
+      console.error('Failed to load packages:', e);
+    } finally {
+      setIsLoadingPackages(false);
+    }
+  }, [token]);
+
+  const loadSeeds = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsLoadingSeeds(true);
+      const res = await fetch('http://localhost:5000/api/admin/seeds', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) setSeeds(data.data);
+    } catch (e) {
+      console.error('Failed to load seeds:', e);
+    } finally {
+      setIsLoadingSeeds(false);
+    }
+  }, [token]);
+
+  const loadStaffAssignments = useCallback(async () => {
+    if (!token) return;
+    try {
+      setIsLoadingAssignments(true);
+      const [resAssign, resStaff] = await Promise.all([
+        fetch('http://localhost:5000/api/admin/staff-assignments', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch('http://localhost:5000/api/admin/staff-users', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      const dataAssign = await resAssign.json();
+      const dataStaff = await resStaff.json();
+      if (dataAssign.success) setAssignments(dataAssign.data);
+      if (dataStaff.success) {
+        setStaffUsers(dataStaff.data);
+        if (dataStaff.data.length > 0 && assignForm.staffId === 0) {
+          setAssignForm((prev) => ({ ...prev, staffId: dataStaff.data[0].UserId }));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load staff assignments:', e);
+    } finally {
+      setIsLoadingAssignments(false);
+    }
+  }, [token, assignForm.staffId]);
+
+  const loadPlotsAndOrders = useCallback(async () => {
+    try {
+      setIsLoadingPlots(true);
+      const res = await fetch('http://localhost:5000/api/plots/grid');
+      const data = await res.json();
+      if (data.success) setPlots(data.data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingPlots(false);
+    }
+
     if (!token) return;
     try {
       setIsLoadingOrders(true);
@@ -104,775 +329,1192 @@ export default function AdminDashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setOrders(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch admin orders:', err);
+      if (data.success) setOrders(data.data);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsLoadingOrders(false);
     }
-  };
+  }, [token]);
 
-  const fetchPlotsData = async () => {
-    try {
-      setIsLoadingPlots(true);
-      const res = await fetch('http://localhost:5000/api/plots/grid');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setPlots(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch plots:', err);
-    } finally {
-      setIsLoadingPlots(false);
+  useEffect(() => {
+    if (token) {
+      loadAnalytics();
+      loadPackages();
+      loadSeeds();
+      loadStaffAssignments();
+      loadPlotsAndOrders();
+      fetchUsers();
     }
+  }, [token, loadAnalytics, loadPackages, loadSeeds, loadStaffAssignments, loadPlotsAndOrders, fetchUsers]);
+
+  // Package Handlers
+  const handleOpenPackageModal = (pkg?: CarePackageItem) => {
+    if (pkg) {
+      setEditingPackage(pkg);
+      const rawServices = pkg.ServicesIncluded || '';
+      const list = rawServices.split(/;|\n/).map((s) => s.trim()).filter(Boolean);
+      setPkgForm({
+        packageName: pkg.PackageName,
+        description: pkg.Description || '',
+        monthlyFee: pkg.MonthlyFee,
+        servicesList: list.length > 0 ? list : ['Tưới nước tự động', 'Bón phân hữu cơ'],
+        newServiceInput: '',
+        isActive: pkg.IsActive,
+      });
+    } else {
+      setEditingPackage(null);
+      setPkgForm({
+        packageName: '',
+        description: '',
+        monthlyFee: 150000,
+        servicesList: [
+          'Tưới nước tự động 2 lần/ngày',
+          'Bón phân hữu cơ vi sinh định kỳ',
+          'Giám sát camera 24/7',
+          'Báo cáo nhật ký hình ảnh hàng tuần',
+        ],
+        newServiceInput: '',
+        isActive: true,
+      });
+    }
+    setIsPackageModalOpen(true);
   };
 
-  const handleUpdatePlotStatus = async (plotId: number, newStatus: string) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return;
+  const handleSavePackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pkgForm.packageName.trim()) {
+      alert('Vui lòng nhập tên gói dịch vụ');
+      return;
+    }
+    const servicesIncluded = pkgForm.servicesList.join('; ');
+    const url = editingPackage
+      ? `http://localhost:5000/api/admin/care-packages/${editingPackage.PackageId}`
+      : 'http://localhost:5000/api/admin/care-packages';
+    const method = editingPackage ? 'PUT' : 'POST';
+
     try {
-      setIsUpdatingPlot(plotId);
-      const res = await fetch(`http://localhost:5000/api/plots/${plotId}/status`, {
-        method: 'PATCH',
+      const res = await fetch(url, {
+        method,
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({
+          packageName: pkgForm.packageName.trim(),
+          description: pkgForm.description.trim(),
+          monthlyFee: Number(pkgForm.monthlyFee),
+          servicesIncluded,
+          isActive: pkgForm.isActive,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        setPlots((prev) =>
-          prev.map((p) => (p.PlotId === plotId ? { ...p, Status: newStatus } : p))
-        );
+        setIsPackageModalOpen(false);
+        loadPackages();
       } else {
-        alert(data.message || 'Cập nhật thất bại');
+        alert(data.message || 'Thao tác thất bại');
       }
-    } catch (err) {
-      console.error('Error updating plot status:', err);
-    } finally {
-      setIsUpdatingPlot(null);
+    } catch (e) {
+      console.error(e);
+      alert('Có lỗi xảy ra');
     }
   };
 
-  // User Statistics
-  const totalCount = users.length;
-  const activeCount = users.filter((u) => u.status === 'ACTIVE').length;
-  const lockedCount = users.filter((u) => u.status === 'LOCKED').length;
-  const staffCount = users.filter((u) => u.role === 'Staff' || u.role === 'Admin').length;
-  const activePercentage = totalCount ? Math.round((activeCount / totalCount) * 100) : 0;
-
-  // Order & Revenue Statistics
-  const totalRevenue = orders
-    .filter((o) => o.Status === 'PAID')
-    .reduce((sum, o) => sum + (Number(o.TotalAmount) || 0), 0);
-  const paidOrdersCount = orders.filter((o) => o.Status === 'PAID').length;
-  const rentedPlotsCount = plots.filter((p) => p.Status === 'RENTED').length;
-  const availablePlotsCount = plots.filter((p) => p.Status === 'AVAILABLE').length;
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  // Seed Handlers
+  const handleOpenSeedModal = (seed?: SeedItem) => {
+    if (seed) {
+      setEditingSeed(seed);
+      setSeedForm({
+        seedName: seed.SeedName,
+        category: seed.Category || 'RAU_AN_LA',
+        growthDurationDays: seed.GrowthDurationDays,
+        expectedYieldKgPerM2: seed.ExpectedYieldKgPerM2,
+        seedPrice: seed.SeedPrice,
+        description: seed.Description || '',
+        imageUrl: seed.ImageUrl || 'https://images.unsplash.com/photo-1540420773420-3366772f4999',
+        isActive: seed.IsActive,
+      });
+    } else {
+      setEditingSeed(null);
+      setSeedForm({
+        seedName: '',
+        category: 'RAU_AN_LA',
+        growthDurationDays: 35,
+        expectedYieldKgPerM2: 2.5,
+        seedPrice: 45000,
+        description: '',
+        imageUrl: 'https://images.unsplash.com/photo-1540420773420-3366772f4999',
+        isActive: true,
+      });
+    }
+    setIsSeedModalOpen(true);
   };
 
-  const filteredOrders = orders.filter((o) => {
-    const matchesSearch =
-      (o.OrderCode || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
-      (o.FullName || '').toLowerCase().includes(orderSearch.toLowerCase()) ||
-      (o.PlotCode || '').toLowerCase().includes(orderSearch.toLowerCase());
-    const matchesStatus = orderStatusFilter === 'ALL' || o.Status === orderStatusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const handleSaveSeed = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!seedForm.seedName.trim()) {
+      alert('Vui lòng nhập tên giống cây');
+      return;
+    }
+    const url = editingSeed
+      ? `http://localhost:5000/api/admin/seeds/${editingSeed.SeedId}`
+      : 'http://localhost:5000/api/admin/seeds';
+    const method = editingSeed ? 'PUT' : 'POST';
 
-  // Access Control check
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600 dark:text-emerald-400" />
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-          Đang xác thực thông tin tài khoản quản trị...
-        </p>
-      </div>
-    );
-  }
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          seedName: seedForm.seedName.trim(),
+          category: seedForm.category,
+          growthDurationDays: Number(seedForm.growthDurationDays),
+          expectedYieldKgPerM2: Number(seedForm.expectedYieldKgPerM2),
+          seedPrice: Number(seedForm.seedPrice),
+          description: seedForm.description.trim(),
+          imageUrl: seedForm.imageUrl.trim(),
+          isActive: seedForm.isActive,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSeedModalOpen(false);
+        loadSeeds();
+      } else {
+        alert(data.message || 'Thao tác thất bại');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Có lỗi xảy ra');
+    }
+  };
 
-  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  // Staff Assignment Handlers
+  const handleAssignStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignForm.staffId || !assignForm.areaId) {
+      alert('Vui lòng chọn nhân viên và phân khu');
+      return;
+    }
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/staff-assignments', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(assignForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsAssignModalOpen(false);
+        loadStaffAssignments();
+      } else {
+        alert(data.message || 'Gán phân khu thất bại');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Có lỗi xảy ra');
+    }
+  };
 
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full border-rose-200 dark:border-rose-900/50 shadow-xl rounded-3xl overflow-hidden">
-          <CardContent className="p-8 text-center space-y-4">
-            <div className="w-16 h-16 rounded-3xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-inner">
-              <Lock className="w-8 h-8" />
-            </div>
-            <h2 className="text-xl font-black text-slate-900 dark:text-white">
-              Quyền Truy Cập Bị Từ Chối (403)
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Khu vực này chỉ dành riêng cho Quản Trị Viên (Admin) của hệ thống PlotFarm. Bạn không có quyền truy cập vào bảng điều khiển này.
-            </p>
-            <div className="pt-2 flex justify-center gap-3">
-              <Link href="/">
-                <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-                  Về Trang Chủ
-                </Button>
-              </Link>
-              <Button variant="danger" size="sm" onClick={logout}>
-                Đăng Xuất
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleDeleteAssignment = async (assignmentId: number) => {
+    if (!confirm('Bạn có chắc chắn muốn hủy phân công này?')) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/staff-assignments/${assignmentId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        loadStaffAssignments();
+      } else {
+        alert(data.message || 'Xóa thất bại');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Admin Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200/80 dark:border-slate-800">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
+      {/* Admin Top Header */}
+      <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors shadow-xs"
-              title="Về trang chủ"
-            >
-              <ArrowLeft className="w-4 h-4" />
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white shadow-sm font-black">
+                P
+              </div>
+              <span className="font-black text-lg tracking-tight">PlotFarm Admin</span>
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg text-emerald-600 dark:text-emerald-400">
-                  PlotFarm
-                </span>
-                <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded-md bg-rose-600 text-white shadow-xs">
-                  ADMIN PORTAL
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Trung tâm quản trị dữ liệu & vận hành hệ thống nông trại thông minh
-              </p>
-            </div>
+            <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded bg-rose-500/10 text-rose-600 border border-rose-500/20">
+              TRƯỞNG NHÓM / LEAD
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <Link href="/plots" className="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-emerald-600 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" /> Xem Bản Đồ Đất
+            </Link>
+            <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800" />
             <div className="text-right hidden sm:block">
-              <div className="flex items-center gap-2 justify-end">
-                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  {user?.fullName || 'Quản Trị Viên PlotFarm'}
-                </p>
-                <span className="px-1.5 py-0.2 text-[9px] font-black uppercase rounded bg-rose-500 text-white">
-                  ADMIN
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                {user?.email || 'admin@plotfarm.vn'}
-              </p>
+              <p className="text-xs font-bold leading-none">{user?.fullName || 'Quản Trị Viên'}</p>
+              <p className="text-[10px] text-slate-400 leading-none mt-1">{user?.email}</p>
             </div>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={logout}
-              leftIcon={<LogOut className="w-3.5 h-3.5" />}
-              className="text-xs shadow-sm"
+            <button
+              onClick={() => logout()}
+              className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+              title="Đăng xuất"
             >
-              Đăng Xuất
-            </Button>
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Navigation Tabs */}
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Navigation Tabs Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-200 dark:border-slate-800">
           <button
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === 'overview'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+            onClick={() => setActiveTab('analytics')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+              activeTab === 'analytics'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Tổng Quan & Doanh Thu</span>
+            <BarChart3 className="w-4 h-4" />
+            Báo Cáo & Thống Kê
           </button>
 
           <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
-              activeTab === 'orders'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+            onClick={() => setActiveTab('packages')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+              activeTab === 'packages'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <ShoppingCart className="w-4 h-4" />
-            <span>Quản Lý Đơn Thuê ({orders.length})</span>
+            <Package className="w-4 h-4" />
+            Quản Lý Gói Chăm Sóc ({packages.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('seeds')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+              activeTab === 'seeds'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Sprout className="w-4 h-4" />
+            Quản Lý Giống Cây ({seeds.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('staff')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+              activeTab === 'staff'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <UserCheck className="w-4 h-4" />
+            Phân Công Nhân Viên (5 Khu)
           </button>
 
           <button
             onClick={() => setActiveTab('plots')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
               activeTab === 'plots'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <MapPin className="w-4 h-4" />
-            <span>Quản Lý Ô Đất & Camera ({plots.length})</span>
+            <Layers className="w-4 h-4" />
+            Quản Lý Ô Đất ({plots.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
+              activeTab === 'orders'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Đơn Thuê Đất ({orders.length})
           </button>
 
           <button
             onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap ${
               activeTab === 'users'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Users className="w-4 h-4" />
-            <span>Quản Lý Người Dùng ({users.length})</span>
+            Tài Khoản Người Dùng ({users.length})
           </button>
         </div>
 
-        {/* ================= TAB 1: OVERVIEW ================= */}
-        {activeTab === 'overview' && (
+        {/* ================= TAB 1: BÁO CÁO & THỐNG KÊ CHUYÊN SÂU ================= */}
+        {activeTab === 'analytics' && (
           <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <TrendingUp className="w-6 h-6 text-emerald-500" /> Báo Cáo Hoạt Động & Chỉ Số KPI
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Tổng hợp số liệu thời gian thực từ cơ sở dữ liệu PlotFarm SQL Server
-                </p>
+            {isLoadingAnalytics || !analytics ? (
+              <div className="p-12 text-center text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-rose-600" />
+                Đang tổng hợp báo cáo kinh doanh và sản lượng toàn Farm...
               </div>
-
-              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-3.5 py-2 rounded-2xl text-emerald-700 dark:text-emerald-300 text-xs font-medium self-start md:self-auto shadow-xs">
-                <Server className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 animate-pulse" />
-                <span>Hệ thống cơ sở dữ liệu sẵn sàng</span>
-              </div>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-              {/* Total Revenue */}
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Tổng Doanh Thu Đã Thu
+            ) : (
+              <>
+                {/* 4 Macro KPI Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-wider">Tổng Doanh Thu</span>
+                      <DollarSign className="w-4 h-4 text-emerald-500" />
+                    </div>
+                    <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                      {analytics.revenue.TotalRevenue?.toLocaleString('vi-VN')} đ
                     </p>
-                    <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                      {formatCurrency(totalRevenue)}
-                    </h3>
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Từ {paidOrdersCount} đơn thanh toán
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 shadow-inner">
-                    <DollarSign className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Total Orders */}
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Tổng Số Đơn Thuê Đất
-                    </p>
-                    <h3 className="text-3xl font-black text-blue-600 dark:text-blue-400">
-                      {orders.length}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                      Bao gồm gói hạt giống & chăm sóc
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40 shadow-inner">
-                    <ShoppingCart className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Rented Plots */}
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Ô Đất Đang Canh Tác
-                    </p>
-                    <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400">
-                      {rentedPlotsCount} / {plots.length}
-                    </h3>
-                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                      Tỷ lệ lấp đầy: {plots.length ? Math.round((rentedPlotsCount / plots.length) * 100) : 0}%
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 shadow-inner">
-                    <MapPin className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Total Users */}
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Tài Khoản Khách Hàng
-                    </p>
-                    <h3 className="text-3xl font-black text-purple-600 dark:text-purple-400">
-                      {users.filter((u) => u.role === 'Customer').length}
-                    </h3>
-                    <p className="text-[11px] text-purple-600 dark:text-purple-400 font-medium">
-                      Tổng {totalCount} tài khoản toàn hệ thống
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-900/40 shadow-inner">
-                    <Users className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Summary Tables */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Recent Orders Card */}
-              <Card className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <ShoppingCart className="w-4 h-4 text-emerald-600" /> Đơn Thuê Mới Nhất
-                  </h3>
-                  <button
-                    onClick={() => setActiveTab('orders')}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1"
-                  >
-                    Xem tất cả <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {orders.slice(0, 5).map((order) => (
-                    <div key={order.OrderId} className="p-4 flex items-center justify-between text-xs hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white">
-                          {order.OrderCode} • {order.PlotCode}
-                        </p>
-                        <p className="text-slate-500 dark:text-slate-400">
-                          {order.FullName} • {order.SeedName}
-                        </p>
+                    <div className="text-[11px] text-slate-500 space-y-0.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between">
+                        <span>Thuê đất:</span>
+                        <span className="font-semibold">{analytics.revenue.TotalRentalFee?.toLocaleString('vi-VN')} đ</span>
                       </div>
-                      <div className="text-right space-y-1">
-                        <p className="font-black text-emerald-600 dark:text-emerald-400">
-                          {formatCurrency(order.TotalAmount)}
-                        </p>
-                        <Badge variant={order.Status === 'PAID' ? 'success' : 'warning'} size="sm">
-                          {order.Status}
-                        </Badge>
+                      <div className="flex justify-between">
+                        <span>Gói chăm sóc:</span>
+                        <span className="font-semibold">{analytics.revenue.TotalCareFee?.toLocaleString('vi-VN')} đ</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Hạt giống:</span>
+                        <span className="font-semibold">{analytics.revenue.TotalSeedFee?.toLocaleString('vi-VN')} đ</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </Card>
+                  </div>
 
-              {/* Plot Status Quick View */}
-              <Card className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-                <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-emerald-600" /> Trạng Thái 15 Ô Đất
-                  </h3>
-                  <button
-                    onClick={() => setActiveTab('plots')}
-                    className="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1"
-                  >
-                    Quản lý ô đất <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="p-4 grid grid-cols-5 gap-2.5">
-                  {plots.map((plot) => (
-                    <div
-                      key={plot.PlotId}
-                      className={`p-2.5 rounded-xl border text-center text-xs space-y-1 ${
-                        plot.Status === 'RENTED'
-                          ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-400'
-                          : plot.Status === 'AVAILABLE'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400'
-                          : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                      }`}
-                    >
-                      <p className="font-black text-[11px]">{plot.PlotCode.replace('PLOT_', '')}</p>
-                      <span className="text-[9px] font-bold uppercase block">
-                        {plot.Status === 'RENTED' ? 'Đang Thuê' : plot.Status === 'AVAILABLE' ? 'Trống' : plot.Status}
-                      </span>
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-wider">Sản Lượng Dự Kiến</span>
+                      <Scale className="w-4 h-4 text-amber-500" />
                     </div>
-                  ))}
+                    <p className="text-2xl font-black text-amber-600 dark:text-amber-400">
+                      {analytics.yieldForecast.TotalExpectedYieldKg?.toLocaleString('vi-VN')} kg
+                    </p>
+                    <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      Dự báo toàn bộ các ô đang trong vụ canh tác
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-wider">Tổng Đơn Thuê Đất</span>
+                      <ShoppingCart className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                      {analytics.revenue.TotalOrders} Đơn
+                    </p>
+                    <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      Hợp đồng canh tác đã xác nhận thanh toán
+                    </p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-bold uppercase tracking-wider">Quy Mô Farm</span>
+                      <Layers className="w-4 h-4 text-purple-500" />
+                    </div>
+                    <p className="text-2xl font-black text-purple-600 dark:text-purple-400">
+                      5 Khu / 100 Ô
+                    </p>
+                    <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      20 ô đất / phân khu tiêu chuẩn
+                    </p>
+                  </div>
                 </div>
-              </Card>
-            </div>
-          </div>
-        )}
 
-        {/* ================= TAB 2: ORDERS ================= */}
-        {activeTab === 'orders' && (
-          <div className="space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <ShoppingCart className="w-6 h-6 text-emerald-500" /> Danh Sách Đơn Thuê Đất & Dịch Vụ
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Kiểm soát chi tiết các đơn hàng, người đặt thuê, gói chăm sóc và doanh thu thu được
-                </p>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchOrdersData}
-                leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingOrders ? 'animate-spin' : ''}`} />}
-              >
-                Làm Mới
-              </Button>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Tìm mã đơn, tên khách, mã ô..."
-                  value={orderSearch}
-                  onChange={(e) => setOrderSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                <span className="text-xs text-slate-500 font-semibold mr-1">Trạng thái:</span>
-                {['ALL', 'PAID', 'PENDING', 'CANCELLED'].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setOrderStatusFilter(st)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                      orderStatusFilter === st
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                    }`}
-                  >
-                    {st === 'ALL' ? 'Tất Cả' : st}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Orders Table */}
-            <Card className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-[11px]">
-                    <tr>
-                      <th className="p-4">Mã Đơn</th>
-                      <th className="p-4">Khách Hàng</th>
-                      <th className="p-4">Ô Đất & Cây Trồng</th>
-                      <th className="p-4">Gói Chăm Sóc</th>
-                      <th className="p-4 text-right">Tổng Tiền</th>
-                      <th className="p-4 text-center">Trạng Thái</th>
-                      <th className="p-4">Ngày Đặt</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {isLoadingOrders ? (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-slate-500">
-                          <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
-                          Đang tải danh sách đơn thuê...
-                        </td>
-                      </tr>
-                    ) : filteredOrders.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-slate-500">
-                          Không tìm thấy đơn hàng nào phù hợp
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredOrders.map((order) => (
-                        <tr key={order.OrderId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                          <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
-                            {order.OrderCode}
-                          </td>
-                          <td className="p-4">
-                            <p className="font-bold text-slate-900 dark:text-white">{order.FullName}</p>
-                            <p className="text-[11px] text-slate-500">{order.Email}</p>
-                          </td>
-                          <td className="p-4">
-                            <span className="font-extrabold text-emerald-600 dark:text-emerald-400 mr-1">
-                              {order.PlotCode}
-                            </span>
-                            • {order.SeedName}
-                          </td>
-                          <td className="p-4 text-slate-600 dark:text-slate-300">
-                            {order.PackageName || 'Cơ bản'}
-                          </td>
-                          <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(order.TotalAmount)}
-                          </td>
-                          <td className="p-4 text-center">
-                            <Badge variant={order.Status === 'PAID' ? 'success' : 'warning'} size="sm">
-                              {order.Status}
-                            </Badge>
-                          </td>
-                          <td className="p-4 text-slate-500">
-                            {new Date(order.CreatedAt).toLocaleDateString('vi-VN')}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </div>
-        )}
-
-        {/* ================= TAB 3: PLOTS & CAMERAS ================= */}
-        {activeTab === 'plots' && (
-          <div className="space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <MapPin className="w-6 h-6 text-emerald-500" /> Quản Lý 15 Ô Đất & Camera Thực Địa
-                </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Kiểm tra tình trạng đất, liên kết mã camera và điều chỉnh trạng thái ô đất
-                </p>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchPlotsData}
-                leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingPlots ? 'animate-spin' : ''}`} />}
-              >
-                Làm Mới
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {plots.map((plot) => (
-                <Card
-                  key={plot.PlotId}
-                  className={`bg-white dark:bg-slate-900 rounded-3xl border transition-all p-5 space-y-3.5 shadow-sm ${
-                    plot.Status === 'RENTED'
-                      ? 'border-rose-200 dark:border-rose-900/40'
-                      : plot.Status === 'AVAILABLE'
-                      ? 'border-emerald-200 dark:border-emerald-900/40'
-                      : 'border-slate-200 dark:border-slate-800'
-                  }`}
-                >
+                {/* Tỷ lệ thuê kín của 5 phân khu */}
+                <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-sm text-slate-900 dark:text-white">
-                        {plot.PlotCode.replace('PLOT_', '')}
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <Percent className="w-4 h-4 text-rose-600" />
+                        Tỷ Lệ Thuê Kín Của 5 Phân Khu Đất
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Đánh giá mức độ khai thác và công suất sử dụng đất tại từng khu vực
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {analytics.occupancy.map((area) => (
+                      <div key={area.AreaId} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-slate-900 dark:text-white">
+                              {area.AreaCode} - {area.AreaName}
+                            </span>
+                            <span className="text-slate-400">({area.SoilType})</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-slate-500 font-semibold">
+                              Đã thuê: <strong className="text-emerald-600">{area.OccupiedPlots}</strong> / {area.TotalPlots} ô
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black">
+                              {area.OccupancyRate}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(area.OccupancyRate, 3)}%` }}
+                          />
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sản Lượng Dự Kiến & Top Giống Cây */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Bảng sản lượng dự kiến từng phân khu */}
+                  <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                    <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Scale className="w-4 h-4 text-amber-500" />
+                      Dự Báo Sản Lượng Thu Hoạch Theo Phân Khu
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 uppercase font-bold">
+                          <tr>
+                            <th className="p-3">Phân Khu</th>
+                            <th className="p-3 text-center">Ô Đang Trồng</th>
+                            <th className="p-3 text-right">Tổng Diện Tích</th>
+                            <th className="p-3 text-right">Sản Lượng Ước Tính</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {analytics.yieldForecast.AreaForecasts.map((af) => (
+                            <tr key={af.AreaId}>
+                              <td className="p-3 font-bold">{af.AreaCode} - {af.AreaName}</td>
+                              <td className="p-3 text-center font-semibold text-emerald-600">{af.PlotsHarvesting}</td>
+                              <td className="p-3 text-right text-slate-500">{af.TotalAreaM2} m²</td>
+                              <td className="p-3 text-right font-black text-amber-600 dark:text-amber-400">
+                                {af.ExpectedYieldKg.toLocaleString('vi-VN')} kg
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Top 5 Giống Cây Được Thuê Nhiều Nhất */}
+                  <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+                    <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Sprout className="w-4 h-4 text-emerald-500" />
+                      Top 5 Giống Cây Trồng Phổ Biến Nhất
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 uppercase font-bold">
+                          <tr>
+                            <th className="p-3">Giống Cây</th>
+                            <th className="p-3">Phân Loại</th>
+                            <th className="p-3 text-center">Lượt Thuê</th>
+                            <th className="p-3 text-right">Năng Suất Chuẩn</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {analytics.topSeeds.map((seed) => (
+                            <tr key={seed.SeedId}>
+                              <td className="p-3 font-bold text-slate-900 dark:text-white">{seed.SeedName}</td>
+                              <td className="p-3 text-slate-500">{seed.Category}</td>
+                              <td className="p-3 text-center font-black text-emerald-600">{seed.RentalCount}</td>
+                              <td className="p-3 text-right font-semibold text-slate-600 dark:text-slate-300">
+                                {seed.ExpectedYieldKgPerM2} kg/m²
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 2: QUẢN LÝ GÓI CHĂM SÓC ================= */}
+        {activeTab === 'packages' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Package className="w-5 h-5 text-rose-600" />
+                  Danh Sách Gói Dịch Vụ Chăm Sóc Nông Trại
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Tạo mới, điều chỉnh đơn giá hàng tháng và cập nhật chi tiết các dịch vụ đính kèm trong từng gói.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                onClick={() => handleOpenPackageModal()}
+                leftIcon={<PlusCircle className="w-4 h-4" />}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                Tạo Gói Dịch Vụ Mới
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {packages.map((pkg) => {
+                const services = (pkg.ServicesIncluded || '').split(/;|\n/).map((s) => s.trim()).filter(Boolean);
+                return (
+                  <div
+                    key={pkg.PackageId}
+                    className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 relative group hover:border-rose-500/50 transition-all"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-base font-black text-slate-900 dark:text-white">{pkg.PackageName}</h3>
+                          <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                            {pkg.MonthlyFee?.toLocaleString('vi-VN')} đ <span className="text-xs text-slate-400 font-normal">/tháng</span>
+                          </p>
+                        </div>
+                        <span className={`px-2 py-0.5 text-[10px] font-black rounded-md ${
+                          pkg.IsActive ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'
+                        }`}>
+                          {pkg.IsActive ? 'ĐANG KÍCH HOẠT' : 'TẠM NGỪNG'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {pkg.Description || 'Không có mô tả'}
+                      </p>
+
+                      <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Dịch vụ đính kèm:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {services.map((svc, i) => (
+                            <span
+                              key={i}
+                              className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium flex items-center gap-1"
+                            >
+                              <Check className="w-3 h-3 text-emerald-500" /> {svc}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenPackageModal(pkg)}
+                        leftIcon={<Edit2 className="w-3.5 h-3.5" />}
+                        className="text-xs font-bold"
+                      >
+                        Chỉnh Sửa Gói
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 3: QUẢN LÝ GIỐNG CÂY TRỒNG ================= */}
+        {activeTab === 'seeds' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sprout className="w-5 h-5 text-rose-600" />
+                  Danh Mục Giống Cây Trồng Tiêu Chuẩn
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Thêm giống cây mới, điều chỉnh ngày sinh trưởng và năng suất dự kiến (kg/m²) để đồng bộ dữ liệu dự báo.
+                </p>
+              </div>
+              <Button
+                variant="primary"
+                onClick={() => handleOpenSeedModal()}
+                leftIcon={<PlusCircle className="w-4 h-4" />}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                Thêm Giống Cây Mới
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {seeds.map((seed) => (
+                <div
+                  key={seed.SeedId}
+                  className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4 hover:border-rose-500/50 transition-all"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={seed.ImageUrl}
+                        alt={seed.SeedName}
+                        className="w-14 h-14 rounded-xl object-cover border border-slate-200 dark:border-slate-800 shrink-0"
+                      />
                       <div>
-                        <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                          Ô {plot.PlotCode}
-                        </h4>
-                        <span className="text-[10px] text-slate-500">
-                          Hàng {plot.RowNum}, Cột {plot.ColNum} • {plot.SizeM2}m²
+                        <h3 className="text-base font-black text-slate-900 dark:text-white">{seed.SeedName}</h3>
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                          {seed.Category}
                         </span>
                       </div>
                     </div>
-                    <Badge
-                      variant={
-                        plot.Status === 'RENTED'
-                          ? 'danger'
-                          : plot.Status === 'AVAILABLE'
-                          ? 'success'
-                          : 'warning'
-                      }
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Ngày sinh trưởng</span>
+                        <strong className="text-slate-900 dark:text-white text-sm">{seed.GrowthDurationDays} ngày</strong>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Năng suất chuẩn</span>
+                        <strong className="text-amber-600 dark:text-amber-400 text-sm">{seed.ExpectedYieldKgPerM2} kg/m²</strong>
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-slate-500">
+                      Giá giống: <strong className="text-slate-900 dark:text-white font-bold">{seed.SeedPrice?.toLocaleString('vi-VN')} đ/gói</strong>
+                    </div>
+
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                      {seed.Description || 'Không có mô tả chi tiết'}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                    <Button
                       size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenSeedModal(seed)}
+                      leftIcon={<Edit2 className="w-3.5 h-3.5" />}
+                      className="text-xs font-bold"
                     >
-                      {plot.Status}
-                    </Badge>
+                      Điều Chỉnh Giống Cây
+                    </Button>
                   </div>
-
-                  {/* Camera Info */}
-                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                      <Camera className="w-3.5 h-3.5 text-emerald-500" />
-                      {plot.CameraName || `Camera Ô ${plot.PlotCode}`}
-                    </span>
-                    <span className="font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                      {plot.CameraCode || 'CAM_P' + plot.PlotId}
-                    </span>
-                  </div>
-
-                  {/* Price & Soil Info */}
-                  <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block">Giá thuê</span>
-                      <span className="font-bold text-emerald-600">{formatCurrency(plot.BasePricePerMonth)}</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block">pH / Độ ẩm</span>
-                      <span className="font-bold text-slate-700 dark:text-slate-300">{plot.SoilPH} / {plot.StandardHumidity}%</span>
-                    </div>
-                  </div>
-
-                  {/* Action Change Status */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5">
-                    <span className="text-[11px] text-slate-500 font-medium">Đổi trạng thái:</span>
-                    <div className="flex gap-1">
-                      {plot.Status !== 'AVAILABLE' && (
-                        <button
-                          disabled={isUpdatingPlot === plot.PlotId}
-                          onClick={() => handleUpdatePlotStatus(plot.PlotId, 'AVAILABLE')}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px] font-bold transition-colors"
-                        >
-                          Sẵn sàng
-                        </button>
-                      )}
-                      {plot.Status !== 'MAINTENANCE' && (
-                        <button
-                          disabled={isUpdatingPlot === plot.PlotId}
-                          onClick={() => handleUpdatePlotStatus(plot.PlotId, 'MAINTENANCE')}
-                          className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[10px] font-bold transition-colors"
-                        >
-                          Bảo trì
-                        </button>
-                      )}
-                      {plot.Status !== 'FALLOWING' && (
-                        <button
-                          disabled={isUpdatingPlot === plot.PlotId}
-                          onClick={() => handleUpdatePlotStatus(plot.PlotId, 'FALLOWING')}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-[10px] font-bold transition-colors"
-                        >
-                          Cải tạo
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
+                </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* ================= TAB 4: USERS (PRESERVED COMPLETE CRUD) ================= */}
-        {activeTab === 'users' && (
+        {/* ================= TAB 4: PHÂN CÔNG NHÂN VIÊN 5 PHÂN KHU ================= */}
+        {activeTab === 'staff' && (
           <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 shadow-lg shadow-emerald-500/20 text-white inline-flex">
-                    <ShieldCheck className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-                      Quản Lý Tài Khoản Người Dùng
-                    </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                      Hệ thống quản trị tài khoản dành cho Admin: xem danh sách, tìm kiếm, lọc vai trò và kiểm soát quyền truy cập hệ thống PlotFarm.
-                    </p>
-                  </div>
-                </div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-rose-600" />
+                  Phân Quyền & Gán Nhân Viên Kỹ Thuật (Khu A, B, C, D, E)
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Chỉ định nhân viên kỹ thuật chịu trách nhiệm chăm sóc và xử lý nhật ký cho từng phân khu cụ thể.
+                </p>
               </div>
+              <Button
+                variant="primary"
+                onClick={() => setIsAssignModalOpen(true)}
+                leftIcon={<UserPlus className="w-4 h-4" />}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+              >
+                Gán Kỹ Thuật Viên Phân Khu
+              </Button>
             </div>
 
-            {/* Metric Stats Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Tổng Số Tài Khoản
-                    </p>
-                    <h3 className="text-3xl font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {totalCount}
-                    </h3>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
-                      <Sparkles className="w-3 h-3 text-blue-500" /> Hệ thống PlotFarm DB
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40 shadow-inner group-hover:scale-110 transition-transform">
-                    <Users className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Đang Hoạt Động
-                    </p>
-                    <h3 className="text-3xl font-black text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-500 transition-colors">
-                      {activeCount}
-                    </h3>
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                      <UserCheck2 className="w-3 h-3" /> {activePercentage}% tổng tài khoản
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40 shadow-inner group-hover:scale-110 transition-transform">
-                    <UserCheck className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Tài Khoản Bị Khóa
-                    </p>
-                    <h3 className="text-3xl font-black text-rose-600 dark:text-rose-400 group-hover:text-rose-500 transition-colors">
-                      {lockedCount}
-                    </h3>
-                    <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium">
-                      {lockedCount === 0 ? 'Không có tài khoản bị khóa' : 'Bị vi phạm hoặc hạn chế'}
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40 shadow-inner group-hover:scale-110 transition-transform">
-                    <UserX className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                      Đội Ngũ Nhân Viên & Admin
-                    </p>
-                    <h3 className="text-3xl font-black text-violet-600 dark:text-violet-400 group-hover:text-violet-500 transition-colors">
-                      {staffCount}
-                    </h3>
-                    <p className="text-[11px] text-violet-600 dark:text-violet-400 font-medium">
-                      Quản trị & vận hành hệ thống
-                    </p>
-                  </div>
-                  <div className="w-13 h-13 p-3.5 rounded-2xl bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-900/40 shadow-inner group-hover:scale-110 transition-transform">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 uppercase font-bold">
+                  <tr>
+                    <th className="p-4">Kỹ Thuật Viên</th>
+                    <th className="p-4">Phân Khu Phụ Trách</th>
+                    <th className="p-4">Ca Trực</th>
+                    <th className="p-4">Ngày Phân Công</th>
+                    <th className="p-4">Ghi Chú Nhiệm Vụ</th>
+                    <th className="p-4 text-right">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {assignments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400">
+                        Chưa có phân công kỹ thuật viên nào. Bấm nút phía trên để bắt đầu phân công.
+                      </td>
+                    </tr>
+                  ) : (
+                    assignments.map((item) => (
+                      <tr key={item.AssignmentId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        <td className="p-4">
+                          <p className="font-bold text-slate-900 dark:text-white text-sm">{item.StaffName}</p>
+                          <p className="text-slate-400">{item.StaffEmail}</p>
+                        </td>
+                        <td className="p-4">
+                          <span className="px-2.5 py-1 text-xs font-black rounded-md bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-200/60">
+                            {item.AreaCode} - {item.AreaName}
+                          </span>
+                        </td>
+                        <td className="p-4 font-semibold text-slate-700 dark:text-slate-300">
+                          {item.Shift || 'Toàn thời gian'}
+                        </td>
+                        <td className="p-4 text-slate-500">
+                          {new Date(item.AssignedDate).toLocaleDateString('vi-VN')}
+                        </td>
+                        <td className="p-4 text-slate-600 dark:text-slate-400 max-w-xs truncate">
+                          {item.Notes || 'Không có ghi chú'}
+                        </td>
+                        <td className="p-4 text-right">
+                          <button
+                            onClick={() => handleDeleteAssignment(item.AssignmentId)}
+                            className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Xóa phân công"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {/* Filter & Search Toolbar */}
-            <AdminUserFilters />
-
-            {/* User Data Table */}
-            <AdminUserTable />
           </div>
         )}
-      </div>
 
-      {/* Modals for Admin User Management */}
-      <UserDetailModal />
-      <EditUserModal />
-      <AddUserModal />
+        {/* ================= TAB 5: QUẢN LÝ Ô ĐẤT ================= */}
+        {activeTab === 'plots' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-5 h-5 text-rose-600" />
+              Tổng Quan 100 Ô Đất (5 Phân Khu)
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
+              {plots.map((plot) => (
+                <div
+                  key={plot.PlotId}
+                  className={`p-3.5 rounded-2xl border transition-all text-center space-y-1.5 ${
+                    plot.Status === 'RENTED'
+                      ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800/50'
+                      : plot.Status === 'MAINTENANCE'
+                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/50'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                  }`}
+                >
+                  <p className="font-black text-sm text-slate-900 dark:text-white">{plot.PlotCode}</p>
+                  <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-md ${
+                    plot.Status === 'RENTED'
+                      ? 'bg-rose-600 text-white'
+                      : plot.Status === 'MAINTENANCE'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-emerald-600 text-white'
+                  }`}>
+                    {plot.Status === 'RENTED' ? 'ĐÃ THUÊ' : plot.Status === 'MAINTENANCE' ? 'BẢO TRÌ' : 'CÒN TRỐNG'}
+                  </span>
+                  <p className="text-[10px] text-slate-500">{plot.SizeM2} m²</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 6: ĐƠN THUÊ ĐẤT ================= */}
+        {activeTab === 'orders' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-rose-600" />
+              Danh Sách Đơn Thuê Đất Toàn Hệ Thống ({orders.length})
+            </h2>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 uppercase font-bold">
+                  <tr>
+                    <th className="p-3">Mã Đơn</th>
+                    <th className="p-3">Khách Hàng</th>
+                    <th className="p-3">Ô Đất</th>
+                    <th className="p-3">Giống Cây</th>
+                    <th className="p-3">Gói Chăm Sóc</th>
+                    <th className="p-3 text-right">Tổng Tiền</th>
+                    <th className="p-3 text-center">Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {orders.map((o) => (
+                    <tr key={o.OrderId}>
+                      <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">{o.OrderCode}</td>
+                      <td className="p-3">
+                        <p className="font-semibold">{o.FullName}</p>
+                        <p className="text-slate-400 text-[10px]">{o.Email}</p>
+                      </td>
+                      <td className="p-3 font-bold text-emerald-600">{o.PlotCode}</td>
+                      <td className="p-3">{o.SeedName}</td>
+                      <td className="p-3">{o.PackageName}</td>
+                      <td className="p-3 text-right font-black text-slate-900 dark:text-white">
+                        {o.TotalAmount?.toLocaleString('vi-VN')} đ
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="px-2 py-0.5 text-[10px] font-black rounded bg-emerald-100 text-emerald-700">
+                          {o.Status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 7: QUẢN LÝ NGƯỜI DÙNG ================= */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            <AdminUserFilters />
+            <AdminUserTable />
+            <UserDetailModal />
+            <EditUserModal />
+            <AddUserModal />
+          </div>
+        )}
+      </main>
+
+      {/* ================= MODAL: TẠO / SỬA GÓI CHĂM SÓC ================= */}
+      {isPackageModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                {editingPackage ? 'Cập Nhật Gói Dịch Vụ' : 'Tạo Gói Dịch Vụ Mới'}
+              </h3>
+              <button onClick={() => setIsPackageModalOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePackage} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Tên Gói Dịch Vụ *</label>
+                <input
+                  type="text"
+                  required
+                  value={pkgForm.packageName}
+                  onChange={(e) => setPkgForm({ ...pkgForm, packageName: e.target.value })}
+                  placeholder="Ví dụ: Gói Chăm Sóc Hữu Cơ VIP"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Giá Dịch Vụ (đ/tháng) *</label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  step={10000}
+                  value={pkgForm.monthlyFee}
+                  onChange={(e) => setPkgForm({ ...pkgForm, monthlyFee: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Mô Tả Gói</label>
+                <textarea
+                  rows={2}
+                  value={pkgForm.description}
+                  onChange={(e) => setPkgForm({ ...pkgForm, description: e.target.value })}
+                  placeholder="Mô tả tóm tắt lợi ích của gói..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+              </div>
+
+              {/* Danh sách dịch vụ đính kèm (Thêm/bớt) */}
+              <div className="space-y-2">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Danh Sách Dịch Vụ Đính Kèm</label>
+                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                  {pkgForm.servicesList.map((svc, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">{svc}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPkgForm({ ...pkgForm, servicesList: pkgForm.servicesList.filter((_, i) => i !== idx) })}
+                        className="text-rose-500 hover:text-rose-700 p-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <input
+                    type="text"
+                    value={pkgForm.newServiceInput}
+                    onChange={(e) => setPkgForm({ ...pkgForm, newServiceInput: e.target.value })}
+                    placeholder="Nhập dịch vụ mới (VD: Kiểm tra pH đất định kỳ)"
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (pkgForm.newServiceInput.trim()) {
+                        setPkgForm({
+                          ...pkgForm,
+                          servicesList: [...pkgForm.servicesList, pkgForm.newServiceInput.trim()],
+                          newServiceInput: '',
+                        });
+                      }
+                    }}
+                    className="text-xs font-bold"
+                  >
+                    Thêm
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pkgForm.isActive}
+                    onChange={(e) => setPkgForm({ ...pkgForm, isActive: e.target.checked })}
+                    className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                  />
+                  <span className="font-bold text-slate-700 dark:text-slate-300">Kích hoạt gói dịch vụ này</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <Button type="button" variant="outline" onClick={() => setIsPackageModalOpen(false)}>
+                  Hủy
+                </Button>
+                <Button type="submit" variant="primary" className="bg-rose-600 hover:bg-rose-700 text-white font-bold">
+                  Lưu Gói Dịch Vụ
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: THÊM / SỬA GIỐNG CÂY TRỒNG ================= */}
+      {isSeedModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                {editingSeed ? 'Điều Chỉnh Giống Cây' : 'Thêm Giống Cây Trồng Mới'}
+              </h3>
+              <button onClick={() => setIsSeedModalOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSeed} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Tên Giống Cây *</label>
+                  <input
+                    type="text"
+                    required
+                    value={seedForm.seedName}
+                    onChange={(e) => setSeedForm({ ...seedForm, seedName: e.target.value })}
+                    placeholder="Ví dụ: Cải Kale Khủng Long"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Phân Loại *</label>
+                  <select
+                    value={seedForm.category}
+                    onChange={(e) => setSeedForm({ ...seedForm, category: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none font-semibold"
+                  >
+                    <option value="RAU_AN_LA">Rau Ăn Lá</option>
+                    <option value="CU_QUA">Củ & Quả Hữu Cơ</option>
+                    <option value="DUOC_LIEU">Dược Liệu & Rau Gia Vị</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Ngày Sinh Trưởng *</label>
+                  <input
+                    type="number"
+                    required
+                    min={15}
+                    max={180}
+                    value={seedForm.growthDurationDays}
+                    onChange={(e) => setSeedForm({ ...seedForm, growthDurationDays: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Năng Suất (kg/m²) *</label>
+                  <input
+                    type="number"
+                    required
+                    step={0.1}
+                    min={0.5}
+                    max={15}
+                    value={seedForm.expectedYieldKgPerM2}
+                    onChange={(e) => setSeedForm({ ...seedForm, expectedYieldKgPerM2: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700 dark:text-slate-300">Giá Giống (đ) *</label>
+                  <input
+                    type="number"
+                    required
+                    min={10000}
+                    step={5000}
+                    value={seedForm.seedPrice}
+                    onChange={(e) => setSeedForm({ ...seedForm, seedPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Link Hình Ảnh</label>
+                <input
+                  type="text"
+                  value={seedForm.imageUrl}
+                  onChange={(e) => setSeedForm({ ...seedForm, imageUrl: e.target.value })}
+                  placeholder="URL ảnh cây giống"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs focus:ring-2 focus:ring-rose-500 outline-none font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Mô Tả Sinh Trưởng</label>
+                <textarea
+                  rows={2}
+                  value={seedForm.description}
+                  onChange={(e) => setSeedForm({ ...seedForm, description: e.target.value })}
+                  placeholder="Đặc tính sinh trưởng, mùa vụ phù hợp..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <Button type="button" variant="outline" onClick={() => setIsSeedModalOpen(false)}>
+                  Hủy
+                </Button>
+                <Button type="submit" variant="primary" className="bg-rose-600 hover:bg-rose-700 text-white font-bold">
+                  Lưu Giống Cây
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: GÁN PHÂN KHU CHO KỸ THUẬT VIÊN ================= */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-5 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Gán Phân Khu Cho Kỹ Thuật Viên
+              </h3>
+              <button onClick={() => setIsAssignModalOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignStaff} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Chọn Kỹ Thuật Viên *</label>
+                <select
+                  required
+                  value={assignForm.staffId}
+                  onChange={(e) => setAssignForm({ ...assignForm, staffId: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none font-semibold"
+                >
+                  {staffUsers.map((s) => (
+                    <option key={s.UserId} value={s.UserId}>
+                      {s.FullName} ({s.Email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Chọn Phân Khu Phụ Trách *</label>
+                <select
+                  required
+                  value={assignForm.areaId}
+                  onChange={(e) => setAssignForm({ ...assignForm, areaId: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none font-semibold"
+                >
+                  <option value={1}>Khu A - Rau Ăn Lá Hữu Cơ</option>
+                  <option value={2}>Khu B - Củ Quả Dinh Dưỡng</option>
+                  <option value={3}>Khu C - Rau Gia Vị & Thảo Mộc</option>
+                  <option value={4}>Khu D - Nông Nghiệp Công Nghệ Cao</option>
+                  <option value={5}>Khu E - Dược Liệu Sinh Thái</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Ca Trực *</label>
+                <select
+                  value={assignForm.shift}
+                  onChange={(e) => setAssignForm({ ...assignForm, shift: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none font-semibold"
+                >
+                  <option value="Ca Sáng (06:00 - 14:00)">Ca Sáng (06:00 - 14:00)</option>
+                  <option value="Ca Chiều (14:00 - 22:00)">Ca Chiều (14:00 - 22:00)</option>
+                  <option value="Toàn Thời Gian (Hành Chính)">Toàn Thời Gian (Hành Chính)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700 dark:text-slate-300">Ghi Chú Phân Công</label>
+                <textarea
+                  rows={2}
+                  value={assignForm.notes}
+                  onChange={(e) => setAssignForm({ ...assignForm, notes: e.target.value })}
+                  placeholder="Nhiệm vụ trọng tâm của kỹ thuật viên tại phân khu này..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-sm focus:ring-2 focus:ring-rose-500 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <Button type="button" variant="outline" onClick={() => setIsAssignModalOpen(false)}>
+                  Hủy
+                </Button>
+                <Button type="submit" variant="primary" className="bg-rose-600 hover:bg-rose-700 text-white font-bold">
+                  Xác Nhận Phân Công
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

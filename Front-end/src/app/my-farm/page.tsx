@@ -189,6 +189,18 @@ export default function MyFarmPage() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   // Realtime clock
+  // Role Guard: Redirect Admin & Staff away from customer farming page
+  useEffect(() => {
+    if (user) {
+      const role = (user.role || user.roleName || '').toLowerCase();
+      if (role === 'admin' || user.roleId === 1) {
+        router.replace('/admin');
+      } else if (role === 'staff' || user.roleId === 2) {
+        router.replace('/staff');
+      }
+    }
+  }, [user, router]);
+
   useEffect(() => {
     initAuth();
 
