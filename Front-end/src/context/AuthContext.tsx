@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       token: newToken,
       user: normalizedUser,
       isAuthenticated: !!newToken && !!normalizedUser,
+      ...(!newToken ? { isLoading: false } : {}),
     });
 
     // Sync localStorage and cookies
@@ -90,7 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const res = await api.get('/users/me');
         userData = res.data.data || res.data;
-      } catch {
+      } catch (err: any) {
+        if (err.response?.status !== 404) throw err;
         const res = await api.get('/auth/me');
         userData = res.data.data || res.data;
       }
@@ -109,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (err: any) {
-      if (err.response?.status === 401) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
         logout();
       }
     }
@@ -167,18 +169,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               headers: { Authorization: `Bearer ${savedToken}` },
             });
             freshUser = res.data.data || res.data;
-          } catch {
+          } catch (err: any) {
+            if (err.response?.status !== 404) throw err;
             const res = await api.get('/auth/me', {
               headers: { Authorization: `Bearer ${savedToken}` },
             });
             freshUser = res.data.data || res.data;
           }
 
+          if (localStorage.getItem('token') !== savedToken) return;
           const mergedUser = parsedUser ? { ...parsedUser, ...freshUser } : freshUser;
           syncAuthState(savedToken, mergedUser);
         } catch (apiErr: any) {
           // If token has expired or is invalid, clean up
-          if (apiErr.response?.status === 401) {
+          if (apiErr.response?.status === 401 || apiErr.response?.status === 403) {
             logout();
           }
         }

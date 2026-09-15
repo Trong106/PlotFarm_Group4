@@ -43,6 +43,8 @@ import {
   Wind
 } from 'lucide-react';
 import Header from '@/components/Header';
+import { PackageBenefits } from '@/components/care-packages/PackageBenefits';
+import { getPackageName } from '@/lib/care-packages';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -685,7 +687,7 @@ export default function MyFarmPage() {
                       <Badge variant="info" size="sm">{selectedItem.Category}</Badge>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Gói chăm sóc: <span className="font-bold text-slate-700 dark:text-slate-300">{selectedItem.PackageName}</span> • Diện tích: <span className="font-bold text-slate-700 dark:text-slate-300">{selectedItem.SizeM2} m²</span>
+                      Gói chăm sóc: <span className="font-bold text-slate-700 dark:text-slate-300">{getPackageName(selectedItem.PackageName)}</span> • Diện tích: <span className="font-bold text-slate-700 dark:text-slate-300">{selectedItem.SizeM2} m²</span>
                     </p>
                   </div>
                 </div>
@@ -721,6 +723,11 @@ export default function MyFarmPage() {
                   </Button>
                 </div>
               </div>
+
+              <PackageBenefits
+                packageName={selectedItem.PackageName}
+                servicesIncluded={selectedItem.ServicesIncluded}
+              />
 
               {/* Progress Bar & Growth Stages */}
               <div className="space-y-3">

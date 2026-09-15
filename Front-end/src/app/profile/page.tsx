@@ -37,6 +37,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useAddressStore, UserAddress } from '@/store/useAddressStore';
 import Header from '@/components/Header';
 import { AddressModal } from '@/components/profile/AddressModal';
+import api from '@/lib/axios';
 
 interface MyOrder {
   OrderId: number;
@@ -63,7 +64,7 @@ interface MyOrder {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: isAuthLoading, initAuth, fetchProfile, updateProfile } = useAuthStore();
+  const { user, isAuthenticated, isLoading: isAuthLoading, error: authError, initAuth, fetchProfile, updateProfile } = useAuthStore();
   const { addresses, isLoading: isAddressLoading, isSubmitting: isAddressSubmitting, fetchAddresses, setDefaultAddress, deleteAddress } = useAddressStore();
 
   const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'security'>('info');
@@ -117,10 +118,7 @@ export default function ProfilePage() {
 
     try {
       setIsLoadingOrders(true);
-      const res = await fetch('http://localhost:5000/api/orders/my', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const { data } = await api.get('/orders/my');
       if (data.success && Array.isArray(data.data)) {
         setOrders(data.data);
       }
@@ -154,10 +152,14 @@ export default function ProfilePage() {
 
     try {
       setIsSavingProfile(true);
-      await updateProfile({
+      const saved = await updateProfile({
         fullName: fullName.trim(),
         phoneNumber: phoneNumber.trim() ? phoneNumber.trim().replace(/[\s.-]/g, '') : undefined,
       });
+      if (!saved) {
+        setProfileFeedback({ type: 'error', message: useAuthStore.getState().error || 'Không thể lưu thông tin. Vui lòng thử lại.' });
+        return;
+      }
       setProfileFeedback({
         type: 'success',
         message: 'Cập nhật thông tin cá nhân thành công!',
@@ -211,16 +213,7 @@ export default function ProfilePage() {
 
     try {
       setIsSavingPassword(true);
-      const res = await fetch('http://localhost:5000/api/users/me/change-password', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-
-      const data = await res.json();
+      const { data } = await api.post('/users/me/change-password', { currentPassword, newPassword });
       if (data.success) {
         setPasswordFeedback({
           type: 'success',
@@ -239,7 +232,7 @@ export default function ProfilePage() {
     } catch (err: any) {
       setPasswordFeedback({
         type: 'error',
-        message: err.message || 'Lỗi hệ thống khi đổi mật khẩu',
+        message: err.response?.data?.message || err.message || 'Lỗi hệ thống khi đổi mật khẩu',
       });
     } finally {
       setIsSavingPassword(false);
@@ -303,7 +296,7 @@ export default function ProfilePage() {
     return name.slice(0, 2).toUpperCase();
   };
 
-  if (isAuthLoading) {
+  if (isAuthLoading && !user) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600 dark:text-emerald-400" />
@@ -379,6 +372,14 @@ export default function ProfilePage() {
         </div>
 
         {/* Global Feedback Banner */}
+        {authError && (
+          <div role="alert" className="p-4 rounded-2xl bg-rose-50 text-rose-800 flex items-center justify-between gap-3">
+            <span>{authError}</span>
+            <Button variant="outline" size="sm" onClick={() => void fetchProfile()} disabled={isAuthLoading}>
+              Thử lại
+            </Button>
+          </div>
+        )}
         {profileFeedback && (
           <div
             className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 animate-in fade-in duration-200 ${
