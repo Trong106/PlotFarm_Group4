@@ -1105,10 +1105,25 @@ export default function AdminDashboardPage() {
         {/* ================= TAB 5: QUẢN LÝ Ô ĐẤT ================= */}
         {activeTab === 'plots' && (
           <div className="space-y-4">
-            <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Layers className="w-5 h-5 text-rose-600" />
-              Tổng Quan 100 Ô Đất (5 Phân Khu)
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-rose-600" />
+                  Tổng Quan 100 Ô Đất (5 Phân Khu)
+                </h2>
+                <p className="text-xs text-slate-500">Giám sát trạng thái ô đất, diện tích và chuyển trạng thái vận hành trên sơ đồ.</p>
+              </div>
+              <Link href="/plots">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<MapPin className="w-4 h-4 text-emerald-600" />}
+                  className="font-bold text-xs"
+                >
+                  Mở Sơ Đồ Tương Tác Chi Tiết (/plots)
+                </Button>
+              </Link>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {plots.map((plot) => (
                 <div
@@ -1132,6 +1147,9 @@ export default function AdminDashboardPage() {
                     {plot.Status === 'RENTED' ? 'ĐÃ THUÊ' : plot.Status === 'MAINTENANCE' ? 'BẢO TRÌ' : 'CÒN TRỐNG'}
                   </span>
                   <p className="text-[10px] text-slate-500">{plot.SizeM2} m²</p>
+                  <Link href="/plots" className="block text-[10px] font-bold text-rose-600 hover:underline pt-1">
+                    Xem trên bản đồ →
+                  </Link>
                 </div>
               ))}
             </div>

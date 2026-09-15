@@ -36,7 +36,11 @@ interface CropInfo {
 }
 
 export default function LandingPage() {
-  const { isAuthenticated, initAuth } = useAuthStore();
+  const { isAuthenticated, user, initAuth } = useAuthStore();
+  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  const isStaff = user?.role === 'Staff' || user?.roleId === 2;
+  const dashboardHref = isAdmin ? '/admin' : isStaff ? '/staff' : '/my-farm';
+  const ctaLabel = isAdmin ? 'Vào Bảng Quản Trị' : isStaff ? 'Vào Trạm Kỹ Thuật' : 'Truy Cập Ô Đất Canh Tác';
   const [selectedCropModal, setSelectedCropModal] = useState<CropInfo | null>(null);
 
   useEffect(() => {
@@ -317,9 +321,9 @@ export default function LandingPage() {
 
           {/* CTA Banner inside Workflow Section */}
           <div className="mt-12 text-center">
-            <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+            <Link href={isAuthenticated ? dashboardHref : '/plots'}>
               <Button variant="primary" size="lg" className="shadow-lg shadow-emerald-500/20">
-                Bắt Đầu Ngay Với Ô Đất Đầu Tiên
+                {isAuthenticated ? (isAdmin ? 'Bảng Quản Trị Hệ Thống' : isStaff ? 'Trạm Kỹ Thuật Viên' : 'Khu Vườn Của Bạn') : 'Bắt Đầu Ngay Với Ô Đất Đầu Tiên'}
               </Button>
             </Link>
           </div>
@@ -342,9 +346,9 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+            <Link href="/plots">
               <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                Xem Toàn Bộ Hạt Giống
+                Xem Bản Đồ & Giống Cây
               </Button>
             </Link>
           </div>
@@ -447,9 +451,9 @@ export default function LandingPage() {
               Tham gia cộng đồng hơn 500 hộ gia đình đang chủ động nguồn rau sạch hữu cơ mỗi ngày cùng PlotFarm.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-              <Link href={isAuthenticated ? '/my-farm' : '/register'}>
+              <Link href={isAuthenticated ? dashboardHref : '/register'}>
                 <Button variant="primary" size="lg" className="font-bold px-8 shadow-lg shadow-emerald-500/25">
-                  {isAuthenticated ? 'Truy Cập Ô Đất Canh Tác' : 'Đăng Ký Tài Khoản Ngay'}
+                  {isAuthenticated ? ctaLabel : 'Đăng Ký Tài Khoản Ngay'}
                 </Button>
               </Link>
             </div>
@@ -489,7 +493,9 @@ export default function LandingPage() {
                   <a href="#giong-rau" className="hover:text-emerald-500 transition-colors">Danh mục giống rau sạch</a>
                 </li>
                 <li>
-                  <Link href="/my-farm" className="hover:text-emerald-500 transition-colors">Khu vườn của tôi</Link>
+                  <Link href={isAuthenticated ? dashboardHref : '/plots'} className="hover:text-emerald-500 transition-colors">
+                  {isAdmin ? 'Quản trị hệ thống' : isStaff ? 'Trạm kỹ thuật' : 'Khu vườn của tôi'}
+                </Link>
                 </li>
               </ul>
             </div>
