@@ -831,7 +831,7 @@ export default function MyFarmPage() {
                     {/* Top HUD */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-white text-xs font-mono drop-shadow">
                       <span className="bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
-                        {selectedItem.CameraCode || `CAM-${selectedItem.PlotCode}`} • {selectedItem.CameraName || selectedItem.PlotCode} • 11.9404° N, 108.4583° E (Đà Lạt)
+                        {selectedItem.CameraCode || `CAM-${selectedItem.PlotCode}`} • {selectedItem.CameraName || selectedItem.PlotCode} • GPS: 11.9404° N, 108.4583° E
                       </span>
                       <span className="bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
                         {liveTime}
@@ -869,7 +869,7 @@ export default function MyFarmPage() {
                   </div>
 
                   <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-                    Tín hiệu camera truyền hình trực tiếp độ trễ thấp từ nông trại hữu cơ PlotFarm Đà Lạt
+                    Tín hiệu camera truyền hình trực tiếp độ trễ thấp từ nông trại hữu cơ thông minh PlotFarm
                   </p>
                 </div>
               </div>
@@ -877,11 +877,11 @@ export default function MyFarmPage() {
               {/* Right 5 Cols: Live Sensor Telemetry */}
               <div className="lg:col-span-5 space-y-4">
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 shadow-sm">
-                  {/* Đà Lạt Microclimate */}
+                  {/*  Microclimate */}
                   <div className="p-3.5 rounded-2xl bg-gradient-to-r from-sky-50 to-emerald-50 dark:from-sky-950/30 dark:to-emerald-950/30 border border-sky-200 dark:border-sky-900/40 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black text-sky-900 dark:text-sky-300 flex items-center gap-1.5">
-                        <CloudSun className="w-4 h-4 text-sky-600" /> Vi Khí Hậu Nông Trại Đà Lạt
+                        <CloudSun className="w-4 h-4 text-sky-600" /> Vi Khí Hậu Nhà Màng Nông Trại
                       </span>
                       <span className="text-[10px] font-bold text-slate-500">19°C • Mát Mẻ</span>
                     </div>
@@ -1206,7 +1206,7 @@ export default function MyFarmPage() {
                         Theo Dõi Vận Chuyển Nông Sản (Delivery Tracking)
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Theo dõi hành trình rau hữu cơ từ lúc cắt tại vườn Đà Lạt đến khi giao tới bàn ăn gia đình
+                        Theo dõi hành trình rau hữu cơ từ lúc cắt tại vườn canh tác đến khi giao tới bàn ăn gia đình
                       </p>
                     </div>
 

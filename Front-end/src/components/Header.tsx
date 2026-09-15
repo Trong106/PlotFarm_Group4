@@ -259,9 +259,7 @@ export default function Header() {
           <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
             PlotFarm
           </span>
-          <Badge variant="success" size="sm" className="hidden sm:inline-flex ml-1">
-            Đà Lạt
-          </Badge>
+          
         </Link>
 
         {/* Desktop Navigation Links */}
