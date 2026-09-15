@@ -963,11 +963,27 @@ export default function MyFarmPage() {
                     </div>
                   </div>
 
+                  {/* Technician In-Charge Badge */}
+                  <div className="p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 flex items-center justify-between text-xs shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                        KT
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold block">Kỹ thuật viên phụ trách:</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">Kỹ Thuật Viên Mẫu (staff@plotfarm.vn)</span>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 text-[10px] font-bold">
+                      Ca Sáng
+                    </span>
+                  </div>
+
                   {/* IoT Connection Status Notice */}
                   <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
                     <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                      Trạng thái: Trạm cảm biến IoT thực địa đang chờ kết nối và đồng bộ thông số...
+                      Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình thường, truyền dữ liệu 24/7.
                     </p>
                   </div>
 
