@@ -12,7 +12,7 @@ interface AuthContextType {
   error: string | null;
   login: (email?: string, password?: string) => Promise<boolean>;
   register: (data: { fullName: string; email: string; password: string; phoneNumber?: string }) => Promise<boolean>;
-  logout: () => void;
+  logout: (redirectTo?: string) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -78,9 +78,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Logout handler
-  const logout = useCallback(() => {
+  const logout = useCallback((redirectTo: string = '/login') => {
     syncAuthState(null, null);
     setError(null);
+    if (typeof window !== 'undefined' && redirectTo) {
+      window.location.href = redirectTo;
+    }
   }, [syncAuthState]);
 
   // Refresh user profile from backend (/api/auth/me or /api/users/me)

@@ -34,13 +34,25 @@ export default function LoginPage() {
   const [clientError, setClientError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isLoggedOut = sessionStorage.getItem('logged_out');
+      if (isLoggedOut) {
+        sessionStorage.removeItem('logged_out');
+      }
+    }
+  }, []);
+
   // If already logged in, redirect to appropriate destination
   useEffect(() => {
     if (isAuthenticated && user) {
       setIsSuccess(true);
       const timer = setTimeout(() => {
-        if (user.role === 'ADMIN') {
+        const r = (user.role || '').toLowerCase();
+        if (r === 'admin') {
           router.push('/admin');
+        } else if (r === 'staff') {
+          router.push('/staff');
         } else {
           router.push('/my-farm');
         }

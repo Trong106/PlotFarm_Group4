@@ -26,7 +26,7 @@ interface AuthState {
   register: (data: { fullName: string; email: string; password: string; phoneNumber?: string }) => Promise<boolean>;
   fetchProfile: () => Promise<void>;
   updateProfile: (data: { fullName?: string; phoneNumber?: string | null }) => Promise<boolean>;
-  logout: () => void;
+  logout: (redirectTo?: string) => void;
   initAuth: () => void;
   rehydrate: () => void;
 }
@@ -281,11 +281,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: () => {
+  logout: (redirectTo: string = '/login') => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+      sessionStorage.setItem('logged_out', '1');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
     }
     set({
       user: null,
@@ -294,6 +295,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       error: null,
     });
     toast.info('Bạn đã đăng xuất khỏi hệ thống an toàn.', 'Đã đăng xuất');
+    if (typeof window !== 'undefined' && redirectTo) {
+      window.location.href = redirectTo;
+    }
   },
 }));
 

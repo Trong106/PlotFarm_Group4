@@ -89,13 +89,18 @@ export default function StaffPortalPage() {
   }, [initAuth]);
 
   useEffect(() => {
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!savedToken && !token) {
+      router.replace('/login');
+      return;
+    }
     if (user) {
       const role = (user.role || user.roleName || '').toLowerCase();
       if (role !== 'staff' && role !== 'admin' && user.roleId !== 2 && user.roleId !== 1) {
         router.replace('/my-farm');
       }
     }
-  }, [user, router]);
+  }, [user, token, router]);
 
   const fetchData = useCallback(async () => {
     if (!token) return;

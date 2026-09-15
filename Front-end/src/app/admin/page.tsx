@@ -225,13 +225,18 @@ export default function AdminDashboardPage() {
   }, [initAuth]);
 
   useEffect(() => {
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!savedToken && !token) {
+      router.replace('/login');
+      return;
+    }
     if (user) {
       const role = (user.role || user.roleName || '').toLowerCase();
       if (role !== 'admin' && user.roleId !== 1) {
         router.replace('/my-farm');
       }
     }
-  }, [user, router]);
+  }, [user, token, router]);
 
   // Loaders
   const loadAnalytics = useCallback(async () => {
@@ -564,7 +569,7 @@ export default function AdminDashboardPage() {
               <p className="text-[10px] text-slate-400 leading-none mt-1">{user?.email}</p>
             </div>
             <button
-              onClick={() => logout()}
+              onClick={() => logout('/login')}
               className="p-2 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
               title="Đăng xuất"
             >

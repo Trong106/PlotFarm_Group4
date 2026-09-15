@@ -194,7 +194,7 @@ export default function Header() {
   const handleLogout = () => {
     setIsDropdownOpen(false);
     setIsNotifOpen(false);
-    logout();
+    logout('/login');
   };
 
   const isAdmin = user?.role === 'Admin' || user?.roleId === 1;

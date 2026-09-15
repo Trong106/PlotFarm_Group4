@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 /**
  * List of protected routes requiring authentication token cookie
  */
-const PROTECTED_ROUTES = ['/my-farm', '/admin', '/dashboard', '/profile'];
+const PROTECTED_ROUTES = ['/my-farm', '/admin', '/staff', '/dashboard', '/profile'];
 
 /**
  * List of authentication routes (login/register)
@@ -51,6 +51,7 @@ export const config = {
     '/admin/:path*',
     '/dashboard/:path*',
     '/profile/:path*',
+    '/staff/:path*',
     '/login',
     '/register',
   ],
