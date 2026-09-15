@@ -39,6 +39,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import Header from '@/components/Header';
+import { PackageSelector } from '@/components/care-packages/PackageSelector';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -106,6 +107,7 @@ export default function PlotsPage() {
   const [plots, setPlots] = useState<Plot[]>([]);
   const [seeds, setSeeds] = useState<Seed[]>([]);
   const [carePackages, setCarePackages] = useState<CarePackage[]>([]);
+  const [packageError, setPackageError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +139,7 @@ export default function PlotsPage() {
           fetch('http://localhost:5000/api/plots/areas').then((r) => r.json()).catch(() => ({ success: false })),
           fetch('http://localhost:5000/api/plots/grid').then((r) => r.json()),
           fetch('http://localhost:5000/api/seeds').then((r) => r.json()),
-          fetch('http://localhost:5000/api/seeds/packages').then((r) => r.json()),
+          fetch('http://localhost:5000/api/seeds/packages').then((r) => r.ok ? r.json() : { success: false }).catch(() => ({ success: false })),
         ]);
 
         if (areasRes.success && areasRes.data && areasRes.data.length > 0) {
@@ -162,10 +164,12 @@ export default function PlotsPage() {
           setSelectedSeed(seed2 || seedsRes.data[0]);
         }
 
-        if (pkgsRes.success && pkgsRes.data) {
+        if (pkgsRes.success && Array.isArray(pkgsRes.data)) {
           setCarePackages(pkgsRes.data);
           // Default select Basic package (first package)
-          setSelectedPackage(pkgsRes.data[0]);
+          setSelectedPackage(pkgsRes.data[0] || null);
+        } else {
+          setPackageError('Không thể tải gói dịch vụ. Vui lòng tải lại trang để thử lại.');
         }
       } catch (err: any) {
         console.error('Error loading plots data:', err);
@@ -629,7 +633,7 @@ export default function PlotsPage() {
             {/* --------------------------------------------------------------------- */}
             {/* RIGHT COLUMN (5 / 12 COLS): COMPACT CULTIVATION STUDIO SIDEBAR */}
             {/* --------------------------------------------------------------------- */}
-            <div className="lg:col-span-5 xl:col-span-5 space-y-4 lg:sticky lg:top-6">
+            <div className="min-w-0 lg:col-span-5 xl:col-span-5 space-y-4 lg:sticky lg:top-6">
               {selectedPlot && (
                 <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-emerald-500/80 shadow-xl overflow-hidden p-5 space-y-5">
                   {/* 1. TOP CARD: REAL FARM PLOT PHOTO & INFO */}
@@ -800,38 +804,12 @@ export default function PlotsPage() {
                   </div>
 
                   {/* 3. GÓI DỊCH VỤ CHĂM SÓC */}
-                  <div className="space-y-2.5 pt-1 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <Package className="w-4 h-4 text-emerald-600" /> Gói Dịch Vụ Chăm Sóc
-                    </h4>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      {carePackages.map((pkg) => {
-                        const isPkgActive = selectedPackage?.PackageId === pkg.PackageId;
-                        return (
-                          <button
-                            key={pkg.PackageId}
-                            onClick={() => setSelectedPackage(pkg)}
-                            className={`p-2.5 rounded-xl border text-left transition-all ${
-                              isPkgActive
-                                ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 ring-2 ring-emerald-400 shadow-sm'
-                                : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-slate-300'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate block">
-                                {pkg.PackageName.split('(')[0].trim()}
-                              </span>
-                              {isPkgActive && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
-                            </div>
-                            <span className="text-[11px] font-bold text-emerald-600 block mt-1">
-                              {pkg.MonthlyFee / 1000}k<span className="text-[9px] text-slate-400">/th</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
+                  <PackageSelector
+                    packages={carePackages}
+                    selectedPackage={selectedPackage}
+                    onSelect={setSelectedPackage}
+                    error={packageError}
+                  />
 
                   {/* 4. DỰ TOÁN NÔNG NGHIỆP THÔNG MINH */}
                   <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white space-y-2 shadow-md">
