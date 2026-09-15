@@ -22,9 +22,15 @@ import {
   Package,
   RotateCcw,
   Lock,
+  ArrowRight,
+  ShoppingCart,
+  KeyRound,
+  ExternalLink,
+  Sprout,
+  Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -32,10 +38,35 @@ import { useAddressStore, UserAddress } from '@/store/useAddressStore';
 import Header from '@/components/Header';
 import { AddressModal } from '@/components/profile/AddressModal';
 
+interface MyOrder {
+  OrderId: number;
+  OrderCode: string;
+  PlotId: number;
+  SeedId: number;
+  CarePackageId: number;
+  DurationMonths: number;
+  TotalRentalDays: number;
+  StartDate: string;
+  EndDate: string;
+  RentalFee: number;
+  SeedFee: number;
+  CareFee: number;
+  TotalAmount: number;
+  Status: string;
+  CreatedAt: string;
+  PlotCode: string;
+  SizeM2: number;
+  SeedName: string;
+  SeedImageUrl?: string;
+  PackageName: string;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: isAuthLoading, initAuth, fetchProfile, updateProfile } = useAuthStore();
   const { addresses, isLoading: isAddressLoading, isSubmitting: isAddressSubmitting, fetchAddresses, setDefaultAddress, deleteAddress } = useAddressStore();
+
+  const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'security'>('info');
 
   // Profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -43,12 +74,24 @@ export default function ProfilePage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Address modal state
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [addressFeedback, setAddressFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Initialize auth and fetch data
+  // Order History state
+  const [orders, setOrders] = useState<MyOrder[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Change Password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   useEffect(() => {
     initAuth();
   }, [initAuth]);
@@ -57,10 +100,10 @@ export default function ProfilePage() {
     if (isAuthenticated) {
       fetchProfile();
       fetchAddresses();
+      fetchMyOrders();
     }
   }, [isAuthenticated, fetchProfile, fetchAddresses]);
 
-  // Sync form inputs with user profile
   useEffect(() => {
     if (user) {
       setFullName(user.fullName || '');
@@ -68,21 +111,40 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  // Handle Profile Update
+  const fetchMyOrders = async () => {
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null;
+    if (!token) return;
+
+    try {
+      setIsLoadingOrders(true);
+      const res = await fetch('http://localhost:5000/api/orders/my', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setOrders(data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load my orders:', err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: Record<string, string> = {};
+    setProfileErrors({});
+    setProfileFeedback(null);
 
-    const trimmedName = fullName.trim();
-    if (!trimmedName) {
+    const errors: Record<string, string> = {};
+    if (!fullName.trim()) {
       errors.fullName = 'Họ và tên không được để trống';
-    } else if (trimmedName.length > 100) {
-      errors.fullName = 'Họ và tên tối đa 100 ký tự';
+    } else if (fullName.trim().length < 2) {
+      errors.fullName = 'Họ và tên phải có ít nhất 2 ký tự';
     }
 
-    const trimmedPhone = phoneNumber.trim();
-    if (trimmedPhone && !/^\+?[0-9]{9,15}$/.test(trimmedPhone)) {
-      errors.phoneNumber = 'Số điện thoại gồm 9-15 chữ số';
+    if (phoneNumber && !/^0[0-9]{9}$/.test(phoneNumber.trim().replace(/[\s.-]/g, ''))) {
+      errors.phoneNumber = 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng số 0)';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -90,17 +152,25 @@ export default function ProfilePage() {
       return;
     }
 
-    setProfileErrors({});
-    setIsSavingProfile(true);
-
-    const ok = await updateProfile({
-      fullName: trimmedName,
-      phoneNumber: trimmedPhone || null,
-    });
-
-    setIsSavingProfile(false);
-    if (ok) {
+    try {
+      setIsSavingProfile(true);
+      await updateProfile({
+        fullName: fullName.trim(),
+        phoneNumber: phoneNumber.trim() ? phoneNumber.trim().replace(/[\s.-]/g, '') : undefined,
+      });
+      setProfileFeedback({
+        type: 'success',
+        message: 'Cập nhật thông tin cá nhân thành công!',
+      });
       setIsEditingProfile(false);
+      setTimeout(() => setProfileFeedback(null), 3500);
+    } catch (err: any) {
+      setProfileFeedback({
+        type: 'error',
+        message: err.message || 'Không thể lưu thông tin. Vui lòng thử lại.',
+      });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -113,153 +183,325 @@ export default function ProfilePage() {
     setIsEditingProfile(false);
   };
 
-  // Handle Delete Address confirmation
-  const handleDeleteAddress = async (addressId: number) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa địa chỉ nhận rau này không?')) {
-      setDeletingId(addressId);
-      await deleteAddress(addressId);
-      setDeletingId(null);
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordErrors({});
+    setPasswordFeedback(null);
+
+    const errors: Record<string, string> = {};
+    if (!currentPassword) {
+      errors.currentPassword = 'Vui lòng nhập mật khẩu hiện tại';
+    }
+    if (!newPassword) {
+      errors.newPassword = 'Vui lòng nhập mật khẩu mới';
+    } else if (newPassword.length < 6) {
+      errors.newPassword = 'Mật khẩu mới phải có ít nhất 6 ký tự';
+    }
+    if (newPassword !== confirmPassword) {
+      errors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
+      return;
+    }
+
+    const token = typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null;
+    if (!token) return;
+
+    try {
+      setIsSavingPassword(true);
+      const res = await fetch('http://localhost:5000/api/users/me/change-password', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setPasswordFeedback({
+          type: 'success',
+          message: 'Đổi mật khẩu thành công! Hãy ghi nhớ mật khẩu mới của bạn.',
+        });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordFeedback(null), 4000);
+      } else {
+        setPasswordFeedback({
+          type: 'error',
+          message: data.message || 'Đổi mật khẩu thất bại',
+        });
+      }
+    } catch (err: any) {
+      setPasswordFeedback({
+        type: 'error',
+        message: err.message || 'Lỗi hệ thống khi đổi mật khẩu',
+      });
+    } finally {
+      setIsSavingPassword(false);
     }
   };
 
-  const getRoleBadgeVariant = (role?: string) => {
-    switch (role?.toLowerCase()) {
-      case 'admin':
+  const handleSetDefault = async (addressId: number) => {
+    try {
+      await setDefaultAddress(addressId);
+      setAddressFeedback({
+        type: 'success',
+        message: 'Đã thiết lập địa chỉ mặc định!',
+      });
+      setTimeout(() => setAddressFeedback(null), 3000);
+    } catch (err: any) {
+      setAddressFeedback({
+        type: 'error',
+        message: err.message || 'Không thể cập nhật địa chỉ mặc định',
+      });
+    }
+  };
+
+  const handleDeleteAddress = async (addressId: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
+    try {
+      await deleteAddress(addressId);
+      setAddressFeedback({
+        type: 'success',
+        message: 'Đã xóa địa chỉ thành công!',
+      });
+      setTimeout(() => setAddressFeedback(null), 3000);
+    } catch (err: any) {
+      setAddressFeedback({
+        type: 'error',
+        message: err.message || 'Không thể xóa địa chỉ này',
+      });
+    }
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  };
+
+  const getRoleBadgeVariant = (roleName?: string) => {
+    switch (roleName) {
+      case 'Admin':
         return 'danger';
-      case 'staff':
+      case 'Staff':
         return 'warning';
       default:
-        return 'info';
+        return 'success';
     }
   };
 
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600 dark:text-emerald-400" />
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          Đang tải thông tin hồ sơ người dùng...
+        </p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <Header />
+        <div className="max-w-md mx-auto mt-20 p-6 text-center">
+          <Card className="p-8 shadow-xl rounded-3xl border border-slate-200 dark:border-slate-800">
+            <Lock className="w-12 h-12 mx-auto text-emerald-600 mb-4" />
+            <h2 className="text-xl font-black mb-2 text-slate-900 dark:text-white">
+              Yêu Cầu Đăng Nhập
+            </h2>
+            <p className="text-xs text-slate-500 mb-6">
+              Vui lòng đăng nhập để xem thông tin cá nhân và lịch sử đơn hàng của bạn.
+            </p>
+            <Link href="/login">
+              <Button variant="primary" className="w-full">
+                Đăng Nhập Ngay
+              </Button>
+            </Link>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  const displayRole = isAdmin ? 'Admin' : user?.role === 'Staff' || user?.roleId === 2 ? 'Staff' : 'Khách Hàng';
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#080d16] text-slate-900 dark:text-slate-100 transition-colors duration-300 pb-16">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Header />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Navigation & Status bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link href="/">
-            <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />}>
-              Quay Lại Trang Chủ
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+        {/* Top Back and Navigation Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:text-emerald-600 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors shadow-xs"
+              title="Về trang chủ"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                Tài Khoản & Hồ Sơ Cá Nhân
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                Quản lý thông tin tài khoản, đơn hàng đã thuê và sổ địa chỉ nhận nông sản
+              </p>
+            </div>
+          </div>
+
+          <Link href="/my-farm">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Sprout className="w-4 h-4 text-emerald-600" />}
+              className="bg-white dark:bg-slate-900 border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50"
+            >
+              Đến Nông Trại Của Tôi
             </Button>
           </Link>
-
-          <div className="flex items-center gap-2.5">
-            <Badge variant="success" dot icon={<ShieldCheck className="w-3.5 h-3.5" />}>
-              Xác thực SSL / JWT Bảo mật
-            </Badge>
-          </div>
         </div>
 
-        {/* Auth check: If not authenticated */}
-        {!isAuthLoading && !isAuthenticated && (
-          <Card variant="glass" className="border-amber-500/30 p-8 text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <AlertCircle className="w-8 h-8" />
-            </div>
-            <CardTitle className="text-xl font-bold">Vui Lòng Đăng Nhập</CardTitle>
-            <CardDescription className="max-w-md mx-auto">
-              Bạn cần đăng nhập tài khoản để truy cập hồ sơ cá nhân và quản lý sổ địa chỉ nhận nông sản.
-            </CardDescription>
-            <div>
-              <Link href="/login">
-                <Button variant="primary" size="md">
-                  Đến Trang Đăng Nhập
-                </Button>
-              </Link>
-            </div>
-          </Card>
+        {/* Global Feedback Banner */}
+        {profileFeedback && (
+          <div
+            className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 animate-in fade-in duration-200 ${
+              profileFeedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                : 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+            }`}
+          >
+            {profileFeedback.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{profileFeedback.message}</span>
+          </div>
         )}
 
-        {/* When authenticated */}
-        {(isAuthenticated || isAuthLoading) && (
-          <>
-            {/* 1. HERO PROFILE OVERVIEW CARD */}
-            <Card variant="glass" className="border-emerald-500/30 overflow-hidden shadow-xl shadow-emerald-500/5">
-              <CardHeader className="bg-gradient-to-r from-emerald-900/40 via-slate-900/40 to-teal-900/40 border-b border-slate-200/80 dark:border-slate-800/80 p-6 sm:p-8">
+        {/* 3 Main Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'info'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Hồ Sơ & Sổ Địa Chỉ</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'orders'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4" />
+            <span>Lịch Sử Đơn Thuê ({orders.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+              activeTab === 'security'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Đổi Mật Khẩu</span>
+          </button>
+        </div>
+
+        {/* ================= TAB 1: PROFILE INFO & ADDRESS BOOK ================= */}
+        {activeTab === 'info' && (
+          <div className="space-y-8">
+            {/* User Profile Card */}
+            <Card className="rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm bg-white dark:bg-slate-900">
+              <div className="p-6 sm:p-8 bg-gradient-to-br from-slate-50 via-emerald-50/20 to-teal-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border-b border-slate-200/70 dark:border-slate-800">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
-                  <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
-                    {/* Avatar Initials */}
-                    <div className="relative group">
-                      <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white font-black text-3xl flex items-center justify-center shadow-2xl ring-4 ring-emerald-500/30 group-hover:scale-105 transition-transform duration-300">
-                        {user?.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'PF'}
+                  <div className="flex flex-col sm:flex-row items-center sm:items-center gap-5 text-center sm:text-left">
+                    <div className="relative">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-black text-2xl sm:text-3xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
+                        {getInitials(user?.fullName)}
                       </div>
                       <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center">
-                        <Sparkles className="w-3.5 h-3.5 text-white" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                       </span>
                     </div>
 
-                    {/* Name & Role */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5">
-                        <CardTitle className="text-2xl sm:text-3xl font-black tracking-tight">
-                          {user?.fullName || 'Người dùng PlotFarm'}
-                        </CardTitle>
-                        <Badge
-                          variant={getRoleBadgeVariant(user?.role)}
-                          size="sm"
-                          className="uppercase font-bold tracking-wider"
-                        >
-                          {user?.role || 'Customer'}
-                        </Badge>
-                        <Badge variant="success" size="sm" dot>
-                          {user?.status || 'ACTIVE'}
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                          {user?.fullName || 'Người Dùng PlotFarm'}
+                        </h2>
+                        <Badge variant={getRoleBadgeVariant(displayRole)} size="sm">
+                          {displayRole}
                         </Badge>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1.5">
-                          <Mail className="w-3.5 h-3.5 text-emerald-500" />
-                          {user?.email || 'email@plotfarm.vn'}
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs">
+                          <Mail className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>{user?.email}</span>
                         </span>
                         {user?.phoneNumber && (
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                            {user.phoneNumber}
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-xs">
+                            <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>{user.phoneNumber}</span>
                           </span>
                         )}
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-emerald-500" />
-                          Thành viên PlotFarm
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Quick Edit Profile Button */}
-                  {!isEditingProfile && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingProfile(true)}
-                      leftIcon={<Edit3 className="w-4 h-4" />}
-                      className="shrink-0"
-                    >
-                      Đổi Tên & SĐT
-                    </Button>
-                  )}
+                  <div>
+                    {!isEditingProfile && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingProfile(true)}
+                        leftIcon={<Edit3 className="w-4 h-4" />}
+                        className="bg-white hover:bg-emerald-50 text-emerald-800 dark:bg-slate-800 dark:text-emerald-300 font-bold border-emerald-300"
+                      >
+                        Đổi Tên & SĐT
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </CardHeader>
+              </div>
 
-              {/* 2. PROFILE EDIT FORM OR VIEW INFO */}
-              <CardContent className="p-6 sm:p-8">
-                {isEditingProfile ? (
-                  <form onSubmit={handleSaveProfile} className="space-y-6 animate-fade-in">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                      <div>
-                        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          <Edit3 className="w-4 h-4 text-emerald-500" /> Chỉnh Sửa Thông Tin Cá Nhân
-                        </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Cập nhật họ tên và số điện thoại liên hệ nhận thông báo mùa vụ
-                        </p>
-                      </div>
-                    </div>
+              {/* Form editing profile */}
+              {isEditingProfile && (
+                <div className="p-6 sm:p-8 bg-white dark:bg-slate-900">
+                  <form onSubmit={handleSaveProfile} className="space-y-6">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Edit3 className="w-4 h-4 text-emerald-500" /> Cập Nhật Thông Tin Cá Nhân
+                    </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {/* Full Name */}
                       <Input
                         label="Họ và Tên *"
                         placeholder="Nhập họ và tên đầy đủ"
@@ -270,7 +512,6 @@ export default function ProfilePage() {
                         disabled={isSavingProfile}
                       />
 
-                      {/* Phone Number */}
                       <Input
                         label="Số Điện Thoại"
                         placeholder="Ví dụ: 0901234567"
@@ -278,48 +519,10 @@ export default function ProfilePage() {
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
                         error={profileErrors.phoneNumber}
-                        helperText="Dùng để nhận tin nhắn SMS khi nông sản được thu hoạch và giao hàng"
                         disabled={isSavingProfile}
                       />
-
-                      {/* Email (Read only) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase flex items-center justify-between">
-                          <span>Email Tài Khoản</span>
-                          <span className="text-[10px] text-slate-400 lowercase font-normal flex items-center gap-1">
-                            <Lock className="w-3 h-3" /> không thể đổi
-                          </span>
-                        </label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-3.5 text-slate-400 flex items-center">
-                            <Mail className="w-4 h-4" />
-                          </div>
-                          <input
-                            type="text"
-                            value={user?.email || ''}
-                            disabled
-                            className="w-full py-2.5 pl-10 pr-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Role & Permissions (Read only) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase">
-                          Vai Trò & Quyền Hạn
-                        </label>
-                        <div className="py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/50 flex items-center justify-between">
-                          <span className="text-sm font-semibold capitalize text-slate-700 dark:text-slate-300">
-                            {user?.role || 'Khách hàng'}
-                          </span>
-                          <Badge variant={getRoleBadgeVariant(user?.role)} size="sm">
-                            {user?.role || 'Customer'}
-                          </Badge>
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Action buttons */}
                     <div className="flex items-center justify-end gap-3 pt-2">
                       <Button
                         type="button"
@@ -327,7 +530,6 @@ export default function ProfilePage() {
                         size="sm"
                         onClick={handleCancelEditProfile}
                         disabled={isSavingProfile}
-                        leftIcon={<RotateCcw className="w-4 h-4" />}
                       >
                         Hủy Bỏ
                       </Button>
@@ -336,72 +538,25 @@ export default function ProfilePage() {
                         variant="primary"
                         size="sm"
                         disabled={isSavingProfile}
-                        leftIcon={
-                          isSavingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />
-                        }
+                        isLoading={isSavingProfile}
                       >
-                        {isSavingProfile ? 'Đang Lưu...' : 'Lưu Thay Đổi'}
+                        Lưu Thay Đổi
                       </Button>
                     </div>
                   </form>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-emerald-500" /> Họ và tên
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200">
-                        {user?.fullName || 'Chưa cập nhật họ tên'}
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-emerald-500" /> Email tài khoản
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200">
-                        {user?.email || 'Chưa cập nhật'}
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Phone className="w-3.5 h-3.5 text-emerald-500" /> Số điện thoại liên hệ
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200">
-                        {user?.phoneNumber || (
-                          <span className="text-sm font-normal text-slate-400 italic">Chưa liên kết số điện thoại</span>
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 space-y-1.5 hover:border-emerald-500/30 transition-colors">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-500" /> Số lượng địa chỉ đã lưu
-                      </p>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                        <span>{addresses.length} địa chỉ</span>
-                        {addresses.some((a) => a.isDefault) && (
-                          <Badge variant="success" size="sm">
-                            Đã có địa chỉ mặc định
-                          </Badge>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
+                </div>
+              )}
             </Card>
 
-            {/* 3. HARVEST SHIPPING ADDRESS BOOK */}
+            {/* Address Book Section */}
             <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-                    <MapPin className="w-6 h-6 text-emerald-500" /> Sổ Địa Chỉ Nhận Nông Sản Thu Hoạch
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                    Địa chỉ nhận rau củ quả thu hoạch từ các ô đất canh tác trực tuyến của bạn
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-emerald-500" /> Sổ Địa Chỉ Giao Nông Sản
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Địa chỉ nhận rau sạch khi thu hoạch vụ mùa từ trang trại PlotFarm
                   </p>
                 </div>
 
@@ -410,155 +565,269 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={() => setIsAddressModalOpen(true)}
                   leftIcon={<Plus className="w-4 h-4" />}
-                  className="shadow-lg shadow-emerald-500/20 shrink-0"
+                  className="bg-emerald-600 text-white text-xs font-bold"
                 >
                   Thêm Địa Chỉ Mới
                 </Button>
               </div>
 
-              {/* State A: Loading Skeleton */}
-              {isAddressLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-                  {[1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="p-6 rounded-3xl bg-white/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 space-y-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="h-5 w-36 bg-slate-200 dark:bg-slate-800 rounded-lg" />
-                        <div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded-lg" />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-4 w-48 bg-slate-200 dark:bg-slate-800 rounded" />
-                        <div className="h-4 w-full bg-slate-200 dark:bg-slate-800 rounded" />
-                      </div>
-                      <div className="pt-2 flex justify-end gap-2">
-                        <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-xl" />
-                      </div>
-                    </div>
-                  ))}
+              {addressFeedback && (
+                <div
+                  className={`p-3.5 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
+                    addressFeedback.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{addressFeedback.message}</span>
                 </div>
+              )}
+
+              {isAddressLoading ? (
+                <div className="p-8 text-center text-xs text-slate-500">Đang tải địa chỉ...</div>
               ) : addresses.length === 0 ? (
-                /* State B: Empty State Card */
-                <Card variant="glass" className="border-dashed border-2 border-slate-300 dark:border-slate-700/80 p-8 sm:p-12 text-center">
-                  <div className="max-w-md mx-auto space-y-4">
-                    <div className="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr from-emerald-500/10 via-teal-500/10 to-emerald-500/20 text-emerald-500 flex items-center justify-center shadow-inner">
-                      <Package className="w-10 h-10 animate-bounce" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                        Chưa có địa chỉ nhận rau nào
-                      </h3>
-                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-                        Thêm địa chỉ giao hàng ngay để hệ thống tự động vận chuyển nông sản sạch về tận nhà bạn khi mùa vụ đến ngày thu hoạch!
-                      </p>
-                    </div>
-                    <div className="pt-2">
-                      <Button
-                        variant="primary"
-                        size="md"
-                        onClick={() => setIsAddressModalOpen(true)}
-                        leftIcon={<Plus className="w-4 h-4" />}
-                      >
-                        Thêm Địa Chỉ Đầu Tiên
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
+                <div className="bg-white dark:bg-slate-900 border-2 border-dashed border-emerald-200 dark:border-slate-800 p-8 text-center rounded-3xl space-y-3">
+                  <Package className="w-10 h-10 mx-auto text-emerald-500" />
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Chưa có địa chỉ nào</h4>
+                  <p className="text-xs text-slate-500">Thêm địa chỉ giao nhận để nhận rau sạch tận nhà khi thu hoạch.</p>
+                  <Button variant="primary" size="sm" onClick={() => setIsAddressModalOpen(true)}>
+                    Thêm Ngay
+                  </Button>
+                </div>
               ) : (
-                /* State C: Grid of Address Cards */
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {addresses.map((address: UserAddress) => (
-                    <Card
-                      key={address.addressId}
-                      variant="glass"
-                      className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg ${
-                        address.isDefault
-                          ? 'border-emerald-500/60 ring-2 ring-emerald-500/20 bg-gradient-to-br from-emerald-950/20 via-slate-900/60 to-teal-950/20'
-                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                      }`}
-                    >
-                      <CardContent className="p-5 sm:p-6 space-y-4">
-                        {/* Header: Name and default badge */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-base text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                                <User className="w-4 h-4 text-emerald-500" />
-                                {address.recipientName}
-                              </span>
-                              {address.isDefault && (
-                                <Badge variant="success" size="sm" icon={<Star className="w-3 h-3 fill-emerald-500" />}>
-                                  Mặc Định
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                              <Phone className="w-3.5 h-3.5 text-emerald-500" />
-                              {address.phoneNumber}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Detailed address */}
-                        <div className="p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 space-y-1 text-xs">
-                          <p className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
-                            Địa chỉ giao nông sản
-                          </p>
-                          <p className="font-medium text-slate-800 dark:text-slate-200 leading-relaxed">
-                            {address.addressLine}
-                          </p>
-                          <p className="text-slate-500 dark:text-slate-400">
-                            {[address.ward, address.district, address.province].filter(Boolean).join(', ')}
-                          </p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-200/50 dark:border-slate-800/50 text-xs">
-                          <div>
-                            {!address.isDefault && (
-                              <button
-                                type="button"
-                                onClick={() => setDefaultAddress(address.addressId)}
-                                disabled={isAddressSubmitting}
-                                className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 flex items-center gap-1 transition-colors disabled:opacity-50"
-                              >
-                                <Star className="w-3.5 h-3.5" /> Đặt làm mặc định
-                              </button>
+                  {addresses.map((addr) => (
+                    <Card key={addr.addressId} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 space-y-3 shadow-sm">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-sm text-slate-900 dark:text-white">{addr.recipientName}</span>
+                            {addr.isDefault && (
+                              <Badge variant="success" size="sm">Mặc Định</Badge>
                             )}
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAddress(address.addressId)}
-                              disabled={deletingId === address.addressId || isAddressSubmitting}
-                              className="p-1.5 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                              title="Xóa địa chỉ"
-                            >
-                              {deletingId === address.addressId ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                              ) : (
-                                <Trash2 className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
+                          <span className="text-xs text-slate-500 font-mono">{addr.phoneNumber}</span>
                         </div>
-                      </CardContent>
+                        <button
+                          onClick={() => handleDeleteAddress(addr.addressId)}
+                          className="text-slate-400 hover:text-rose-500 p-1 rounded-lg"
+                          title="Xóa địa chỉ"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl">
+                        {addr.addressLine}, {addr.ward}, {addr.district}, {addr.province}
+                      </p>
+
+                      {!addr.isDefault && (
+                        <Button variant="outline" size="sm" onClick={() => handleSetDefault(addr.addressId)} className="text-xs">
+                          Đặt làm mặc định
+                        </Button>
+                      )}
                     </Card>
                   ))}
                 </div>
               )}
             </div>
-          </>
+          </div>
+        )}
+
+        {/* ================= TAB 2: ORDER HISTORY ================= */}
+        {activeTab === 'orders' && (
+          <div className="space-y-5">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-emerald-500" /> Lịch Sử Đơn Thuê Đất & Gói Chăm Sóc
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Danh sách các hợp đồng thuê luống đất, giống rau và dịch vụ chăm sóc đã thanh toán
+              </p>
+            </div>
+
+            {isLoadingOrders ? (
+              <div className="p-12 text-center text-xs text-slate-500">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
+                Đang tải lịch sử đơn hàng...
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+                <ShoppingCart className="w-12 h-12 mx-auto text-slate-300" />
+                <div>
+                  <h4 className="font-black text-base text-slate-900 dark:text-white">Bạn chưa có đơn thuê nào</h4>
+                  <p className="text-xs text-slate-500 mt-1">Hãy khám phá bản đồ ô đất và chọn giống cây để bắt đầu vụ rau đầu tiên!</p>
+                </div>
+                <Link href="/plots">
+                  <Button variant="primary" size="sm" leftIcon={<Sprout className="w-4 h-4" />}>
+                    Khám Phá Ô Đất Ngay
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <Card key={order.OrderId} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
+                      <div>
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-mono font-black text-sm text-slate-900 dark:text-white">
+                            {order.OrderCode}
+                          </span>
+                          <Badge variant={order.Status === 'PAID' ? 'success' : 'warning'} size="sm">
+                            {order.Status === 'PAID' ? 'Đã Thanh Toán' : order.Status}
+                          </Badge>
+                        </div>
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-1">
+                          <Clock className="w-3 h-3" /> Ngày đặt: {new Date(order.CreatedAt).toLocaleDateString('vi-VN')}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[11px] text-slate-400 block">Tổng tiền thanh toán</span>
+                        <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(order.TotalAmount)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Ô Đất Thuê</span>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{order.PlotCode}</p>
+                        <p className="text-slate-500">Diện tích: {order.SizeM2}m²</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Giống Cây & Gói</span>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{order.SeedName}</p>
+                        <p className="text-slate-500">{order.PackageName}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Thời Hạn Thuê</span>
+                        <p className="font-bold text-slate-900 dark:text-white text-sm">{order.DurationMonths} Tháng ({order.TotalRentalDays} ngày)</p>
+                        <Link href="/my-farm" className="inline-flex items-center gap-1 text-emerald-600 font-bold hover:underline pt-1">
+                          Vào xem nông trại <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= TAB 3: CHANGE PASSWORD ================= */}
+        {activeTab === 'security' && (
+          <div className="max-w-xl mx-auto space-y-5">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-emerald-500" /> Đổi Mật Khẩu Tài Khoản
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Cập nhật mật khẩu định kỳ để bảo vệ tài khoản và dữ liệu mùa vụ của bạn
+              </p>
+            </div>
+
+            {passwordFeedback && (
+              <div
+                className={`p-4 rounded-2xl text-xs font-semibold flex items-center gap-2.5 ${
+                  passwordFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {passwordFeedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{passwordFeedback.message}</span>
+              </div>
+            )}
+
+            <Card className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm">
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                    Mật khẩu hiện tại *
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu hiện tại"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {passwordErrors.currentPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1">{passwordErrors.currentPassword}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                    Mật khẩu mới * (ít nhất 6 ký tự)
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Nhập mật khẩu mới"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {passwordErrors.newPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1">{passwordErrors.newPassword}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 block mb-1">
+                    Xác nhận mật khẩu mới *
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu mới"
+                    className="w-full px-4 py-2.5 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  {passwordErrors.confirmPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1">{passwordErrors.confirmPassword}</p>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="md"
+                    className="w-full font-bold bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    disabled={isSavingPassword}
+                    isLoading={isSavingPassword}
+                  >
+                    Xác Nhận Đổi Mật Khẩu
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </div>
         )}
       </main>
 
-      {/* Add Address Modal */}
+      {/* Address creation modal */}
       <AddressModal
         isOpen={isAddressModalOpen}
         onClose={() => setIsAddressModalOpen(false)}
-        onSuccess={() => setIsAddressModalOpen(false)}
+        onSuccess={() => {
+          setAddressFeedback({
+            type: 'success',
+            message: 'Đã thêm địa chỉ giao nhận mới thành công!',
+          });
+          setTimeout(() => setAddressFeedback(null), 3000);
+        }}
       />
     </div>
   );

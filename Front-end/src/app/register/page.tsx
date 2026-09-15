@@ -52,6 +52,7 @@ export default function RegisterPage() {
       [name]: type === 'checkbox' ? checked : value,
     }));
     setClientError(null);
+    useAuthStore.setState({ error: null });
   };
 
   const handleBlur = (field: string) => {
@@ -91,8 +92,9 @@ export default function RegisterPage() {
       errors.email = 'Định dạng email không hợp lệ (ví dụ: ten@domain.com)';
     }
 
-    if (formData.phoneNumber.trim() && !/^\+?[0-9]{9,15}$/.test(formData.phoneNumber.trim())) {
-      errors.phoneNumber = 'Số điện thoại phải gồm 9–15 chữ số, có thể bắt đầu bằng +';
+    const cleanPhone = formData.phoneNumber.replace(/[\s.-]/g, '');
+    if (cleanPhone && !/^\+?[0-9]{9,15}$/.test(cleanPhone)) {
+      errors.phoneNumber = 'Số điện thoại phải gồm 9-15 chữ số, có thể bắt đầu bằng +';
     }
 
     if (!formData.password) {
@@ -108,11 +110,11 @@ export default function RegisterPage() {
     if (!formData.confirmPassword) {
       errors.confirmPassword = 'Vui lòng xác nhận lại mật khẩu';
     } else if (formData.password !== formData.confirmPassword) {
-      errors.confirmPassword = 'Mật khẩu xác nhận không trùng khớp';
+      errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
     }
 
     if (!formData.agreeTerms) {
-      errors.agreeTerms = 'Bạn cần đồng ý với Điều khoản dịch vụ';
+      errors.agreeTerms = 'Bạn phải đồng ý với Điều khoản và Chính sách';
     }
 
     return errors;
@@ -140,10 +142,11 @@ export default function RegisterPage() {
       return;
     }
 
+    const cleanPhone = formData.phoneNumber.replace(/[\s.-]/g, '');
     const payload = {
       fullName: formData.fullName.trim(),
       email: formData.email.trim().toLowerCase(),
-      phoneNumber: formData.phoneNumber.trim() || undefined,
+      phoneNumber: cleanPhone || undefined,
       password: formData.password,
     };
 
@@ -154,161 +157,140 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col relative overflow-hidden font-sans">
       {/* Background Orbs */}
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-green-500/15 blur-[120px] pointer-events-none" />
 
       {/* Top Navigation Bar */}
-      <header className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center max-w-7xl mx-auto w-full z-10">
-        <Link href="/" className="flex items-center gap-3 group">
+      <header className="relative z-50 p-6 flex justify-between items-center max-w-7xl mx-auto w-full shrink-0">
+        <Link href="/" className="flex items-center gap-3 group cursor-pointer">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
             <Sprout className="w-5 h-5" />
           </div>
-          <div>
-            <span className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">PlotFarm</span>
-            <span className="text-xs ml-2 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-300/40">
-              Smart Farm
-            </span>
-          </div>
+          <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
+            PlotFarm
+          </span>
+          <span className="hidden sm:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+            Smart Farm
+          </span>
         </Link>
 
         <div className="text-sm text-slate-600 dark:text-slate-400">
           Đã có tài khoản?{' '}
-          <Link
-            href="/login"
-            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4"
-          >
+          <Link href="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 hover:underline cursor-pointer transition-colors">
             Đăng nhập ngay
           </Link>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="max-w-6xl w-full mx-auto px-4 py-24 sm:px-6 lg:px-8 z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 pb-16 relative z-10">
+        <div className="max-w-4xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
 
-          {/* Left Column: Brand Showcase (Desktop only) */}
-          <div className="hidden lg:flex lg:col-span-5 flex-col space-y-8 pr-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold w-fit">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-              Nền Tảng Thuê Đất & Canh Tác Trực Tuyến
+          {/* Left Column: Value Proposition & Platform Highlights */}
+          <div className="hidden lg:flex lg:col-span-5 flex-col space-y-6 pr-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold w-fit">
+              <Sprout className="w-3.5 h-3.5" /> Nền Tảng Thuê Đất & Canh Tác Trực Tuyến
             </div>
 
-            <div className="space-y-4">
-              <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.2]">
-                Sở hữu mảnh vườn xanh riêng của bạn chỉ trong{' '}
-                <span className="bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
-                  vài phút
-                </span>
-              </h1>
-              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
-                Đăng ký tài khoản để khám phá bản đồ ô đất, theo dõi hành trình cây trồng qua Camera 24/7 và nhận nông sản hữu cơ tươi ngon ngay tại nhà.
-              </p>
-            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+              Sở hữu mảnh vườn xanh riêng của bạn chỉ trong <span className="text-emerald-600 dark:text-emerald-400">vài phút</span>
+            </h1>
 
-            {/* Feature Highlights */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-sm">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+              Đăng ký tài khoản để khám phá bản đồ ô đất, theo dõi hành trình cây trồng qua Camera 24/7 và nhận nông sản hữu cơ tươi ngon ngay tại nhà.
+            </p>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Camera className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Live Camera Trực Tiếp</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Giám sát ô đất của bạn mọi lúc, mọi nơi với video trực tuyến 24/7.</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Live Camera Trực Tiếp</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Giám sát ô đất của bạn mọi lúc, mọi nơi với video trực tuyến 24/7.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-sm">
-                <div className="w-9 h-9 rounded-xl bg-green-100 dark:bg-green-950/80 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Activity className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Cảm Biến Môi Trường IoT</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Đo đạc độ ẩm đất, nhiệt độ và tiến độ sinh trưởng tự động.</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Theo Dõi Nhiệt Độ & Độ Ẩm</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Nắm bắt nhiệt độ thời tiết và độ ẩm luống rau dễ dàng ngay trên ứng dụng.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-sm">
-                <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <div className="flex items-start gap-3 p-3 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 backdrop-blur-sm shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Truck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Thu Hoạch Giao Tận Cửa</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Đóng gói chuẩn VietGAP và giao nông sản tươi sạch tận nhà bạn.</p>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Thu Hoạch Giao Tận Cửa</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Đóng gói chuẩn VietGAP và giao nông sản tươi sạch tận nhà bạn.</p>
                 </div>
               </div>
             </div>
 
-            {/* Social Proof */}
-            <div className="flex items-center gap-6 pt-4 border-t border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-1.5 font-medium">
-                <Leaf className="w-4 h-4 text-emerald-500" />
-                <span>100% Nông sản hữu cơ</span>
-              </div>
-              <div className="flex items-center gap-1.5 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                <span>Bảo mật dữ liệu tuyệt đối</span>
-              </div>
+            <div className="flex items-center gap-6 pt-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+              <span className="flex items-center gap-1.5"><Leaf className="w-4 h-4 text-emerald-500" /> 100% Nông sản hữu cơ</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-emerald-500" /> Bảo mật dữ liệu tuyệt đối</span>
             </div>
           </div>
 
-          {/* Right Column: Register Card */}
+          {/* Right Column: Registration Card */}
           <div className="lg:col-span-7">
-            <div className="bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl backdrop-blur-xl rounded-3xl p-8 sm:p-10 transition-all duration-300">
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
 
-              {/* SUCCESS VIEW */}
               {isSuccess ? (
-                <div className="py-8 text-center space-y-6 animate-fade-in">
-                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto ring-8 ring-emerald-50 dark:ring-emerald-950/40">
-                    <CheckCircle2 className="w-8 h-8" />
+                /* Registration Success State */
+                <div className="text-center space-y-6 py-6 animate-fade-in">
+                  <div className="w-16 h-16 mx-auto rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                    <CheckCircle2 className="w-10 h-10" />
                   </div>
 
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
                       Đăng Ký Tài Khoản Thành Công!
                     </h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                      Chào mừng bạn đến với đại gia đình <strong className="text-emerald-600 dark:text-emerald-400">PlotFarm</strong>. Tài khoản của bạn đã được khởi tạo và sẵn sàng sử dụng.
+                    <p className="text-sm text-slate-600 dark:text-slate-400 max-w-sm mx-auto">
+                      Chào mừng <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formData.fullName}</span> gia nhập cộng đồng nông dân số PlotFarm.
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-left max-w-sm mx-auto space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Họ và tên:</span>
-                      <span className="font-semibold text-slate-900 dark:text-white">{formData.fullName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Email:</span>
-                      <span className="font-semibold text-slate-900 dark:text-white">{formData.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Vai trò mặc định:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Customer (Khách hàng)</span>
-                    </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                    <p>Email đăng nhập: <strong className="text-slate-800 dark:text-slate-200">{formData.email}</strong></p>
+                    <p>Vai trò hệ thống: <strong className="text-emerald-600 dark:text-emerald-400">Khách Hàng (Customer)</strong></p>
                   </div>
 
-                  <div className="pt-2">
+                  <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button
+                      variant="outline"
+                      size="md"
+                      onClick={() => router.push('/')}
+                    >
+                      Về Trang Chủ
+                    </Button>
                     <Button
                       variant="primary"
-                      size="lg"
-                      className="w-full sm:w-auto px-8"
+                      size="md"
                       rightIcon={<ArrowRight className="w-4 h-4" />}
                       onClick={() => router.push('/login')}
                     >
-                      Đăng Nhập Vào Hệ Thống
+                      Đăng Nhập Ngay
                     </Button>
                   </div>
                 </div>
               ) : (
-                /* FORM VIEW */
+                /* Registration Form State */
                 <div className="space-y-6">
-                  {/* Header */}
-                  <div className="space-y-1.5">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  <div>
+                    <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                       Tạo Tài Khoản Mới
                     </h2>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                       Điền thông tin bên dưới để bắt đầu trải nghiệm canh tác nông trại thông minh.
                     </p>
                   </div>
@@ -318,7 +300,7 @@ export default function RegisterPage() {
                     <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-start gap-3 text-red-700 dark:text-red-300 text-xs sm:text-sm animate-shake">
                       <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
                       <div className="flex-1">
-                        <span className="font-semibold block">Lỗi Đăng Ký</span>
+                        <span className="font-bold block">Lỗi Đăng Ký</span>
                         <span>{serverError}</span>
                       </div>
                     </div>
@@ -366,10 +348,10 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    {/* Email & Phone Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Email & Phone side by side on desktop */}
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-4">
                       {/* Email */}
-                      <div className="space-y-1">
+                      <div className="sm:col-span-7 space-y-1">
                         <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                           Email <span className="text-red-500">*</span>
                         </label>
@@ -400,9 +382,9 @@ export default function RegisterPage() {
                       </div>
 
                       {/* Phone Number */}
-                      <div className="space-y-1">
+                      <div className="sm:col-span-5 space-y-1">
                         <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          Số điện thoại <span className="text-slate-400 text-[10px] lowercase">(tùy chọn)</span>
+                          Số điện thoại <span className="text-slate-400 font-normal lowercase">(tùy chọn)</span>
                         </label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -565,6 +547,16 @@ export default function RegisterPage() {
                       </Button>
                     </div>
                   </form>
+
+                  {/* Quick Login link inside Card */}
+                  <div className="text-center pt-2 pb-1 border-t border-slate-100 dark:border-slate-800">
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Đã có tài khoản?{' '}
+                      <Link href="/login" className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer">
+                        Đăng nhập ngay tại đây
+                      </Link>
+                    </p>
+                  </div>
 
                   {/* Footer note */}
                   <p className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2">

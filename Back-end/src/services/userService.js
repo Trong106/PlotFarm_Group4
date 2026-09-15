@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const { sql } = db;
 const { TABLES } = require('../models');
@@ -27,11 +28,19 @@ const bindUpdates = (request, fields, data) => Object.entries(fields)
     return `${column} = @${column}`;
   });
 
+const mapRole = (user) => {
+  if (user && user.roleId !== undefined) {
+    user.role = user.roleId === 1 ? 'Admin' : user.roleId === 2 ? 'Staff' : 'Customer';
+    user.roleName = user.role;
+  }
+  return user;
+};
+
 const getProfile = async (userId) => {
   const result = await db.getPool().request().input('UserId', sql.Int, userId)
     .query(`SELECT ${profileColumns.join(', ')} FROM ${TABLES.USERS} WHERE UserId = @UserId`);
   if (!result.recordset.length) throw httpError(404, 'Không tìm thấy người dùng');
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 };
 
 const updateProfile = async (userId, data) => {
@@ -42,7 +51,7 @@ const updateProfile = async (userId, data) => {
       SET ${updates.join(', ')}, UpdatedAt = SYSDATETIME()
       OUTPUT ${outputColumns(profileColumns)} WHERE UserId = @UserId`);
     if (!result.recordset.length) throw httpError(404, 'Không tìm thấy người dùng');
-    return toJson(result.recordset[0]);
+    return mapRole(toJson(result.recordset[0]));
   } catch (error) {
     const number = error.number ?? error.originalError?.info?.number;
     if (number === 2601 || number === 2627) {
@@ -52,6 +61,38 @@ const updateProfile = async (userId, data) => {
     }
     throw error;
   }
+};
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+  if (!currentPassword || !newPassword) {
+    throw httpError(400, 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới');
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 6) {
+    throw httpError(400, 'Mật khẩu mới phải có ít nhất 6 ký tự');
+  }
+
+  const pool = db.getPool();
+  const userResult = await pool.request()
+    .input('UserId', sql.Int, userId)
+    .query(`SELECT PasswordHash FROM ${TABLES.USERS} WHERE UserId = @UserId`);
+
+  if (!userResult.recordset.length) {
+    throw httpError(404, 'Không tìm thấy người dùng');
+  }
+
+  const user = userResult.recordset[0];
+  const isMatch = await bcrypt.compare(currentPassword, user.PasswordHash);
+  if (!isMatch) {
+    throw httpError(400, 'Mật khẩu hiện tại không chính xác');
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await pool.request()
+    .input('UserId', sql.Int, userId)
+    .input('PasswordHash', sql.NVarChar(255), newHash)
+    .query(`UPDATE ${TABLES.USERS} SET PasswordHash = @PasswordHash, UpdatedAt = SYSDATETIME() WHERE UserId = @UserId`);
+
+  return { message: 'Đổi mật khẩu thành công' };
 };
 
 const listAddresses = async (userId) => {
@@ -66,7 +107,7 @@ const getAddress = async (userId, addressId, connection = db.getPool()) => {
     .query(`SELECT ${addressColumns.join(', ')} FROM ${TABLES.USER_ADDRESSES}
       WHERE UserId = @UserId AND AddressId = @AddressId`);
   if (!result.recordset.length) throw httpError(404, 'Không tìm thấy địa chỉ');
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 };
 
 // Serialize address writes for each owner, including when their address book is empty.
@@ -99,7 +140,7 @@ const createAddress = (userId, data) => withAddressTransaction(userId, async (tr
   const columns = Object.values(addressFields).map(([column]) => column);
   const result = await request.query(`INSERT INTO ${TABLES.USER_ADDRESSES} (UserId, ${columns.join(', ')})
     OUTPUT ${outputColumns(addressColumns)} VALUES (@UserId, ${columns.map((column) => `@${column}`).join(', ')})`);
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 });
 
 const updateAddress = (userId, addressId, data) => withAddressTransaction(userId, async (transaction) => {
@@ -111,7 +152,7 @@ const updateAddress = (userId, addressId, data) => withAddressTransaction(userId
   const result = await request.query(`UPDATE ${TABLES.USER_ADDRESSES} SET ${updates.join(', ')}, UpdatedAt = SYSDATETIME()
     OUTPUT ${outputColumns(addressColumns)} WHERE UserId = @UserId AND AddressId = @AddressId`);
   if (!result.recordset.length) throw httpError(404, 'Không tìm thấy địa chỉ');
-  return toJson(result.recordset[0]);
+  return mapRole(toJson(result.recordset[0]));
 });
 
 const deleteAddress = (userId, addressId) => withAddressTransaction(userId, async (transaction) => {
@@ -129,4 +170,13 @@ const deleteAddress = (userId, addressId) => withAddressTransaction(userId, asyn
   }
 });
 
-module.exports = { getProfile, updateProfile, listAddresses, getAddress, createAddress, updateAddress, deleteAddress };
+module.exports = {
+  getProfile,
+  updateProfile,
+  changePassword,
+  listAddresses,
+  getAddress,
+  createAddress,
+  updateAddress,
+  deleteAddress,
+};

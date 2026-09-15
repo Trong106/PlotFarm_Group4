@@ -1,62 +1,81 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  Sprout,
   Mail,
   Lock,
-  LogIn,
-  CheckCircle2,
-  AlertCircle,
-  ShieldCheck,
-  Trees,
-  Sun,
-  KeyRound,
   ArrowRight,
-  HelpCircle,
+  Sprout,
+  Eye,
+  EyeOff,
+  Sparkles,
+  Camera,
+  Activity,
+  Truck,
+  Leaf,
+  ShieldCheck,
+  AlertCircle,
+  CheckCircle2,
+  UserCheck,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/useAuthStore';
+import { Button } from '@/components/ui/Button';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading, error, isAuthenticated, token, user } = useAuthStore();
+  const { login, isLoading, error: serverError, isAuthenticated, user } = useAuthStore();
 
-  const [email, setEmail] = useState('admin@plotfarm.vn');
-  const [password, setPassword] = useState('password123');
-  const [formError, setFormError] = useState('');
-  const [saveTokenStatus, setSaveTokenStatus] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  // If already authenticated, show status or redirect option
+  // If already logged in, redirect to appropriate destination
   useEffect(() => {
-    if (isAuthenticated && token) {
-      setSaveTokenStatus(`Token JWT đã được lưu vào LocalStorage & Cookie thành công!`);
+    if (isAuthenticated && user) {
+      setIsSuccess(true);
+      const timer = setTimeout(() => {
+        if (user.role === 'ADMIN') {
+          router.push('/admin');
+        } else {
+          router.push('/my-farm');
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, user, router]);
 
+  // Quick Account Autofill for seamless testing
+  const selectQuickAccount = (quickEmail: string, quickPass: string) => {
+    setEmail(quickEmail);
+    setPassword(quickPass);
+    setClientError(null);
+  };
+
+  // Validation
   const validateForm = () => {
     if (!email.trim()) {
-      setFormError('Vui lòng nhập địa chỉ Email!');
+      setClientError('Vui lòng nhập địa chỉ Email');
       return false;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setFormError('Định dạng Email không hợp lệ (ví dụ: user@domain.com)!');
+      setClientError('Định dạng email không hợp lệ (ví dụ: user@domain.com)');
       return false;
     }
     if (!password) {
-      setFormError('Vui lòng nhập Mật khẩu!');
+      setClientError('Vui lòng nhập mật khẩu');
       return false;
     }
     if (password.length < 4) {
-      setFormError('Mật khẩu phải từ 4 ký tự trở lên!');
+      setClientError('Mật khẩu phải từ 4 ký tự trở lên');
       return false;
     }
-    setFormError('');
+    setClientError(null);
     return true;
   };
 
@@ -64,250 +83,324 @@ export default function LoginPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const success = await login(email, password);
+    const success = await login(email.trim().toLowerCase(), password);
     if (success) {
-      setSaveTokenStatus('JWT Token từ API Express đã được nhận và lưu vào Cookie / LocalStorage!');
+      setIsSuccess(true);
+      // Wait a moment for visual confirmation, then route
+      setTimeout(() => {
+        router.push('/my-farm');
+      }, 800);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[#FAF7F2] dark:bg-[#0F140D] text-slate-800 dark:text-slate-100 transition-colors duration-300">
-      {/* Left Column: Branding & Green/Brown Farm Theme (Visible on md and larger) */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-soil-900 via-soil-800 to-brand-950 p-12 flex-col justify-between overflow-hidden shadow-2xl">
-        {/* Decorative background glows */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-brand-500/20 rounded-full blur-3xl pointer-events-none -translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-soil-500/20 rounded-full blur-3xl pointer-events-none translate-x-1/3 translate-y-1/3" />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col relative overflow-hidden font-sans">
+      {/* Ambient Background Glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/15 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-green-500/15 blur-[120px] pointer-events-none" />
 
-        {/* Top Header Branding */}
-        <div className="relative z-10 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-500 text-white shadow-lg shadow-brand-600/30 group-hover:scale-105 transition-transform">
-              <Sprout className="w-7 h-7" />
-            </div>
-            <div>
-              <span className="font-extrabold text-2xl tracking-tight text-white flex items-center gap-2">
-                PlotFarm
-              </span>
-              <p className="text-xs text-soil-200/80 font-medium">Nền tảng quản lý nông trại & cho thuê đất trồng</p>
-            </div>
-          </Link>
-
-          <Badge variant="success" dot size="sm">
-            Ready for Next.js
-          </Badge>
-        </div>
-
-        {/* Center Hero Banner Text */}
-        <div className="relative z-10 my-auto space-y-6 max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-soil-700/60 border border-soil-600/50 text-soil-100 text-xs font-semibold backdrop-blur-md">
-            <Trees className="w-4 h-4 text-brand-400" /> Hệ Thống Quản Lý Nông Trại Thông Minh
+      {/* Top Navigation Bar */}
+      <header className="relative z-50 p-6 flex justify-between items-center max-w-7xl mx-auto w-full shrink-0">
+        <Link href="/" className="flex items-center gap-3 group cursor-pointer">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-200">
+            <Sprout className="w-5 h-5" />
           </div>
-
-          <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight">
-            Quản Lý Ô Đất & Nông Nông Nghiệp <span className="bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-emerald-300">Tối Ưu</span>
-          </h1>
-
-          <p className="text-soil-200/90 text-sm xl:text-base leading-relaxed">
-            Đăng nhập để theo dõi tiến độ canh tác, cập nhật WBS dự án, lập kế hoạch thu hoạch và quản lý hợp đồng cho thuê đất dễ dàng.
-          </p>
-
-          {/* Feature Highlights Grid */}
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-              <div className="flex items-center gap-2 text-brand-300 text-xs font-bold mb-1">
-                <ShieldCheck className="w-4 h-4" /> Bảo Mật JWT Token
-              </div>
-              <p className="text-xs text-soil-300">Tự động mã hóa & lưu an toàn vào Cookie & LocalStorage.</p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-              <div className="flex items-center gap-2 text-brand-300 text-xs font-bold mb-1">
-                <Sun className="w-4 h-4 text-amber-400" /> Đồng Bộ Realtime
-              </div>
-              <p className="text-xs text-soil-300">Kết nối trực tiếp API Express Server cổng 5000.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer info inside Left Hero */}
-        <div className="relative z-10 pt-6 border-t border-soil-700/50 flex items-center justify-between text-xs text-soil-300">
-          <span>Hệ thống quản lý nông trại thông minh</span>
-          <span>Next.js 14 + Tailwind CSS</span>
-        </div>
-      </div>
-
-      {/* Right Column: Interactive Login Form Panel */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 xl:p-16 overflow-y-auto">
-        {/* Mobile Header Logo */}
-        <div className="flex lg:hidden items-center justify-between mb-8">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-xl bg-brand-600 text-white">
-              <Sprout className="w-5 h-5" />
-            </div>
-            <span className="font-extrabold text-xl text-soil-900 dark:text-white">PlotFarm</span>
-          </Link>
-        </div>
-
-        {/* Login Form Container */}
-        <div className="max-w-md w-full mx-auto my-auto space-y-8">
-          {/* Header text */}
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-1 rounded-md bg-soil-100 dark:bg-soil-950 text-soil-800 dark:text-soil-200 text-xs font-bold border border-soil-300/60 dark:border-soil-800">
-                🌱 Tông màu Xanh Lá & Nâu Đất
-              </span>
-            </div>
-            <h2 className="text-3xl font-extrabold text-soil-950 dark:text-white tracking-tight">
-              Đăng Nhập Tài Khoản
-            </h2>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-              Nhập thông tin để truy cập bảng điều khiển hệ thống PlotFarm.
-            </p>
+            <span className="font-bold text-xl text-slate-900 dark:text-white tracking-tight">PlotFarm</span>
+            <span className="text-xs ml-2 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-semibold border border-emerald-300/40">
+              Smart Farm
+            </span>
           </div>
-          {/* Authenticated Success Banner */}
-          {isAuthenticated && (
-            <div className="p-4 rounded-2xl bg-brand-500/10 border border-brand-500/30 text-brand-900 dark:text-brand-200 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-bold text-brand-700 dark:text-brand-300">
-                <CheckCircle2 className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
-                Đã Đăng Nhập Thành Công!
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                Xin chào <strong>{user?.fullName}</strong> ({user?.email}) - Chức vụ: <span className="font-bold text-brand-600 dark:text-brand-400">{user?.role}</span>
+        </Link>
+
+        <div className="text-sm text-slate-600 dark:text-slate-400">
+          Chưa có tài khoản?{' '}
+          <Link
+            href="/register"
+            className="font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4 cursor-pointer"
+          >
+            Đăng ký ngay
+          </Link>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-6xl w-full mx-auto px-4 py-8 sm:px-6 lg:px-8 relative z-10 flex-1 flex items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+
+          {/* Left Column: Brand Showcase (Desktop only - Đồng bộ với trang Đăng ký) */}
+          <div className="hidden lg:flex lg:col-span-5 flex-col space-y-8 pr-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold w-fit">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
+              Nền Tảng Thuê Đất & Canh Tác Trực Tuyến
+            </div>
+
+            <div className="space-y-4">
+              <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-[1.2]">
+                Chào mừng bạn trở lại với{' '}
+                <span className="bg-gradient-to-r from-emerald-600 to-green-500 bg-clip-text text-transparent">
+                  Khu Vườn Của Bạn
+                </span>
+              </h1>
+              <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+                Đăng nhập tài khoản để xem vườn rau qua Camera 24/7, theo dõi nhiệt độ sinh trưởng và nhận nông sản tươi sạch giao tận nhà.
               </p>
-              {token && (
-                <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 font-mono text-[11px] break-all border border-brand-200 dark:border-brand-900">
-                  <span className="font-bold text-soil-700 dark:text-soil-400">JWT Token: </span>
-                  <span className="text-slate-700 dark:text-slate-300">{token.substring(0, 45)}...</span>
+            </div>
+
+            {/* Feature Highlights (3 thẻ tính năng đồng bộ tuyệt đối với trang đăng ký) */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-sm">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <Camera className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Live Camera Trực Tiếp</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Giám sát ô đất của bạn mọi lúc, mọi nơi với video trực tuyến 24/7.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-sm">
+                <div className="w-9 h-9 rounded-xl bg-green-100 dark:bg-green-950/80 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0">
+                  <Activity className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Theo Dõi Nhiệt Độ & Độ Ẩm</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Nắm bắt nhiệt độ thời tiết và độ ẩm luống rau dễ dàng ngay trên ứng dụng.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-white/60 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 shadow-sm backdrop-blur-sm">
+                <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950/80 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                  <Truck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Thu Hoạch Giao Tận Cửa</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Đóng gói chuẩn VietGAP và giao nông sản tươi sạch tận nhà bạn.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Social Proof */}
+            <div className="flex items-center gap-6 pt-4 border-t border-slate-200 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 font-medium">
+                <Leaf className="w-4 h-4 text-emerald-500" />
+                <span>100% Nông sản hữu cơ</span>
+              </div>
+              <div className="flex items-center gap-1.5 font-medium">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Bảo mật dữ liệu tuyệt đối</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Login Card */}
+          <div className="lg:col-span-7">
+            <div className="bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 shadow-2xl backdrop-blur-xl rounded-3xl p-8 sm:p-10 transition-all duration-300 space-y-6">
+
+              {/* SUCCESS VIEW */}
+              {isSuccess ? (
+                <div className="py-8 text-center space-y-6 animate-fade-in">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto ring-8 ring-emerald-50 dark:ring-emerald-950/40">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold text-slate-900 dark:text-white">
+                      Đăng Nhập Thành Công!
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                      Chào mừng <strong className="text-emerald-600 dark:text-emerald-400">{user?.fullName || 'bạn'}</strong> đã quay trở lại PlotFarm. Đang chuyển hướng vào hệ thống...
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full sm:w-auto px-8"
+                      rightIcon={<ArrowRight className="w-4 h-4" />}
+                      onClick={() => router.push('/my-farm')}
+                    >
+                      Đến Bảng Điều Khiển Ngay
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                /* FORM VIEW */
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="space-y-1.5">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                      Đăng Nhập Hệ Thống
+                    </h2>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Điền email và mật khẩu để quản lý ô đất nông nghiệp của bạn.
+                    </p>
+                  </div>
+
+                  {/* Server Error Alert Banner */}
+                  {serverError && (
+                    <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-start gap-3 text-red-700 dark:text-red-300 text-xs sm:text-sm animate-shake">
+                      <AlertCircle className="w-5 h-5 shrink-0 text-red-500 mt-0.5" />
+                      <div className="flex-1">
+                        <span className="font-semibold block">Đăng Nhập Thất Bại</span>
+                        <span>{serverError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client Validation Alert Banner */}
+                  {clientError && (
+                    <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center gap-2.5 text-amber-800 dark:text-amber-300 text-xs animate-fade-in">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-500" />
+                      <span>{clientError}</span>
+                    </div>
+                  )}
+
+                  {/* Quick Select Account Bar */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span className="font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Chọn nhanh tài khoản:
+                      </span>
+                      <span className="text-[11px] text-slate-400">Tự động điền 1 chạm</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectQuickAccount('customer@plotfarm.vn', 'password123')}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600/80 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-emerald-500 hover:text-emerald-600 transition-colors text-center truncate shadow-sm"
+                      >
+                        Khách Hàng
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectQuickAccount('staff@plotfarm.vn', 'password123')}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600/80 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-teal-500 hover:text-teal-600 transition-colors text-center truncate shadow-sm"
+                      >
+                        Nhân Viên
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectQuickAccount('admin@plotfarm.vn', 'password123')}
+                        className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600/80 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 transition-colors text-center truncate shadow-sm"
+                      >
+                        Quản Trị Viên
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Login Form */}
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Email Field */}
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Email đăng nhập <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Mail className="w-4 h-4" />
+                        </div>
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value);
+                            setClientError(null);
+                          }}
+                          placeholder="ten@domain.com"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          Mật khẩu <span className="text-red-500">*</span>
+                        </label>
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            alert('Tính năng khôi phục mật khẩu qua Email đang được chuẩn bị.');
+                          }}
+                          className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                        >
+                          Quên mật khẩu?
+                        </a>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            setClientError(null);
+                          }}
+                          placeholder="Nhập mật khẩu..."
+                          className="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Remember me */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="rememberMe"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
+                      />
+                      <label htmlFor="rememberMe" className="text-xs text-slate-600 dark:text-slate-400 select-none cursor-pointer">
+                        Ghi nhớ phiên đăng nhập trên thiết bị này
+                      </label>
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="pt-2">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        size="lg"
+                        className="w-full text-base font-bold shadow-lg shadow-emerald-600/25 group"
+                        disabled={isLoading}
+                        rightIcon={<ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+                      >
+                        {isLoading ? 'Đang Đăng Nhập...' : 'Đăng Nhập Vào Hệ Thống'}
+                      </Button>
+                    </div>
+                  </form>
+
+                  {/* Bottom Register Switch */}
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
+                    Chưa có tài khoản PlotFarm?{' '}
+                    <Link
+                      href="/register"
+                      className="font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 transition-colors underline underline-offset-4"
+                    >
+                      Đăng ký tài khoản mới ngay
+                    </Link>
+                  </div>
                 </div>
               )}
-              <div className="pt-1 flex gap-2">
-                <Button variant="primary" size="sm" onClick={() => router.push('/')} leftIcon={<ArrowRight className="w-3.5 h-3.5" />}>
-                  Trang Chủ PlotFarm
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Error Banner */}
-          {(formError || error) && (
-            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-400 flex items-start gap-3 text-xs font-semibold">
-              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-sm">Có Lỗi Xảy Ra</p>
-                <p className="mt-0.5 leading-relaxed">{formError || error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Notification status for cookie saving */}
-          {saveTokenStatus && !formError && !error && (
-            <div className="p-3 rounded-xl bg-soil-100 dark:bg-soil-950/80 border border-soil-300 dark:border-soil-800 text-soil-800 dark:text-soil-200 text-xs font-medium flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
-              <span>{saveTokenStatus}</span>
-            </div>
-          )}
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <Input
-              label="Địa chỉ Email"
-              type="email"
-              placeholder="nhap.email@domain.com"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setFormError('');
-              }}
-              leftIcon={<Mail className="w-4 h-4 text-soil-600 dark:text-soil-400" />}
-              autoComplete="email"
-            />
-
-            <Input
-              label="Mật Khẩu"
-              isPassword
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setFormError('');
-              }}
-              leftIcon={<Lock className="w-4 h-4 text-soil-600 dark:text-soil-400" />}
-              autoComplete="current-password"
-            />
-
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-400">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-slate-300 dark:border-slate-700"
-                />
-                Ghi nhớ phiên đăng nhập (Cookie 7 ngày)
-              </label>
-
-              <a href="#" className="font-semibold text-brand-700 hover:text-brand-600 dark:text-brand-400 hover:underline">
-                Quên mật khẩu?
-              </a>
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              isLoading={isLoading}
-              className="w-full bg-gradient-to-r from-brand-600 via-emerald-600 to-soil-700 hover:from-brand-500 hover:to-soil-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-brand-700/20"
-              leftIcon={<LogIn className="w-5 h-5" />}
-            >
-              Đăng Nhập Hệ Thống PlotFarm
-            </Button>
-          </form>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-soil-950 border border-slate-200 dark:border-soil-900 space-y-2 text-xs">
-            <div className="flex items-center gap-1.5 font-bold text-soil-900 dark:text-soil-200">
-              <HelpCircle className="w-4 h-4 text-brand-600" /> Tài khoản kiểm thử nhanh (Demo Accounts):
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('admin@plotfarm.vn');
-                  setPassword('password123');
-                }}
-                className="p-2 rounded-xl bg-slate-50 dark:bg-soil-900/60 hover:bg-brand-50 dark:hover:bg-soil-800 text-left border border-slate-200 dark:border-soil-800 transition-colors"
-              >
-                <div className="font-bold text-slate-800 dark:text-slate-200">Admin/Chủ Nông Trại</div>
-                <div className="text-[10px] text-slate-500">admin@plotfarm.vn</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail('farmer@plotfarm.vn');
-                  setPassword('farmer123');
-                }}
-                className="p-2 rounded-xl bg-slate-50 dark:bg-soil-900/60 hover:bg-brand-50 dark:hover:bg-soil-800 text-left border border-slate-200 dark:border-soil-800 transition-colors"
-              >
-                <div className="font-bold text-slate-800 dark:text-slate-200">Nông Dân Thuê Đất</div>
-                <div className="text-[10px] text-slate-500">farmer@plotfarm.vn</div>
-              </button>
             </div>
           </div>
 
-          {/* Link to Register */}
-          <div className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2">
-            Chưa có tài khoản PlotFarm?{' '}
-            <Link href="/register" className="font-bold text-soil-800 dark:text-soil-200 hover:text-brand-600 dark:hover:text-brand-400 hover:underline">
-              Đăng ký ngay
-            </Link>
-          </div>
         </div>
-
-        {/* Bottom copyright */}
-        <div className="text-center text-xs text-slate-400 dark:text-slate-600 pt-8">
-          © 2026 PlotFarm. Tất cả quyền được bảo lưu.
-        </div>
-      </div>
+      </main>
     </div>
   );
 }
