@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PlotFarm - Socket.IO Realtime & Ping-Pong Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --bg-main: #0B0F17;
@@ -81,6 +84,7 @@
       letter-spacing: -0.02em;
       background: linear-gradient(to right, #FFFFFF, #94A3B8);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -125,8 +129,17 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(1.15); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.7;
+        transform: scale(1.15);
+      }
     }
 
     /* Container */
@@ -156,7 +169,7 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     }
 
     .card-title {
@@ -221,6 +234,7 @@
       color: #032514;
       box-shadow: 0 4px 12px var(--primary-glow);
     }
+
     .btn-primary:hover {
       background: var(--primary-hover);
       transform: translateY(-1px);
@@ -231,6 +245,7 @@
       color: #FFFFFF;
       box-shadow: 0 4px 12px var(--accent-glow);
     }
+
     .btn-accent:hover {
       background: #2563EB;
       transform: translateY(-1px);
@@ -241,6 +256,7 @@
       border: 1px solid var(--border-color);
       color: var(--text-muted);
     }
+
     .btn-outline:hover {
       background: var(--bg-input);
       color: var(--text-main);
@@ -252,6 +268,7 @@
       border: 1px solid rgba(239, 68, 68, 0.3);
       color: #F87171;
     }
+
     .btn-danger:hover {
       background: var(--danger);
       color: #FFFFFF;
@@ -318,7 +335,10 @@
     .slider {
       position: absolute;
       cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background-color: var(--bg-input);
       border: 1px solid var(--border-color);
       transition: .3s;
@@ -337,12 +357,12 @@
       border-radius: 50%;
     }
 
-    input:checked + .slider {
+    input:checked+.slider {
       background-color: var(--primary);
       border-color: var(--primary);
     }
 
-    input:checked + .slider:before {
+    input:checked+.slider:before {
       transform: translateX(20px);
       background-color: #032514;
     }
@@ -386,9 +406,18 @@
       height: 10px;
       border-radius: 50%;
     }
-    .window-dot.red { background: #EF4444; }
-    .window-dot.yellow { background: #F59E0B; }
-    .window-dot.green { background: #10B981; }
+
+    .window-dot.red {
+      background: #EF4444;
+    }
+
+    .window-dot.yellow {
+      background: #F59E0B;
+    }
+
+    .window-dot.green {
+      background: #10B981;
+    }
 
     .terminal-body {
       background: #090E17;
@@ -415,8 +444,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(2px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(2px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .log-time {
@@ -433,13 +469,40 @@
       text-transform: uppercase;
     }
 
-    .log-tag.connect { background: rgba(16, 185, 129, 0.2); color: #34D399; }
-    .log-tag.disconnect { background: rgba(239, 68, 68, 0.2); color: #F87171; }
-    .log-tag.ping { background: rgba(59, 130, 246, 0.2); color: #60A5FA; }
-    .log-tag.pong { background: rgba(16, 185, 129, 0.25); color: #10B981; }
-    .log-tag.echo { background: rgba(168, 85, 247, 0.2); color: #C084FC; }
-    .log-tag.room { background: rgba(245, 158, 11, 0.2); color: #FBBF24; }
-    .log-tag.error { background: rgba(239, 68, 68, 0.25); color: #EF4444; }
+    .log-tag.connect {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+    }
+
+    .log-tag.disconnect {
+      background: rgba(239, 68, 68, 0.2);
+      color: #F87171;
+    }
+
+    .log-tag.ping {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60A5FA;
+    }
+
+    .log-tag.pong {
+      background: rgba(16, 185, 129, 0.25);
+      color: #10B981;
+    }
+
+    .log-tag.echo {
+      background: rgba(168, 85, 247, 0.2);
+      color: #C084FC;
+    }
+
+    .log-tag.room {
+      background: rgba(245, 158, 11, 0.2);
+      color: #FBBF24;
+    }
+
+    .log-tag.error {
+      background: rgba(239, 68, 68, 0.25);
+      color: #EF4444;
+    }
 
     .log-content {
       color: #E2E8F0;
@@ -496,13 +559,16 @@
       color: var(--primary);
       text-decoration: none;
     }
+
     footer a:hover {
       text-decoration: underline;
     }
   </style>
   <!-- Socket.IO Client Library (served automatically by Socket.IO server or CDN fallback) -->
-  <script src="/socket.io/socket.io.js" onerror="this.onerror=null;this.src='https://cdn.socket.io/4.7.5/socket.io.min.js'"></script>
+  <script src="/socket.io/socket.io.js"
+    onerror="this.onerror=null;this.src='https://cdn.socket.io/4.7.5/socket.io.min.js'"></script>
 </head>
+
 <body>
 
   <!-- Header -->
@@ -549,8 +615,10 @@
         </div>
 
         <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-          <button class="btn btn-outline" id="btnConnect" style="flex: 1;" onclick="connectSocket()">Kết nối lại</button>
-          <button class="btn btn-danger" id="btnDisconnect" style="flex: 1;" onclick="disconnectSocket()">Ngắt kết nối</button>
+          <button class="btn btn-outline" id="btnConnect" style="flex: 1;" onclick="connectSocket()">Kết nối
+            lại</button>
+          <button class="btn btn-danger" id="btnDisconnect" style="flex: 1;" onclick="disconnectSocket()">Ngắt kết
+            nối</button>
         </div>
       </div>
 
@@ -563,28 +631,36 @@
 
         <div class="input-group">
           <label class="input-label">JWT Token (Bearer hoặc raw)</label>
-          <input type="text" class="input-field" id="jwtTokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." style="font-family: var(--font-mono); font-size: 0.75rem;">
+          <input type="text" class="input-field" id="jwtTokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+            style="font-family: var(--font-mono); font-size: 0.75rem;">
         </div>
 
         <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;">
-          <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="loadTokenFromStorage()">📥 Lấy từ Storage</button>
-          <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;" onclick="clearTokenInput()">❌ Xóa Token</button>
+          <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;"
+            onclick="loadTokenFromStorage()">📥 Lấy từ Storage</button>
+          <button class="btn btn-outline" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;"
+            onclick="clearTokenInput()">❌ Xóa Token</button>
         </div>
 
         <!-- User Identity Box -->
-        <div id="userIdentityBox" style="margin-top: 0.75rem; padding: 0.65rem; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border-color); font-size: 0.78rem;">
+        <div id="userIdentityBox"
+          style="margin-top: 0.75rem; padding: 0.65rem; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border-color); font-size: 0.78rem;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
             <span style="color: var(--text-muted);">Định danh:</span>
-            <span id="userRoleBadge" style="padding: 0.15rem 0.5rem; border-radius: 999px; background: #374151; color: #9CA3AF; font-weight: 700; font-size: 0.7rem;">GUEST</span>
+            <span id="userRoleBadge"
+              style="padding: 0.15rem 0.5rem; border-radius: 999px; background: #374151; color: #9CA3AF; font-weight: 700; font-size: 0.7rem;">GUEST</span>
           </div>
-          <div style="color: var(--text-main); font-weight: 600;" id="userProfileText">Chưa xác thực (Khách vãng lai)</div>
+          <div style="color: var(--text-main); font-weight: 600;" id="userProfileText">Chưa xác thực (Khách vãng lai)
+          </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.75rem;">
           <button class="btn btn-accent" style="width: 100%; font-size: 0.8rem;" onclick="testWhoAmI()">
             🔍 Kiểm tra Định Danh (whoami)
           </button>
-          <button class="btn" style="width: 100%; font-size: 0.8rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #FBBF24;" onclick="testAdminAction()">
+          <button class="btn"
+            style="width: 100%; font-size: 0.8rem; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #FBBF24;"
+            onclick="testAdminAction()">
             🛡️ Thử Hành Động Quản Trị (Admin/Staff Only)
           </button>
         </div>
@@ -616,7 +692,8 @@
         <div class="input-group">
           <label class="input-label">Payload tin nhắn</label>
           <div class="input-row">
-            <input type="text" class="input-field" id="echoInput" placeholder="Nhập tin nhắn test..." value="Hello PlotFarm!">
+            <input type="text" class="input-field" id="echoInput" placeholder="Nhập tin nhắn test..."
+              value="Hello PlotFarm!">
             <button class="btn btn-accent" onclick="sendEcho()">Echo</button>
           </div>
         </div>
@@ -628,7 +705,8 @@
         <div class="input-group">
           <label class="input-label">Tên Room</label>
           <div class="input-row">
-            <input type="text" class="input-field" id="roomInput" placeholder="VD: plot:101, farm:area:2" value="plot:101">
+            <input type="text" class="input-field" id="roomInput" placeholder="VD: plot:101, farm:area:2"
+              value="plot:101">
             <button class="btn btn-outline" onclick="joinRoom()">Tham gia</button>
           </div>
         </div>
@@ -636,7 +714,8 @@
         <div>
           <div class="input-label" style="margin-bottom: 0.35rem;">Các room đang tham gia:</div>
           <div class="rooms-list" id="roomsList">
-            <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Chưa tham gia room nào</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">Chưa tham gia room
+              nào</span>
           </div>
         </div>
       </div>
@@ -981,4 +1060,5 @@
     });
   </script>
 </body>
+
 </html>

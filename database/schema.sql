@@ -270,6 +270,281 @@ END;
 GO
 
 -- =====================================================================================
+-- 4. BẢNG dbo.CareSchedules (Lịch trình chăm sóc dự kiến — Tự động sinh theo mùa vụ)
+-- =====================================================================================
+IF OBJECT_ID('dbo.CareSchedules', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CareSchedules (
+        CareScheduleId  INT IDENTITY(1,1) CONSTRAINT PK_CareSchedules PRIMARY KEY,
+        CultivationId   INT NOT NULL,
+        PackageId       INT NULL,
+        ActivityType    NVARCHAR(50)  NOT NULL,   -- 'WATERING','FERTILIZING','PRUNING'
+        ScheduledDate   DATE          NOT NULL,
+        Notes           NVARCHAR(255) NULL,
+        Status          NVARCHAR(30)  NOT NULL CONSTRAINT DF_CareSchedules_Status DEFAULT 'PENDING',
+        AssignedStaffId INT NULL,
+        CompletedAt     DATETIME2(0)  NULL,
+        ResultNote      NVARCHAR(500) NULL,
+        ResultImageUrl  NVARCHAR(500) NULL,
+        CreatedAt       DATETIME2(0)  NOT NULL CONSTRAINT DF_CareSchedules_CreatedAt DEFAULT SYSDATETIME(),
+
+        CONSTRAINT FK_CareSchedules_Cultivations FOREIGN KEY (CultivationId)
+            REFERENCES dbo.Cultivations(CultivationId) ON DELETE CASCADE,
+        CONSTRAINT FK_CareSchedules_Staff FOREIGN KEY (AssignedStaffId)
+            REFERENCES dbo.Users(UserId) ON DELETE NO ACTION,
+        CONSTRAINT CK_CareSchedules_Status CHECK (Status IN ('PENDING','COMPLETED','SKIPPED')),
+        CONSTRAINT CK_CareSchedules_ActivityType CHECK (ActivityType IN ('WATERING','FERTILIZING','PRUNING','PEST_CONTROL','SOIL_TEST'))
+    );
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.CareSchedules.';
+END
+ELSE
+BEGIN
+    -- Bổ sung cột ResultImageUrl nếu thiếu (migration-safe)
+    IF COL_LENGTH('dbo.CareSchedules', 'ResultImageUrl') IS NULL
+        ALTER TABLE dbo.CareSchedules ADD ResultImageUrl NVARCHAR(500) NULL;
+    IF COL_LENGTH('dbo.CareSchedules', 'ResultNote') IS NULL
+        ALTER TABLE dbo.CareSchedules ADD ResultNote NVARCHAR(500) NULL;
+    PRINT N'[THÔNG TIN] Bảng dbo.CareSchedules đã tồn tại.';
+END
+GO
+
+-- Index: Tìm lịch theo CultivationId + ngày (Staff Portal dashboard)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CareSchedules_Cultivation_Date'
+               AND object_id = OBJECT_ID('dbo.CareSchedules'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_CareSchedules_Cultivation_Date
+    ON dbo.CareSchedules (CultivationId ASC, ScheduledDate ASC)
+    INCLUDE (ActivityType, Status, AssignedStaffId, Notes);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_CareSchedules_Cultivation_Date.';
+END
+GO
+
+-- Index: Tìm lịch theo ngày + trạng thái (Staff xem lịch hôm nay)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CareSchedules_Date_Status'
+               AND object_id = OBJECT_ID('dbo.CareSchedules'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_CareSchedules_Date_Status
+    ON dbo.CareSchedules (ScheduledDate ASC, Status ASC)
+    INCLUDE (CultivationId, ActivityType, AssignedStaffId);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_CareSchedules_Date_Status.';
+END
+GO
+
+-- =====================================================================================
+-- 5. TỐI ƯU HÓA HIỆU NĂNG — COMPOSITE & COVERING INDEXES
+-- =====================================================================================
+
+-- [P1] RentalOrders: Tăng tốc getMyOrders (UserId + Status + phân trang)
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_RentalOrders_UserId_Status_Created'
+               AND object_id = OBJECT_ID('dbo.RentalOrders'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_RentalOrders_UserId_Status_Created
+    ON dbo.RentalOrders (UserId ASC, Status ASC, CreatedAt DESC)
+    INCLUDE (OrderCode, PlotId, SeedId, CarePackageId, TotalAmount, PaidAt,
+             DurationMonths, TotalRentalDays, StartDate, EndDate,
+             RentalFee, SeedFee, CareFee, DiscountAmount);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_RentalOrders_UserId_Status_Created.';
+END
+GO
+
+-- [P2] Cultivations: Tăng tốc truy vấn ô đất theo trạng thái
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Cultivations_PlotId_Status'
+               AND object_id = OBJECT_ID('dbo.Cultivations'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_Cultivations_PlotId_Status
+    ON dbo.Cultivations (PlotId ASC, Status ASC)
+    INCLUDE (CultivationId, OrderId, SeedId, StartDate, ExpectedHarvestDate, ProgressPercent);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_Cultivations_PlotId_Status.';
+END
+GO
+
+-- [P3] CareRequests: Tăng tốc Staff Portal — lọc theo nhân viên + trạng thái
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CareRequests_Staff_Status'
+               AND object_id = OBJECT_ID('dbo.CareRequests'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_CareRequests_Staff_Status
+    ON dbo.CareRequests (AssignedStaffId ASC, Status ASC)
+    INCLUDE (RequestId, CultivationId, ServiceType, CustomerNote, RequestedAt, CompletedAt);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_CareRequests_Staff_Status.';
+END
+GO
+
+-- [P4] HarvestRequests: Tăng tốc xuất đơn thu hoạch theo trạng thái + ngày
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_HarvestRequests_Status_Date'
+               AND object_id = OBJECT_ID('dbo.HarvestRequests'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_HarvestRequests_Status_Date
+    ON dbo.HarvestRequests (Status ASC, RequestDate DESC)
+    INCLUDE (HarvestRequestId, CultivationId, UserId, HarvestType, CustomerNote);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_HarvestRequests_Status_Date.';
+END
+GO
+
+-- [P5] CultivationLogs: Tăng tốc timeline nhật ký canh tác
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CultivationLogs_CultivationId_LogDate'
+               AND object_id = OBJECT_ID('dbo.CultivationLogs'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_CultivationLogs_CultivationId_LogDate
+    ON dbo.CultivationLogs (CultivationId ASC, LogDate DESC)
+    INCLUDE (LogId, StaffId, ActivityType, Title, PlantHealthStatus, ImageUrl, CreatedAt);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_CultivationLogs_CultivationId_LogDate.';
+END
+GO
+
+-- [P6] Deliveries: Tăng tốc tracking vận chuyển theo trạng thái
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Deliveries_Status_ShippedAt'
+               AND object_id = OBJECT_ID('dbo.Deliveries'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_Deliveries_Status_ShippedAt
+    ON dbo.Deliveries (Status ASC, ShippedAt DESC)
+    INCLUDE (DeliveryId, HarvestRequestId, RecipientName, TrackingCode, CarrierName, DeliveredAt);
+    PRINT N'[THÀNH CÔNG] Đã tạo IX_Deliveries_Status_ShippedAt.';
+END
+GO
+
+-- =====================================================================================
+-- 6. STORED PROCEDURES — XUẤT DỮ LIỆU TỐI ƯU HÓA
+-- =====================================================================================
+
+-- SP1: Xuất lịch sử đơn hàng với phân trang + filter
+IF OBJECT_ID('dbo.sp_ExportOrderHistory', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_ExportOrderHistory;
+GO
+
+CREATE PROCEDURE dbo.sp_ExportOrderHistory
+    @UserId        INT           = NULL,       -- NULL = xuất tất cả (Admin)
+    @Status        NVARCHAR(30)  = NULL,       -- Lọc theo trạng thái đơn
+    @FromDate      DATE          = NULL,       -- Ngày bắt đầu
+    @ToDate        DATE          = NULL,       -- Ngày kết thúc
+    @PageNumber    INT           = 1,          -- Phân trang (bắt đầu từ 1)
+    @PageSize      INT           = 20,         -- Số bản ghi mỗi trang (tối đa 100)
+    @TotalCount    INT           = NULL OUTPUT -- Trả về tổng số bản ghi (để phân trang phía client)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET ARITHABORT ON;
+
+    -- Giới hạn PageSize tối đa 100 để bảo vệ hiệu năng
+    IF @PageSize > 100 SET @PageSize = 100;
+    IF @PageNumber < 1  SET @PageNumber = 1;
+
+    -- Đếm tổng số bản ghi (cho phân trang)
+    SELECT @TotalCount = COUNT(*)
+    FROM dbo.RentalOrders ro WITH (NOLOCK)
+    WHERE (@UserId IS NULL OR ro.UserId = @UserId)
+      AND (@Status IS NULL OR ro.Status = @Status)
+      AND (@FromDate IS NULL OR CAST(ro.CreatedAt AS DATE) >= @FromDate)
+      AND (@ToDate   IS NULL OR CAST(ro.CreatedAt AS DATE) <= @ToDate);
+
+    -- Xuất dữ liệu có phân trang
+    SELECT
+        ro.OrderId, ro.OrderCode, ro.UserId,
+        u.FullName    AS CustomerName,
+        u.Email       AS CustomerEmail,
+        u.PhoneNumber AS CustomerPhone,
+        p.PlotCode,   p.SizeM2,
+        s.SeedName,
+        cp.PackageName,
+        ro.TotalRentalDays, ro.DurationMonths,
+        ro.StartDate, ro.EndDate,
+        ro.RentalFee, ro.SeedFee, ro.CareFee,
+        ro.DiscountAmount, ro.TotalAmount,
+        ro.Status     AS OrderStatus,
+        ro.CreatedAt, ro.PaidAt
+    FROM dbo.RentalOrders ro WITH (NOLOCK)
+    INNER JOIN dbo.Users   u  WITH (NOLOCK) ON ro.UserId       = u.UserId
+    INNER JOIN dbo.Plots   p  WITH (NOLOCK) ON ro.PlotId       = p.PlotId
+    INNER JOIN dbo.Seeds   s  WITH (NOLOCK) ON ro.SeedId       = s.SeedId
+    LEFT  JOIN dbo.CarePackages cp WITH (NOLOCK) ON ro.CarePackageId = cp.PackageId
+    WHERE (@UserId IS NULL OR ro.UserId = @UserId)
+      AND (@Status IS NULL OR ro.Status = @Status)
+      AND (@FromDate IS NULL OR CAST(ro.CreatedAt AS DATE) >= @FromDate)
+      AND (@ToDate   IS NULL OR CAST(ro.CreatedAt AS DATE) <= @ToDate)
+    ORDER BY ro.CreatedAt DESC
+    OFFSET ((@PageNumber - 1) * @PageSize) ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+PRINT N'[THÀNH CÔNG] Đã tạo Stored Procedure dbo.sp_ExportOrderHistory.';
+GO
+
+-- SP2: Xuất lịch sử canh tác kèm nhật ký và thống kê
+IF OBJECT_ID('dbo.sp_ExportCultivationHistory', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_ExportCultivationHistory;
+GO
+
+CREATE PROCEDURE dbo.sp_ExportCultivationHistory
+    @UserId        INT           = NULL,       -- NULL = xuất tất cả (Admin)
+    @PlotId        INT           = NULL,       -- Lọc theo ô đất cụ thể
+    @Status        NVARCHAR(30)  = NULL,       -- Lọc theo trạng thái mùa vụ
+    @FromDate      DATE          = NULL,       -- Ngày bắt đầu mùa vụ
+    @ToDate        DATE          = NULL,       -- Ngày kết thúc
+    @PageNumber    INT           = 1,
+    @PageSize      INT           = 20,
+    @TotalCount    INT           = NULL OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET ARITHABORT ON;
+
+    IF @PageSize > 100 SET @PageSize = 100;
+    IF @PageNumber < 1  SET @PageNumber = 1;
+
+    -- Đếm tổng bản ghi
+    SELECT @TotalCount = COUNT(*)
+    FROM dbo.Cultivations c WITH (NOLOCK)
+    INNER JOIN dbo.RentalOrders ro WITH (NOLOCK) ON c.OrderId = ro.OrderId
+    WHERE (@UserId  IS NULL OR ro.UserId  = @UserId)
+      AND (@PlotId  IS NULL OR c.PlotId   = @PlotId)
+      AND (@Status  IS NULL OR c.Status   = @Status)
+      AND (@FromDate IS NULL OR c.StartDate >= @FromDate)
+      AND (@ToDate   IS NULL OR c.StartDate <= @ToDate);
+
+    -- Xuất dữ liệu canh tác kèm thống kê log
+    SELECT
+        c.CultivationId, c.Status AS CultivationStatus,
+        c.StartDate, c.ExpectedHarvestDate, c.ActualHarvestDate,
+        c.ProgressPercent, c.ReplantCount,
+        ro.OrderCode, ro.TotalAmount,
+        p.PlotCode, p.SizeM2, p.SoilPH,
+        fa.AreaName,
+        s.SeedName, s.Category AS SeedCategory,
+        s.GrowthDurationDays, s.ExpectedYieldKgPerM2,
+        u.FullName  AS CustomerName,
+        u.Email     AS CustomerEmail,
+        cp.PackageName,
+        -- Thống kê nhật ký (sub-query tối ưu hơn JOIN nhiều hàng)
+        (SELECT COUNT(*) FROM dbo.CultivationLogs cl WITH (NOLOCK)
+         WHERE cl.CultivationId = c.CultivationId)                     AS TotalLogCount,
+        (SELECT COUNT(*) FROM dbo.CareRequests cr WITH (NOLOCK)
+         WHERE cr.CultivationId = c.CultivationId AND cr.Status = 'COMPLETED') AS CompletedCareRequests,
+        (SELECT COUNT(*) FROM dbo.CareSchedules cs WITH (NOLOCK)
+         WHERE cs.CultivationId = c.CultivationId AND cs.Status = 'COMPLETED') AS CompletedSchedules,
+        (SELECT COUNT(*) FROM dbo.CareSchedules cs WITH (NOLOCK)
+         WHERE cs.CultivationId = c.CultivationId)                     AS TotalSchedules
+    FROM dbo.Cultivations c WITH (NOLOCK)
+    INNER JOIN dbo.RentalOrders ro WITH (NOLOCK) ON c.OrderId    = ro.OrderId
+    INNER JOIN dbo.Users        u  WITH (NOLOCK) ON ro.UserId    = u.UserId
+    INNER JOIN dbo.Plots        p  WITH (NOLOCK) ON c.PlotId     = p.PlotId
+    LEFT  JOIN dbo.FarmAreas    fa WITH (NOLOCK) ON p.AreaId     = fa.AreaId
+    INNER JOIN dbo.Seeds        s  WITH (NOLOCK) ON c.SeedId     = s.SeedId
+    LEFT  JOIN dbo.CarePackages cp WITH (NOLOCK) ON ro.CarePackageId = cp.PackageId
+    WHERE (@UserId  IS NULL OR ro.UserId  = @UserId)
+      AND (@PlotId  IS NULL OR c.PlotId   = @PlotId)
+      AND (@Status  IS NULL OR c.Status   = @Status)
+      AND (@FromDate IS NULL OR c.StartDate >= @FromDate)
+      AND (@ToDate   IS NULL OR c.StartDate <= @ToDate)
+    ORDER BY c.StartDate DESC
+    OFFSET ((@PageNumber - 1) * @PageSize) ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+PRINT N'[THÀNH CÔNG] Đã tạo Stored Procedure dbo.sp_ExportCultivationHistory.';
+GO
+
+-- =====================================================================================
 -- TỔNG KẾT KIỂM TRA SCHEMA CSDL
 -- =====================================================================================
 PRINT N'-------------------------------------------------------------------------';
@@ -288,6 +563,6 @@ JOIN sys.columns c ON t.object_id = c.object_id
 JOIN sys.types ty ON c.user_type_id = ty.user_type_id
 LEFT JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.column_id = c.column_id
 LEFT JOIN sys.indexes i ON i.object_id = t.object_id AND i.index_id = ic.index_id AND i.is_primary_key = 1
-WHERE t.name IN ('Roles', 'Users', 'UserAddresses')
+WHERE t.name IN ('Roles', 'Users', 'UserAddresses', 'CareSchedules')
 ORDER BY t.name, c.column_id;
 GO

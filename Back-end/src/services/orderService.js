@@ -1,5 +1,6 @@
 const { getPool, sql } = require('../config/db');
 const { TABLES, PLOT_STATUS } = require('../models');
+const { generateCareSchedule } = require('./scheduleEngine');
 
 /**
  * Mock Checkout: Tạo đơn thuê, thanh toán thành công và tự động kích hoạt mùa vụ
@@ -54,7 +55,7 @@ const createMockCheckout = async (userId, data) => {
   // 4. Tính toán thời gian thuê chuẩn theo chu kỳ sinh trưởng của cây
   const growthDays = seed.GrowthDurationDays || 45;
   const cyclesCount = Number(cycles) || 1;
-  
+
   let totalRentalDays;
   if (rentalDays && Number(rentalDays) > 0) {
     totalRentalDays = Number(rentalDays);
@@ -197,6 +198,24 @@ const createMockCheckout = async (userId, data) => {
 
     await transaction.commit();
 
+    // ── Automation: Tự động sinh lịch chăm sóc dự kiến (sau khi commit thành công)
+    // Gọi ngoài transaction để tránh ảnh hưởng đến luồng thanh toán chính.
+    // Nếu lỗi sinh lịch, đơn hàng vẫn được tạo thành công — chỉ ghi log cảnh báo.
+    let careScheduleSummary = null;
+    try {
+      careScheduleSummary = await generateCareSchedule({
+        cultivationId,
+        packageId: carePackageId,
+        packageName: pkg.PackageName,
+        startDate: now,
+        totalDays: totalRentalDays,
+      });
+      console.log(`[Automation] ✅ Đã sinh ${careScheduleSummary.generated} lịch chăm sóc cho Cultivation #${cultivationId}`);
+    } catch (scheduleErr) {
+      // Non-fatal: Ghi log nhưng không throw — đơn hàng vẫn hợp lệ
+      console.warn(`[Automation] ⚠️ Không thể sinh lịch chăm sóc cho Cultivation #${cultivationId}:`, scheduleErr.message);
+    }
+
     return {
       orderId,
       orderCode,
@@ -210,6 +229,12 @@ const createMockCheckout = async (userId, data) => {
       totalAmount,
       paidAt: now,
       status: 'PAID',
+      // Thông tin lịch chăm sóc đã sinh (để trả về cho client nếu cần)
+      careSchedule: careScheduleSummary ? {
+        generated: careScheduleSummary.generated,
+        tier: careScheduleSummary.tier,
+        breakdown: careScheduleSummary.breakdown,
+      } : null,
     };
   } catch (error) {
     await transaction.rollback();
