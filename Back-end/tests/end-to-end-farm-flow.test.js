@@ -3,6 +3,7 @@ const { before, after, test } = require('node:test');
 const jwt = require('jsonwebtoken');
 const app = require('../src/app');
 const { generateToken } = require('../src/utils/jwtHelper');
+const { connectDB, closeDB } = require('../src/config/db');
 
 let server;
 let baseUrl;
@@ -12,6 +13,13 @@ let customerToken;
 let staffToken;
 
 before(async () => {
+  // Ensure database pool is connected if possible
+  try {
+    await connectDB();
+  } catch (err) {
+    console.warn('[Test] DB connection warning:', err.message);
+  }
+
   // Start Express server on dynamic port
   server = await new Promise((resolve) => {
     const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
@@ -28,6 +36,7 @@ after(async () => {
     server.closeAllConnections();
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
+  await closeDB().catch(() => {});
 });
 
 // Helper for making API requests with optional Authorization header

@@ -25,6 +25,17 @@ const getCultivationLogs = async (cultivationId) => {
  */
 const createCultivationLog = async ({ cultivationId, staffId = 2, activityType, title, notes, imageUrl, plantHealthStatus = 'EXCELLENT' }) => {
   const pool = getPool();
+
+  const check = await pool.request()
+    .input('CultivationId', sql.Int, cultivationId)
+    .query('SELECT CultivationId FROM Cultivations WHERE CultivationId = @CultivationId');
+
+  if (check.recordset.length === 0) {
+    const error = new Error('Mùa vụ canh tác không tồn tại');
+    error.statusCode = 404;
+    throw error;
+  }
+
   const result = await pool.request()
     .input('CultivationId', sql.Int, cultivationId)
     .input('StaffId', sql.Int, staffId)
