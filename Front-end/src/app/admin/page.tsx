@@ -552,9 +552,6 @@ export default function AdminDashboardPage() {
               </div>
               <span className="font-black text-lg tracking-tight">PlotFarm Admin</span>
             </Link>
-            <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded bg-rose-500/10 text-rose-600 border border-rose-500/20">
-              TRƯỞNG NHÓM / LEAD
-            </span>
           </div>
 
           <div className="flex items-center gap-4">

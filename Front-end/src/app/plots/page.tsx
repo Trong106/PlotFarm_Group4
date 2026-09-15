@@ -542,17 +542,27 @@ export default function PlotsPage() {
                   {currentAreaPlots.map((plot) => {
                     const isSelected = selectedPlot?.PlotId === plot.PlotId;
                     const isAvailable = plot.Status === 'AVAILABLE';
+                    const isLocked = plot.Status === 'MAINTENANCE' || plot.Status === 'FALLOWING' || plot.Status === 'RESERVED';
                     const isCompared = comparedPlotIds.includes(plot.PlotId);
+                    const canSelect = isAvailable || isManagement;
 
                     return (
                       <div
                         key={plot.PlotId}
-                        onClick={() => isAvailable && setSelectedPlot(plot)}
+                        onClick={() => canSelect && setSelectedPlot(plot)}
                         className={`relative p-3 rounded-2xl flex flex-col items-center justify-between text-center transition-all duration-200 select-none min-h-[118px] ${
                           isSelected
-                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 ring-3 ring-emerald-400 scale-102 z-10'
+                            ? isLocked
+                              ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/25 ring-3 ring-amber-400 scale-102 z-10'
+                              : plot.Status === 'RENTED'
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25 ring-3 ring-blue-400 scale-102 z-10'
+                              : 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 ring-3 ring-emerald-400 scale-102 z-10'
                             : isAvailable
                             ? 'bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-100 border-2 border-emerald-300 dark:border-emerald-700/80 hover:border-emerald-500 hover:shadow-md cursor-pointer'
+                            : isLocked && isManagement
+                            ? 'bg-amber-50/70 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border-2 border-dashed border-amber-400 dark:border-amber-600 hover:border-amber-500 hover:shadow-md cursor-pointer'
+                            : plot.Status === 'RENTED' && isManagement
+                            ? 'bg-blue-50/40 dark:bg-blue-950/20 text-slate-700 dark:text-slate-200 border-2 border-blue-200 dark:border-blue-800 hover:border-blue-400 hover:shadow-md cursor-pointer'
                             : 'bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-60'
                         }`}
                       >
@@ -584,15 +594,21 @@ export default function PlotsPage() {
                           </span>
                         )}
 
-                        {/* Sprout icon */}
+                        {/* Status icon */}
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center my-0.5 ${
                           isSelected
                             ? 'bg-white/20 text-white'
                             : isAvailable
                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                            : isLocked && isManagement
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
                             : 'bg-slate-200 text-slate-500 dark:bg-slate-800'
                         }`}>
-                          <Sprout className="w-3.5 h-3.5" />
+                          {isLocked ? (
+                            <Wrench className="w-3.5 h-3.5" />
+                          ) : (
+                            <Sprout className="w-3.5 h-3.5" />
+                          )}
                         </div>
 
                         {/* Plot code & size */}
@@ -612,9 +628,19 @@ export default function PlotsPage() {
                               ? 'text-white'
                               : isAvailable
                               ? 'text-emerald-600 dark:text-emerald-400'
+                              : isLocked && isManagement
+                              ? 'text-amber-600 dark:text-amber-400'
                               : 'text-slate-400'
                           }`}>
-                            {isAvailable ? `${plot.BasePricePerMonth / 1000}k/th` : plot.Status}
+                            {isAvailable
+                              ? `${plot.BasePricePerMonth / 1000}k/th`
+                              : plot.Status === 'MAINTENANCE'
+                              ? 'BẢO TRÌ'
+                              : plot.Status === 'FALLOWING'
+                              ? 'NGHỈ ĐẤT'
+                              : plot.Status === 'RESERVED'
+                              ? 'GIỮ CHỖ'
+                              : plot.Status}
                           </span>
                         </div>
                       </div>
@@ -670,10 +696,14 @@ export default function PlotsPage() {
                               <Button
                                 size="sm"
                                 variant={isSelected ? 'primary' : 'outline'}
-                                disabled={!isAvailable}
+                                disabled={!isAvailable && !isManagement}
                                 onClick={() => setSelectedPlot(plot)}
                               >
-                                {isSelected ? 'Đang Chọn' : 'Chọn'}
+                                {isSelected
+                                  ? 'Đang Chọn'
+                                  : isManagement && !isAvailable
+                                  ? 'Mở Khóa / Quản Lý'
+                                  : 'Chọn'}
                               </Button>
                             </td>
                           </tr>
@@ -711,7 +741,15 @@ export default function PlotsPage() {
                           ? 'bg-blue-500 text-white'
                           : 'bg-amber-500 text-white'
                       }`}>
-                        {selectedPlot.Status === 'AVAILABLE' ? 'SẴN SÀNG THUÊ' : selectedPlot.Status === 'RENTED' ? 'ĐANG CANH TÁC' : 'ĐANG BẢO TRÌ'}
+                        {selectedPlot.Status === 'AVAILABLE'
+                          ? 'SẴN SÀNG THUÊ'
+                          : selectedPlot.Status === 'RENTED'
+                          ? 'ĐANG CANH TÁC'
+                          : selectedPlot.Status === 'MAINTENANCE'
+                          ? 'ĐANG BẢO TRÌ'
+                          : selectedPlot.Status === 'FALLOWING'
+                          ? 'NGHỈ ĐẤT'
+                          : 'ĐANG KHÓA'}
                       </span>
                     </div>
 
@@ -870,10 +908,10 @@ export default function PlotsPage() {
                             </p>
                           </div>
 
-                          {isAdmin && (
+                          {isManagement && (
                             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
                               <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                Thao tác điều hành Admin:
+                                Thao tác điều hành ({isAdmin ? 'Quản Trị Viên' : 'Kỹ Thuật Viên'}):
                               </p>
                               <Button
                                 variant="outline"
@@ -890,30 +928,37 @@ export default function PlotsPage() {
                         </div>
                       )}
 
-                      {/* Case 3: Ô đất Đang Bảo Trì (MAINTENANCE) */}
-                      {selectedPlot.Status === 'MAINTENANCE' && (
+                      {/* Case 3: Ô đất Bị Khóa (MAINTENANCE / FALLOWING / RESERVED) */}
+                      {(selectedPlot.Status === 'MAINTENANCE' || selectedPlot.Status === 'FALLOWING' || selectedPlot.Status === 'RESERVED') && (
                         <div className="space-y-4">
                           <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 space-y-1">
-                            <p className="font-bold">⚠️ Ô đất đang trong quá trình bảo trì</p>
+                            <p className="font-bold flex items-center gap-1.5 text-amber-900 dark:text-amber-200">
+                              <Wrench className="w-4 h-4 text-amber-600" />
+                              Ô đất đang bị khóa ({selectedPlot.Status === 'MAINTENANCE' ? 'Đang Bảo Trì' : selectedPlot.Status === 'FALLOWING' ? 'Nghỉ Đất Cải Tạo' : 'Đang Giữ Chỗ'})
+                            </p>
                             <p className="text-slate-600 dark:text-slate-400 text-[11px]">
-                              Kỹ thuật viên đang xới đất, xử lý nấm mốc hoặc cải tạo hệ thống ống dẫn dinh dưỡng.
+                              {selectedPlot.Status === 'MAINTENANCE'
+                                ? 'Kỹ thuật viên đang xới đất, xử lý nấm mốc hoặc kiểm tra bảo trì hệ thống dinh dưỡng.'
+                                : selectedPlot.Status === 'FALLOWING'
+                                ? 'Đất đang trong giai đoạn nghỉ xả phèn và tái tạo hệ vi sinh hữu cơ sau chu kỳ canh tác.'
+                                : 'Ô đất đang được bảo lưu nội bộ cho kế hoạch canh tác riêng.'}
                             </p>
                           </div>
 
-                          {isAdmin && (
-                            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
-                              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                Thao tác hoàn tất bảo trì:
+                          {isManagement && (
+                            <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 space-y-2.5">
+                              <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                                Thao tác mở khóa ({isAdmin ? 'Quản Trị Viên' : 'Kỹ Thuật Viên'}):
                               </p>
                               <Button
                                 variant="primary"
                                 size="sm"
                                 disabled={isUpdatingPlotStatus}
                                 onClick={() => handleUpdatePlotStatus(selectedPlot.PlotId, 'AVAILABLE')}
-                                className="w-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+                                className="w-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                                 leftIcon={<Check className="w-3.5 h-3.5" />}
                               >
-                                Hoàn Tất Bảo Trì & Mở Lại Cho Thuê
+                                Mở Khóa Ô Đất (Chuyển Thành Sẵn Sàng Cho Thuê)
                               </Button>
                             </div>
                           )}
