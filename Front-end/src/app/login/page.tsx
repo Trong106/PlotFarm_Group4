@@ -53,10 +53,10 @@ export default function LoginPage() {
     if (isAuthenticated && user) {
       setIsSuccess(true);
       const timer = setTimeout(() => {
-        const r = (user.role || '').toLowerCase();
-        if (r === 'admin') {
+const userRole = (user.role || '').toLowerCase();
+        if (userRole === 'admin') {
           router.push('/admin');
-        } else if (r === 'staff') {
+        } else if (userRole === 'staff') {
           router.push('/staff');
         } else {
           router.push('/my-farm');
@@ -104,8 +104,7 @@ export default function LoginPage() {
     if (success) {
       setIsSuccess(true);
       const currentUser = useAuthStore.getState().user;
-      const userRole = (currentUser?.role || currentUser?.roleName || '').toLowerCase();
-      // Role-based Smart Redirection
+const userRole = (currentUser?.role || currentUser?.roleName || '').toLowerCase();
       setTimeout(() => {
         if (userRole === 'admin' || currentUser?.roleId === 1) {
           router.push('/admin');
@@ -295,7 +294,7 @@ export default function LoginPage() {
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
-                        onClick={() => selectQuickAccount('customer@plotfarm.vn', 'password123')}
+onClick={() => selectQuickAccount('customer@plotfarm.vn', 'password123')}
                         className="p-2 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-all text-center shadow-xs group"
                       >
                         <div className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-emerald-600">Khách Hàng</div>
@@ -303,7 +302,7 @@ export default function LoginPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => selectQuickAccount('staff@plotfarm.vn', 'password123')}
+onClick={() => selectQuickAccount('staff@plotfarm.vn', 'password123')}
                         className="p-2 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 hover:border-teal-500 hover:bg-teal-50/40 dark:hover:bg-teal-950/20 transition-all text-center shadow-xs group"
                       >
                         <div className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-teal-600">Nhân Viên</div>
@@ -311,7 +310,7 @@ export default function LoginPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => selectQuickAccount('admin@plotfarm.vn', 'password123')}
+onClick={() => selectQuickAccount('admin@plotfarm.vn', 'password123')}
                         className="p-2 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 hover:border-rose-500 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-all text-center shadow-xs group"
                       >
                         <div className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-rose-600">Quản Trị Viên</div>

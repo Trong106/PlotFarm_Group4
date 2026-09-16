@@ -50,6 +50,10 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAddressStore } from '@/store/useAddressStore';
+import { MultiPlotSwitcher } from '@/components/plots/MultiPlotSwitcher';
+import { IoTSensorChart } from '@/components/plots/IoTSensorChart';
+import { LightboxGallery, LightboxImageItem } from '@/components/plots/LightboxGallery';
+import { TechnicianInfoCard } from '@/components/plots/TechnicianInfoCard';
 
 interface CultivationItem {
   CultivationId: number;
@@ -158,7 +162,7 @@ export default function MyFarmPage() {
   const [isCareModalOpen, setIsCareModalOpen] = useState(false);
   const [isHarvestModalOpen, setIsHarvestModalOpen] = useState(false);
   const [isNewLogModalOpen, setIsNewLogModalOpen] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Care Request Form
   const [careServiceType, setCareServiceType] = useState('BÓN PHÂN HỮU CƠ BỔ SUNG');
@@ -611,26 +615,12 @@ export default function MyFarmPage() {
         {/* Active Cultivations Dashboard */}
         {!isLoading && cultivations.length > 0 && selectedItem && (
           <div className="space-y-8">
-            {/* Plot Switcher (if user owns multiple plots) */}
-            {cultivations.length > 1 && (
-              <div className="flex items-center gap-3 overflow-x-auto pb-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider shrink-0">Ô đất của bạn:</span>
-                {cultivations.map((item) => (
-                  <button
-                    key={item.CultivationId}
-                    onClick={() => setSelectedItem(item)}
-                    className={`px-4 py-2 rounded-2xl text-xs font-extrabold transition-all shrink-0 flex items-center gap-2 ${
-                      selectedItem.CultivationId === item.CultivationId
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <Sprout className="w-3.5 h-3.5" />
-                    <span>{item.PlotCode} - {item.SeedName}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Multi-Plot Switcher (Dropdown / Tabs View) */}
+            <MultiPlotSwitcher
+              cultivations={cultivations}
+              selectedItem={selectedItem}
+              onSelectPlot={(item) => setSelectedItem(item)}
+            />
 
             {/* TOP 4 KPI SUMMARY METRICS */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -990,7 +980,7 @@ export default function MyFarmPage() {
                   <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
                     <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                      Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình thường, truyền dữ liệu 24/7.
+Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình thường, truyền dữ liệu 24/7.
                     </p>
                   </div>
 
@@ -1021,8 +1011,21 @@ export default function MyFarmPage() {
                     </Link>
                   </div>
                 </div>
+
+                {/* Technician Info Card */}
+                <TechnicianInfoCard
+                  staffName={logs[0]?.StaffName || 'Nguyễn Văn Đức'}
+                  plotCode={selectedItem.PlotCode}
+                  seedName={selectedItem.SeedName}
+                />
               </div>
             </div>
+
+            {/* 2.1 IOT 24-HOUR SENSOR TREND LINE CHART */}
+            <IoTSensorChart
+              plotCode={selectedItem.PlotCode}
+              seedName={selectedItem.SeedName}
+            />
 
             {/* 3. DAY 2 INTERACTIVE TABS: TIMELINE, CARE REQUESTS, DELIVERY TRACKING */}
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -1130,60 +1133,82 @@ export default function MyFarmPage() {
                   )}
 
                   {!isLoadingLogs && logs.length > 0 && (
-                    <div className="relative pl-6 sm:pl-8 space-y-8 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-emerald-200 dark:before:bg-emerald-900">
-                      {logs.map((log) => (
-                        <div key={log.LogId} className="relative group">
-                          {/* Dot on line */}
-                          <div className="absolute -left-[27px] sm:-left-[31px] top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 shadow-sm group-hover:scale-125 transition-transform" />
+                    <div className="max-h-[550px] overflow-y-auto pr-3 custom-scrollbar">
+                      <div className="relative pl-6 sm:pl-8 space-y-8 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-emerald-200 dark:before:bg-emerald-900">
+                        {logs.map((log) => {
+                          const galleryImages: LightboxImageItem[] = logs
+                            .filter((l) => Boolean(l.ImageUrl))
+                            .map((l) => ({
+                              id: l.LogId,
+                              url: l.ImageUrl!,
+                              title: l.Title,
+                              date: l.LogDate,
+                              staffName: l.StaffName || 'Kỹ thuật viên PlotFarm',
+                              plantHealth: l.PlantHealthStatus,
+                              notes: l.Notes,
+                            }));
 
-                          <div className="bg-slate-50/70 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-3 transition-all hover:shadow-sm">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                {getActivityBadge(log.ActivityType)}
-                                <span className="text-xs font-semibold text-slate-400">
-                                  {formatDateTime(log.LogDate)}
-                                </span>
-                              </div>
-                              {getHealthBadge(log.PlantHealthStatus)}
-                            </div>
+                          return (
+                            <div key={log.LogId} className="relative group">
+                              {/* Dot on line */}
+                              <div className="absolute -left-[27px] sm:-left-[31px] top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 shadow-sm group-hover:scale-125 transition-transform" />
 
-                            <div>
-                              <h4 className="font-extrabold text-base text-slate-900 dark:text-white">
-                                {log.Title}
-                              </h4>
-                              {log.Notes && (
-                                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                                  {log.Notes}
-                                </p>
-                              )}
-                            </div>
+                              <div className="bg-slate-50/70 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-3 transition-all hover:shadow-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    {getActivityBadge(log.ActivityType)}
+                                    <span className="text-xs font-semibold text-slate-400">
+                                      {formatDateTime(log.LogDate)}
+                                    </span>
+                                  </div>
+                                  {getHealthBadge(log.PlantHealthStatus)}
+                                </div>
 
-                            {/* Image evidence */}
-                            {log.ImageUrl && (
-                              <div className="pt-2">
-                                <div
-                                  className="w-36 h-28 sm:w-48 sm:h-36 rounded-xl overflow-hidden cursor-pointer shadow-sm hover:opacity-90 transition-opacity border border-slate-200 dark:border-slate-700"
-                                  onClick={() => setPreviewImage(log.ImageUrl)}
-                                >
-                                  <img
-                                    src={log.ImageUrl}
-                                    alt={log.Title}
-                                    className="w-full h-full object-cover"
-                                  />
+                                <div>
+                                  <h4 className="font-extrabold text-base text-slate-900 dark:text-white">
+                                    {log.Title}
+                                  </h4>
+                                  {log.Notes && (
+                                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                                      {log.Notes}
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Image evidence */}
+                                {log.ImageUrl && (
+                                  <div className="pt-2">
+                                    <div
+                                      className="w-36 h-28 sm:w-48 sm:h-36 rounded-xl overflow-hidden cursor-pointer shadow-sm hover:opacity-90 transition-opacity border border-slate-200 dark:border-slate-700 relative group/img"
+                                      onClick={() => {
+                                        const imgIdx = galleryImages.findIndex((img) => img.id === log.LogId);
+                                        setLightboxIndex(imgIdx >= 0 ? imgIdx : 0);
+                                      }}
+                                    >
+                                      <img
+                                        src={log.ImageUrl}
+                                        alt={log.Title}
+                                        className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
+                                      />
+                                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                        <Eye className="w-4 h-4" /> Phóng To HD
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-200/60 dark:border-slate-700/40">
+                                  <span className="flex items-center gap-1.5">
+                                    <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                    Người thực hiện: <strong className="text-slate-600 dark:text-slate-300">{log.StaffName || 'Kỹ thuật viên PlotFarm'}</strong>
+                                  </span>
+                                  <span>Mã ghi chép: #{log.LogId}</span>
                                 </div>
                               </div>
-                            )}
-
-                            <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-200/60 dark:border-slate-700/40">
-                              <span className="flex items-center gap-1.5">
-                                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                                Người thực hiện: <strong className="text-slate-600 dark:text-slate-300">{log.StaffName || 'Kỹ thuật viên PlotFarm'}</strong>
-                              </span>
-                              <span>Mã ghi chép: #{log.LogId}</span>
                             </div>
-                          </div>
-                        </div>
-                      ))}
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1669,23 +1694,24 @@ export default function MyFarmPage() {
         </div>
       )}
 
-      {/* MODAL 4: IMAGE PREVIEW */}
-      {previewImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in"
-          onClick={() => setPreviewImage(null)}
-        >
-          <div className="relative max-w-3xl w-full rounded-2xl overflow-hidden shadow-2xl border border-white/20">
-            <button
-              onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 bg-black/50 text-white p-2 rounded-full hover:bg-black/80"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <img src={previewImage} alt="Preview" className="w-full max-h-[80vh] object-contain bg-black" />
-          </div>
-        </div>
-      )}
+      {/* MODAL 4: LIGHTBOX GALLERY (PHÓNG TO ẢNH NHẬT KÝ CHẤT LƯỢNG CAO) */}
+      <LightboxGallery
+        images={logs
+          .filter((l) => Boolean(l.ImageUrl))
+          .map((l) => ({
+            id: l.LogId,
+            url: l.ImageUrl,
+            title: l.Title,
+            date: l.LogDate,
+            staffName: l.StaffName || 'Kỹ thuật viên PlotFarm',
+            plantHealth: l.PlantHealthStatus,
+            notes: l.Notes,
+          }))}
+        currentIndex={lightboxIndex ?? 0}
+        isOpen={lightboxIndex !== null}
+        onClose={() => setLightboxIndex(null)}
+        onSelectIndex={(idx) => setLightboxIndex(idx)}
+      />
     </div>
   );
 }
