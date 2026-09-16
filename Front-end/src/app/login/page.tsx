@@ -44,8 +44,11 @@ export default function LoginPage() {
     if (isAuthenticated && user) {
       setIsSuccess(true);
       const timer = setTimeout(() => {
-        if (user.role === 'ADMIN') {
+        const userRole = (user.role || '').toLowerCase();
+        if (userRole === 'admin') {
           router.push('/admin');
+        } else if (userRole === 'staff') {
+          router.push('/staff');
         } else {
           router.push('/my-farm');
         }
@@ -91,9 +94,16 @@ export default function LoginPage() {
     const success = await login(email.trim().toLowerCase(), password);
     if (success) {
       setIsSuccess(true);
-      // Wait a moment for visual confirmation, then route
+      const currentUser = useAuthStore.getState().user;
+      const userRole = (currentUser?.role || '').toLowerCase();
       setTimeout(() => {
-        router.push('/my-farm');
+        if (userRole === 'admin') {
+          router.push('/admin');
+        } else if (userRole === 'staff') {
+          router.push('/staff');
+        } else {
+          router.push('/my-farm');
+        }
       }, 800);
     }
   };
@@ -273,21 +283,21 @@ export default function LoginPage() {
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
-                        onClick={() => selectQuickAccount('customer@plotfarm.vn', 'password123')}
+                        onClick={() => selectQuickAccount('binh.customer@plotfarm.vn', 'Customer@2026!')}
                         className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600/80 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-emerald-500 hover:text-emerald-600 transition-colors text-center truncate shadow-sm"
                       >
                         Khách Hàng
                       </button>
                       <button
                         type="button"
-                        onClick={() => selectQuickAccount('staff@plotfarm.vn', 'password123')}
+                        onClick={() => selectQuickAccount('khoa.staff@plotfarm.vn', 'Staff@2026!')}
                         className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600/80 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-teal-500 hover:text-teal-600 transition-colors text-center truncate shadow-sm"
                       >
                         Nhân Viên
                       </button>
                       <button
                         type="button"
-                        onClick={() => selectQuickAccount('admin@plotfarm.vn', 'password123')}
+                        onClick={() => selectQuickAccount('admin@plotfarm.vn', 'Admin@2026!')}
                         className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600/80 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-blue-500 hover:text-blue-600 transition-colors text-center truncate shadow-sm"
                       >
                         Quản Trị Viên
