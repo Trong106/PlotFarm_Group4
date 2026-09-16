@@ -195,6 +195,18 @@ export default function MyFarmPage() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   // Realtime clock
+  // Role Guard: Redirect Admin & Staff away from customer farming page
+  useEffect(() => {
+    if (user) {
+      const role = (user.role || user.roleName || '').toLowerCase();
+      if (role === 'admin' || user.roleId === 1) {
+        router.replace('/admin');
+      } else if (role === 'staff' || user.roleId === 2) {
+        router.replace('/staff');
+      }
+    }
+  }, [user, router]);
+
   useEffect(() => {
     initAuth();
 
@@ -948,11 +960,27 @@ export default function MyFarmPage() {
                     </div>
                   </div>
 
+                  {/* Technician In-Charge Badge */}
+                  <div className="p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 flex items-center justify-between text-xs shadow-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                        KT
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold block">Kỹ thuật viên phụ trách:</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">Kỹ Thuật Viên Mẫu (staff@plotfarm.vn)</span>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 text-[10px] font-bold">
+                      Ca Sáng
+                    </span>
+                  </div>
+
                   {/* IoT Connection Status Notice */}
                   <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
                     <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-                      Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động và liên tục đồng bộ thông số...
+Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình thường, truyền dữ liệu 24/7.
                     </p>
                   </div>
 
@@ -1012,7 +1040,7 @@ export default function MyFarmPage() {
                   }`}
                 >
                   <Clock className="w-4 h-4" />
-                  Nhật Ký Canh Tác Hàng Ngày ({logs.length})
+                  Báo Cáo Chăm Sóc Thực Địa ({logs.length})
                 </button>
 
                 <button
@@ -1045,23 +1073,35 @@ export default function MyFarmPage() {
                 <div className="p-6 sm:p-8 space-y-6">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                        Dòng Thời Gian Canh Tác (Farm Timeline)
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <Clock className="w-5 h-5 text-teal-600" />
+                        Báo Cáo Chăm Sóc Từ Kỹ Thuật Viên
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Hình ảnh chụp thực tế và báo cáo chăm sóc từ kỹ thuật viên phụ trách luống {selectedItem.PlotCode}
+                        Hình ảnh chụp thực tế và báo cáo chăm sóc do kỹ thuật viên phụ trách luống {selectedItem.PlotCode} cập nhật sau mỗi ca làm việc
                       </p>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsNewLogModalOpen(true)}
-                      leftIcon={<PlusCircle className="w-4 h-4 text-emerald-600" />}
-                      className="font-bold text-xs"
-                    >
-                      Thêm Ghi Chú Canh Tác
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fetchLogs(selectedItem.CultivationId)}
+                        leftIcon={<RefreshCw className="w-3.5 h-3.5 text-slate-500" />}
+                        className="font-bold text-xs"
+                      >
+                        Làm Mới
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => setIsCareModalOpen(true)}
+                        leftIcon={<Sparkles className="w-3.5 h-3.5 text-white" />}
+                        className="font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        Gửi Yêu Cầu Chăm Sóc Riêng
+                      </Button>
+                    </div>
                   </div>
 
                   {isLoadingLogs && (
@@ -1074,8 +1114,21 @@ export default function MyFarmPage() {
                   {!isLoadingLogs && logs.length === 0 && (
                     <div className="py-12 text-center text-slate-500 space-y-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <Clock className="w-8 h-8 text-slate-400 mx-auto" />
-                      <p className="text-sm font-bold">Chưa có nhật ký canh tác nào được ghi nhận</p>
-                      <p className="text-xs text-slate-400">Kỹ thuật viên sẽ cập nhật hình ảnh sau mỗi ca chăm sóc.</p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Chưa có báo cáo chăm sóc nào từ kỹ thuật viên</p>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto">
+                        Đội ngũ kỹ thuật viên nông trại đang chăm sóc luống rau của bạn và sẽ sớm cập nhật hình ảnh, thông số thực tế sau ca làm việc.
+                      </p>
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsCareModalOpen(true)}
+                          leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-500" />}
+                          className="text-xs font-bold"
+                        >
+                          Cần Kỹ Thuật Viên Chăm Sóc Ngay? Gửi Yêu Cầu
+                        </Button>
+                      </div>
                     </div>
                   )}
 
@@ -1641,101 +1694,13 @@ export default function MyFarmPage() {
         </div>
       )}
 
-      {/* MODAL 3: THÊM GHI CHÚ NHẬT KÝ CANH TÁC */}
-      {isNewLogModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 max-w-md w-full space-y-5 shadow-2xl relative">
-            <button
-              onClick={() => setIsNewLogModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="space-y-1">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-emerald-600" />
-                Thêm Ghi Chú Canh Tác
-              </h3>
-              <p className="text-xs text-slate-500">
-                Ghi lại dấu ấn phát triển của vườn rau {selectedItem?.PlotCode}
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmitNewLog} className="space-y-3.5">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 block">Loại hoạt động:</label>
-                <select
-                  value={newLogActivity}
-                  onChange={(e) => setNewLogActivity(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                >
-                  <option value="TUOI_NUOC">💧 Tưới Nước</option>
-                  <option value="BON_PHAN">🌱 Bón Phân Hữu Cơ</option>
-                  <option value="TIA_CANH">✂️ Tỉa Cành & Nhổ Cỏ</option>
-                  <option value="KIEM_TRA_SAU_BENH">🔍 Kiểm Tra An Toàn Sinh Học</option>
-                  <option value="KHAC">📝 Nhật Ký / Kỷ Niệm Khác</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 block">Tiêu đề ghi chép:</label>
-                <input
-                  type="text"
-                  required
-                  value={newLogTitle}
-                  onChange={(e) => setNewLogTitle(e.target.value)}
-                  placeholder="Ví dụ: Rau bắt đầu lên lá xanh non mướt"
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 block">Nội dung chi tiết:</label>
-                <textarea
-                  value={newLogNotes}
-                  onChange={(e) => setNewLogNotes(e.target.value)}
-                  placeholder="Cảm nhận hoặc ghi chú cụ thể..."
-                  rows={2}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 block">Link hình ảnh thực tế:</label>
-                <input
-                  type="text"
-                  value={newLogImageUrl}
-                  onChange={(e) => setNewLogImageUrl(e.target.value)}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsNewLogModalOpen(false)}>
-                  Hủy
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isSubmittingLog}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                >
-                  {isSubmittingLog ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Lưu Ghi Chép'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: LIGHTBOX GALLERY */}
+      {/* MODAL 4: LIGHTBOX GALLERY (PHÓNG TO ẢNH NHẬT KÝ CHẤT LƯỢNG CAO) */}
       <LightboxGallery
         images={logs
           .filter((l) => Boolean(l.ImageUrl))
           .map((l) => ({
             id: l.LogId,
-            url: l.ImageUrl!,
+            url: (l.ImageUrl as string),
             title: l.Title,
             date: l.LogDate,
             staffName: l.StaffName || 'Kỹ thuật viên PlotFarm',

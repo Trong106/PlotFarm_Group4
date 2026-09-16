@@ -75,6 +75,18 @@ function CheckoutContent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Role Guard: Prevent Admin & Staff from placing customer orders
+  useEffect(() => {
+    if (user) {
+      const role = (user.role || user.roleName || '').toLowerCase();
+      if (role === 'admin' || user.roleId === 1) {
+        router.replace('/admin');
+      } else if (role === 'staff' || user.roleId === 2) {
+        router.replace('/staff');
+      }
+    }
+  }, [user, router]);
+
   useEffect(() => {
     initAuth();
 

@@ -183,15 +183,31 @@ export default function Header() {
   const handleLogout = () => {
     setIsDropdownOpen(false);
     setIsNotifOpen(false);
-    logout();
+    logout('/login');
   };
 
-  const navLinks = [
-    { href: '/', label: 'Trang Chủ' },
-    { href: '/plots', label: 'Bản Đồ Đất' },
-    { href: '/my-farm', label: 'Nông Trại Của Tôi' },
-    { href: '/profile', label: 'Hồ Sơ' },
-  ];
+  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  const isStaff = user?.role === 'Staff' || user?.roleId === 2;
+  const displayRole = isAdmin ? 'Quản Trị Viên' : isStaff ? 'Kỹ Thuật Viên' : 'Khách Hàng';
+
+  const navLinks = isAdmin
+    ? [
+        { href: '/admin', label: 'Bảng Quản Trị' },
+        { href: '/plots', label: 'Bản Đồ Nông Trại' },
+        { href: '/profile', label: 'Hồ Sơ' },
+      ]
+    : isStaff
+    ? [
+        { href: '/staff', label: 'Trạm Kỹ Thuật Viên' },
+        { href: '/plots', label: 'Bản Đồ Nông Trại' },
+        { href: '/profile', label: 'Hồ Sơ' },
+      ]
+    : [
+        { href: '/', label: 'Trang Chủ' },
+        { href: '/plots', label: 'Bản Đồ Đất' },
+        ...(isAuthenticated ? [{ href: '/my-farm', label: 'Nông Trại Của Tôi' }] : []),
+        ...(isAuthenticated ? [{ href: '/profile', label: 'Hồ Sơ' }] : []),
+      ];
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -234,14 +250,13 @@ export default function Header() {
     }
   };
 
-  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
-  const displayRole = isAdmin ? 'Quản Trị Viên' : user?.role === 'Staff' || user?.roleId === 2 ? 'Kỹ Thuật Viên' : 'Khách Hàng';
+// Role already defined above
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand / Logo */}
-        <Link href="/" className="flex items-center gap-2 group shrink-0">
+        <Link href={isAdmin ? '/admin' : isStaff ? '/staff' : '/'} className="flex items-center gap-2 group shrink-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
             <Sprout className="w-5 h-5 text-white" />
           </div>
@@ -443,7 +458,7 @@ export default function Header() {
 
                   {/* Navigation Links */}
                   <div className="p-1.5 space-y-0.5">
-                    {/* Hồ sơ của tôi (My Profile) */}
+                    {/* Hồ sơ cá nhân */}
                     <Link
                       href="/profile"
                       onClick={() => setIsDropdownOpen(false)}
@@ -454,40 +469,46 @@ export default function Header() {
                       }`}
                     >
                       <User className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>Hồ sơ của tôi</span>
+                      <span>{isAdmin ? 'Hồ sơ cá nhân' : isStaff ? 'Hồ sơ kỹ thuật viên' : 'Hồ sơ của tôi'}</span>
                     </Link>
 
-                    {/* Mùa vụ của tôi (My Farm) */}
-                    <Link
-                      href="/my-farm"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
-                        pathname === '/my-farm'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
-                      }`}
-                    >
-                      <Trees className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                      <span>Mùa vụ của tôi</span>
-                    </Link>
-
-                    {/* Cổng Nhân Viên Thực Địa (Staff Portal) */}
-                    {(user.role === 'Staff' || user.role === 'Admin') && (
+                    {/* Mùa vụ của tôi (Chỉ hiển thị cho Khách Hàng) */}
+                    {!isAdmin && !isStaff && (
                       <Link
-                        href="/staff"
+                        href="/my-farm"
                         onClick={() => setIsDropdownOpen(false)}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
-                          pathname === '/staff'
+                          pathname === '/my-farm'
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                             : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
                         }`}
                       >
-                        <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span>Cổng Nhân Viên (/staff)</span>
+                        <Trees className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        <span>Nông trại của tôi</span>
                       </Link>
                     )}
 
-                    {/* Dashboard Admin (Chỉ hiển thị khi role là ADMIN) */}
+                    {/* Cổng Nhân Viên Kỹ Thuật (Hiển thị cho Staff hoặc Admin) */}
+                    {(isStaff || isAdmin) && (
+                      <Link
+                        href="/staff"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          pathname === '/staff'
+                            ? 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border border-teal-500/30'
+                            : 'text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/60 border border-teal-300/40 dark:border-teal-700/40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Sprout className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                          <span>Cổng Nhân Viên Kỹ Thuật</span>
+                        </div>
+                        <span className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded bg-teal-600 text-white shadow-xs">
+                          STAFF
+                        </span>
+                      </Link>
+                    )}
+
                     {isAdmin && (
                       <Link
                         href="/admin"

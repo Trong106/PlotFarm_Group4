@@ -94,10 +94,29 @@ interface HarvestItem {
 
 export default function StaffPage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, token, isAuthenticated, initAuth } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<'plots' | 'requests' | 'harvest' | 'resources'>('plots');
   const [filterArea, setFilterArea] = useState<string>('ALL');
+
+  // Auth Guard: ensure only Staff or Admin can access
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  useEffect(() => {
+    const savedToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!savedToken && !token) {
+      router.replace('/login');
+      return;
+    }
+    if (user) {
+      const role = (user.role || user.roleName || '').toLowerCase();
+      if (role !== 'staff' && role !== 'admin' && user.roleId !== 2 && user.roleId !== 1) {
+        router.replace('/my-farm');
+      }
+    }
+  }, [user, token, router]);
 
   // Modal states for creating Cultivation Log
   const [isLogModalOpen, setLogModalOpen] = useState(false);
@@ -144,9 +163,22 @@ export default function StaffPage() {
   // Initial Mock State for Assigned Plots
   const [plots, setPlots] = useState<AssignedPlot[]>([
     {
+      PlotId: 28,
+      PlotCode: 'PLOT_B08',
+      AreaName: 'Khu Củ Quả & Dâu Tây B',
+      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
+      SeedName: 'Cải thìa baby thủy canh',
+      GrowthDays: 15,
+      ProgressPercent: 45,
+      HealthStatus: 'EXCELLENT',
+      LastLogDate: 'Hôm nay (Vừa tưới vi sinh)',
+      Humidity: 70,
+      SoilPH: 6.4,
+    },
+    {
       PlotId: 101,
-      PlotCode: 'A-01',
-      AreaName: 'Khu A (Đất Thịt Phù Sa)',
+      PlotCode: 'PLOT_A01',
+      AreaName: 'Khu Rau Ăn Lá Hữu Cơ A',
       CustomerName: 'Hoàng Anh Tuấn',
       SeedName: 'Cải Bẹ Xanh',
       GrowthDays: 24,
@@ -200,8 +232,18 @@ export default function StaffPage() {
   // Initial Mock State for Care Requests
   const [careRequests, setCareRequests] = useState<CareRequest[]>([
     {
+      RequestId: 4,
+      PlotCode: 'PLOT_B08',
+      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
+      CustomerPhone: '0901234567',
+      RequestType: 'BÓN PHÂN HỮU CƠ BỔ SUNG',
+      Note: 'Nhờ kỹ thuật viên bón thêm dinh dưỡng vi sinh và tỉa lá vàng đợt này giúp em nhé.',
+      CreatedAt: 'Hôm nay (11:57)',
+      Status: 'PENDING',
+    },
+    {
       RequestId: 1,
-      PlotCode: 'A-05',
+      PlotCode: 'PLOT_A05',
       CustomerName: 'Trần Văn Bình',
       CustomerPhone: '0903000001',
       RequestType: 'Tưới nước bổ sung',
@@ -225,8 +267,17 @@ export default function StaffPage() {
   // Initial Mock State for Harvest Items
   const [harvestList, setHarvestList] = useState<HarvestItem[]>([
     {
+      CultivationId: 4,
+      PlotCode: 'PLOT_B08',
+      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
+      SeedName: 'Cải thìa baby thủy canh',
+      ExpectedHarvestDate: '15/10/2026',
+      EstimatedYieldKg: 20.0,
+      Status: 'READY_TO_HARVEST',
+    },
+    {
       CultivationId: 301,
-      PlotCode: 'A-05',
+      PlotCode: 'PLOT_A05',
       CustomerName: 'Trần Văn Bình',
       SeedName: 'Xà Lách Lô Tô',
       ExpectedHarvestDate: '16/09/2026',

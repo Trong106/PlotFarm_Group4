@@ -17,6 +17,6 @@ router.get('/deliveries/my', verifyToken, cultivationController.getMyDeliveries)
 
 // Cultivation Logs (Journal Timeline)
 router.get('/:id/logs', verifyToken, cultivationController.getLogs);
-router.post('/:id/logs', requireStaffOrAdmin, cultivationController.createLog);
+router.post('/:id/logs', verifyToken, requireStaffOrAdmin, cultivationController.createLog);
 
 module.exports = router;

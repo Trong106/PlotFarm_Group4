@@ -67,7 +67,9 @@ export default function ProfilePage() {
   const { user, isAuthenticated, isLoading: isAuthLoading, error: authError, initAuth, fetchProfile, updateProfile } = useAuthStore();
   const { addresses, isLoading: isAddressLoading, isSubmitting: isAddressSubmitting, fetchAddresses, setDefaultAddress, deleteAddress } = useAddressStore();
 
-  const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'security'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'security' | 'admin_portal' | 'staff_tasks'>('info');
+  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
+  const isStaff = user?.role === 'Staff' || user?.roleId === 2;
 
   // Profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -331,8 +333,7 @@ export default function ProfilePage() {
     );
   }
 
-  const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
-  const displayRole = isAdmin ? 'Admin' : user?.role === 'Staff' || user?.roleId === 2 ? 'Staff' : 'Khách Hàng';
+  const displayRole = isAdmin ? 'Admin' : isStaff ? 'Staff' : 'Khách Hàng';
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
@@ -397,35 +398,68 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* 3 Main Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+        {/* Role-adaptive Tabs */}
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
           <button
             onClick={() => setActiveTab('info')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'info'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
             }`}
           >
             <User className="w-4 h-4" />
-            <span>Hồ Sơ & Sổ Địa Chỉ</span>
+            <span>{isAdmin ? 'Hồ Sơ Quản Trị Viên' : isStaff ? 'Hồ Sơ Kỹ Thuật Viên' : 'Hồ Sơ & Sổ Địa Chỉ'}</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
-              activeTab === 'orders'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            <ShoppingCart className="w-4 h-4" />
-            <span>Lịch Sử Đơn Thuê ({orders.length})</span>
-          </button>
+          {/* Tab dành riêng cho Customer: Đơn hàng */}
+          {!isAdmin && !isStaff && (
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === 'orders'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span>Lịch Sử Đơn Thuê ({orders.length})</span>
+            </button>
+          )}
+
+          {/* Tab dành riêng cho Admin: Quyền hạn hệ thống */}
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('admin_portal')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === 'admin_portal'
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Quyền Hạn Quản Trị Hệ Thống</span>
+            </button>
+          )}
+
+          {/* Tab dành riêng cho Staff: Phân khu & Nhiệm vụ */}
+          {isStaff && (
+            <button
+              onClick={() => setActiveTab('staff_tasks')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === 'staff_tasks'
+                  ? 'bg-teal-600 text-white shadow-md shadow-teal-600/20'
+                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/30'
+              }`}
+            >
+              <Sprout className="w-4 h-4" />
+              <span>Nhiệm Vụ Kỹ Thuật Hiện Trường</span>
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'security'
                 ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
@@ -549,7 +583,8 @@ export default function ProfilePage() {
               )}
             </Card>
 
-            {/* Address Book Section */}
+            {/* Address Book Section (Chỉ hiển thị cho Khách Hàng) */}
+            {!isAdmin && !isStaff && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -633,6 +668,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
