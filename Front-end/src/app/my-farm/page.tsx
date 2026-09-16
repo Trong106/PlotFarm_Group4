@@ -1700,7 +1700,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
           .filter((l) => Boolean(l.ImageUrl))
           .map((l) => ({
             id: l.LogId,
-            url: l.ImageUrl,
+            url: (l.ImageUrl as string),
             title: l.Title,
             date: l.LogDate,
             staffName: l.StaffName || 'Kỹ thuật viên PlotFarm',

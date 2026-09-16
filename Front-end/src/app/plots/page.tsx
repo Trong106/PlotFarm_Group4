@@ -29,6 +29,8 @@ import { PLOT_STATUS_LABELS, PlotStatusFilter } from '@/lib/plot-selection';
 import { usePlotSelection } from '@/components/plots/usePlotSelection';
 import { PlotBrowser } from '@/components/plots/PlotBrowser';
 import { ShareSelection } from '@/components/plots/ShareSelection';
+import { useAuthStore } from '@/store/useAuthStore';
+import { toast } from '@/store/useToastStore';
 
 interface FarmArea {
   AreaId: number;
@@ -84,6 +86,7 @@ interface CarePackage {
 
 export default function PlotsPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const seedScrollRef = useRef<HTMLDivElement>(null);
 
   // Data states
@@ -236,7 +239,7 @@ export default function PlotsPage() {
       await api.patch(`/plots/${plotId}/status`, { status: 'AVAILABLE' });
       setPlots((prev) => prev.map((p) => (p.PlotId === plotId ? { ...p, Status: 'AVAILABLE' } : p)));
       if (selectedPlot?.PlotId === plotId) {
-        setSelectedPlot((prev) => (prev ? { ...prev, Status: 'AVAILABLE' } : null));
+        setSelectedPlot({ ...selectedPlot, Status: 'AVAILABLE' });
       }
       toast.success('Mở khóa ô đất thành công!', 'Đã mở khóa');
     } catch (e: any) {
@@ -603,7 +606,7 @@ export default function PlotsPage() {
                       Tiếp Tục Đặt Thuê ({pricingSummary.growthDays} ngày)
                     </Button>
                                         {selectedPlot.Status !== 'AVAILABLE' && <p role="status" className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">Ô đất này hiện {PLOT_STATUS_LABELS[selectedPlot.Status as PlotStatusFilter]?.toLowerCase() || selectedPlot.Status}. Vui lòng chọn ô sẵn sàng thuê để tiếp tục.</p>}
-                    {(user?.role === 'Admin' || user?.role === 'Staff' || user?.roleId === 1 || user?.roleId === 2) && selectedPlot.Status === 'LOCKED' && (
+                    {(user?.role === 'Admin' || user?.role === 'Staff' || user?.roleId === 1 || user?.roleId === 2) && (selectedPlot.Status as string) === 'LOCKED' || selectedPlot.Status === 'MAINTENANCE' && (
                       <div className="pt-2 border-t border-amber-200 dark:border-amber-800">
                         <Button
                           variant="outline"
