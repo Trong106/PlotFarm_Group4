@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -38,7 +38,12 @@ import {
   Filter,
   Trash2,
   Award,
-  Check
+  Check,
+  ImagePlus,
+  Droplet,
+  Leaf,
+  Bug,
+  FlaskConical
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/Button';
@@ -104,16 +109,35 @@ export default function StaffPage() {
   const [logImageUrl, setLogImageUrl] = useState('/assets/farm/cultivated-plot.jpg');
   const [isSubmittingLog, setIsSubmittingLog] = useState(false);
 
+  // Camera capture states for Log Modal
+  const logCameraRef = useRef<HTMLInputElement>(null);
+  const logGalleryRef = useRef<HTMLInputElement>(null);
+  const [logImageFile, setLogImageFile] = useState<File | null>(null);
+  const [logImagePreview, setLogImagePreview] = useState<string | null>(null);
+
+  // Supply materials states for Log Modal
+  const [logSuppliesUsed, setLogSuppliesUsed] = useState<string[]>([]);
+  const [logWaterAmount, setLogWaterAmount] = useState('');
+
   // Modal states for Care Request Resolution
   const [isRequestModalOpen, setRequestModalOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<CareRequest | null>(null);
   const [requestResolveNotes, setRequestResolveNotes] = useState('');
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
+  // Camera capture states for Request Modal
+  const requestCameraRef = useRef<HTMLInputElement>(null);
+  const requestGalleryRef = useRef<HTMLInputElement>(null);
+  const [requestResolveImage, setRequestResolveImage] = useState<File | null>(null);
+  const [requestResolveImagePreview, setRequestResolveImagePreview] = useState<string | null>(null);
+
+  // Request status filter
+  const [requestStatusFilter, setRequestStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
+
   // Modal states for Harvest Recording
   const [isHarvestModalOpen, setHarvestModalOpen] = useState(false);
   const [selectedHarvestItem, setSelectedHarvestItem] = useState<HarvestItem | null>(null);
-  const [harvestActualYieldKg, setHarvestActualYieldKg] = useState<number>(15.5);
+  const [harvestActualYieldStr, setHarvestActualYieldStr] = useState('15.5');
   const [harvestNotes, setHarvestNotes] = useState('');
   const [isSubmittingHarvest, setIsSubmittingHarvest] = useState(false);
 
@@ -226,6 +250,63 @@ export default function StaffPage() {
     return plots.filter((p) => p.AreaName.includes(filterArea));
   }, [plots, filterArea]);
 
+  // Filtered care requests by status
+  const filteredCareRequests = useMemo(() => {
+    if (requestStatusFilter === 'ALL') return careRequests;
+    return careRequests.filter((r) => r.Status === requestStatusFilter);
+  }, [careRequests, requestStatusFilter]);
+
+  // Camera capture handlers
+  const handleLogImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogImageFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setLogImagePreview(previewUrl);
+      setLogImageUrl(file.name);
+    }
+  };
+
+  const handleRemoveLogImage = () => {
+    if (logImagePreview) URL.revokeObjectURL(logImagePreview);
+    setLogImageFile(null);
+    setLogImagePreview(null);
+    setLogImageUrl('/assets/farm/cultivated-plot.jpg');
+    if (logCameraRef.current) logCameraRef.current.value = '';
+    if (logGalleryRef.current) logGalleryRef.current.value = '';
+  };
+
+  const handleRequestImageCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setRequestResolveImage(file);
+      const previewUrl = URL.createObjectURL(file);
+      setRequestResolveImagePreview(previewUrl);
+    }
+  };
+
+  const handleRemoveRequestImage = () => {
+    if (requestResolveImagePreview) URL.revokeObjectURL(requestResolveImagePreview);
+    setRequestResolveImage(null);
+    setRequestResolveImagePreview(null);
+    if (requestCameraRef.current) requestCameraRef.current.value = '';
+    if (requestGalleryRef.current) requestGalleryRef.current.value = '';
+  };
+
+  // Supply materials toggle
+  const SUPPLY_OPTIONS = [
+    { id: 'phan-vi-sinh', label: 'Phân bón vi sinh', icon: <Leaf className="w-3.5 h-3.5" /> },
+    { id: 'phan-trun-que', label: 'Phân trùn quế', icon: <Bug className="w-3.5 h-3.5" /> },
+    { id: 'thuoc-thao-moc', label: 'Thuốc thảo mộc', icon: <FlaskConical className="w-3.5 h-3.5" /> },
+    { id: 'voi-bot', label: 'Vôi bột', icon: <Sparkles className="w-3.5 h-3.5" /> },
+  ];
+
+  const toggleSupply = (supplyId: string) => {
+    setLogSuppliesUsed((prev) =>
+      prev.includes(supplyId) ? prev.filter((s) => s !== supplyId) : [...prev, supplyId]
+    );
+  };
+
   // Handle open Log modal
   const handleOpenLogModal = (plot: AssignedPlot) => {
     setSelectedPlotForLog(plot);
@@ -233,6 +314,9 @@ export default function StaffPage() {
     setLogActivityType('TƯỚI NƯỚC');
     setLogNotes('');
     setLogHealthStatus(plot.HealthStatus);
+    handleRemoveLogImage();
+    setLogSuppliesUsed([]);
+    setLogWaterAmount('');
     setLogModalOpen(true);
   };
 
@@ -308,7 +392,8 @@ export default function StaffPage() {
   // Submit Harvest Result
   const handleSubmitHarvest = (e: React.FormEvent) => {
     e.preventDefault();
-    if (harvestActualYieldKg <= 0) {
+    const parsedYield = parseFloat(harvestActualYieldStr);
+    if (isNaN(parsedYield) || parsedYield <= 0) {
       toast.error('Sản lượng thu hoạch phải lớn hơn 0 kg!');
       return;
     }
@@ -329,7 +414,7 @@ export default function StaffPage() {
       }
 
       toast.success(
-        `Đã ghi nhận thu hoạch thành công ${harvestActualYieldKg} kg nông sản cho ô ${selectedHarvestItem?.PlotCode}!`,
+        `Đã ghi nhận thu hoạch thành công ${harvestActualYieldStr} kg nông sản cho ô ${selectedHarvestItem?.PlotCode}!`,
         'Ghi Nhận Thu Hoạch'
       );
     }, 800);
@@ -622,72 +707,156 @@ export default function StaffPage() {
         {/* TAB 2: FIELD CARE REQUESTS RESOLUTION */}
         {activeTab === 'requests' && (
           <div className="space-y-4 animate-fade-in">
-            {careRequests.map((req) => (
-              <Card key={req.RequestId} variant="glass" className="shadow-sm">
-                <CardContent className="p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-sm">
-                        Ô {req.PlotCode}
-                      </span>
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{req.RequestType}</h4>
-                    </div>
-                    <Badge
-                      variant={
-                        req.Status === 'COMPLETED'
-                          ? 'success'
-                          : req.Status === 'IN_PROGRESS'
-                          ? 'warning'
-                          : 'danger'
-                      }
-                      size="sm"
-                    >
-                      {req.Status === 'COMPLETED'
-                        ? 'Đã Hoàn Thành'
-                        : req.Status === 'IN_PROGRESS'
-                        ? 'Đang Thực Hiện'
-                        : 'Chờ Xử Lý'}
-                    </Badge>
-                  </div>
+            {/* Status Filter Bar */}
+            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex-wrap gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5" /> Lọc theo trạng thái:
+              </span>
+              <div className="flex gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setRequestStatusFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-action-safe flex items-center gap-1.5 ${
+                    requestStatusFilter === 'ALL'
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Tất Cả
+                  <span className="px-1.5 py-0.5 rounded-md bg-slate-200/60 dark:bg-slate-800 text-[10px] font-bold">{careRequests.length}</span>
+                </button>
+                <button
+                  onClick={() => setRequestStatusFilter('PENDING')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-action-safe flex items-center gap-1.5 ${
+                    requestStatusFilter === 'PENDING'
+                      ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Chờ Tiếp Nhận
+                  <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-900/30 text-[10px] font-bold">{careRequests.filter(r => r.Status === 'PENDING').length}</span>
+                </button>
+                <button
+                  onClick={() => setRequestStatusFilter('IN_PROGRESS')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-action-safe flex items-center gap-1.5 ${
+                    requestStatusFilter === 'IN_PROGRESS'
+                      ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Đang Xử Lý
+                  <span className="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/30 text-[10px] font-bold">{careRequests.filter(r => r.Status === 'IN_PROGRESS').length}</span>
+                </button>
+                <button
+                  onClick={() => setRequestStatusFilter('COMPLETED')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-action-safe flex items-center gap-1.5 ${
+                    requestStatusFilter === 'COMPLETED'
+                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Đã Hoàn Thành
+                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-[10px] font-bold">{careRequests.filter(r => r.Status === 'COMPLETED').length}</span>
+                </button>
+              </div>
+            </div>
 
-                  <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mb-3 text-xs">
-                    <p className="text-slate-700 dark:text-slate-300 font-medium">
-                      &quot;{req.Note}&quot;
-                    </p>
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
-                      <span>Khách hàng: <strong>{req.CustomerName}</strong> ({req.CustomerPhone})</span>
-                      <span>Gửi lúc: {req.CreatedAt}</span>
-                    </div>
-                  </div>
-
-                  {req.ResolvedNote && (
-                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-3 text-xs">
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">
-                        Ghi chú kỹ thuật viên xử lý:
-                      </span>
-                      <p className="text-slate-600 dark:text-slate-300">{req.ResolvedNote}</p>
-                    </div>
-                  )}
-
-                  {req.Status !== 'COMPLETED' && (
-                    <div className="flex justify-end gap-2 pt-2">
-                      <Button
-                        variant="primary"
+            {/* Filtered Requests List */}
+            {filteredCareRequests.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">Không có yêu cầu nào</p>
+                <p className="text-xs text-slate-400 mt-1">Chưa có yêu cầu nào ở trạng thái này.</p>
+              </div>
+            ) : (
+              filteredCareRequests.map((req) => (
+                <Card key={req.RequestId} variant="glass" className="shadow-sm">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-sm">
+                          Ô {req.PlotCode}
+                        </span>
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{req.RequestType}</h4>
+                      </div>
+                      <Badge
+                        variant={
+                          req.Status === 'COMPLETED'
+                            ? 'success'
+                            : req.Status === 'IN_PROGRESS'
+                            ? 'warning'
+                            : 'danger'
+                        }
                         size="sm"
-                        onClick={() => {
-                          setSelectedRequest(req);
-                          setRequestResolveNotes(req.ResolvedNote || '');
-                          setRequestModalOpen(true);
-                        }}
-                        leftIcon={<CheckCircle className="w-3.5 h-3.5" />}
                       >
-                        Xác Nhận Đã Xử Lý Vườn
-                      </Button>
+                        {req.Status === 'COMPLETED'
+                          ? 'Đã Hoàn Thành'
+                          : req.Status === 'IN_PROGRESS'
+                          ? 'Đang Thực Hiện'
+                          : 'Chờ Tiếp Nhận'}
+                      </Badge>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+
+                    <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mb-3 text-xs">
+                      <p className="text-slate-700 dark:text-slate-300 font-medium">
+                        &quot;{req.Note}&quot;
+                      </p>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-[11px] text-slate-500">
+                        <span>Khách hàng: <strong>{req.CustomerName}</strong> ({req.CustomerPhone})</span>
+                        <span>Gửi lúc: {req.CreatedAt}</span>
+                      </div>
+                    </div>
+
+                    {req.ResolvedNote && (
+                      <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 mb-3 text-xs">
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">
+                          Ghi chú kỹ thuật viên xử lý:
+                        </span>
+                        <p className="text-slate-600 dark:text-slate-300">{req.ResolvedNote}</p>
+                      </div>
+                    )}
+
+                    {req.Status !== 'COMPLETED' && (
+                      <div className="flex justify-end gap-3 pt-3">
+                        {req.Status === 'PENDING' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="min-h-[44px] touch-action-safe"
+                            onClick={() => {
+                              setCareRequests((prev) =>
+                                prev.map((r) =>
+                                  r.RequestId === req.RequestId ? { ...r, Status: 'IN_PROGRESS' } : r
+                                )
+                              );
+                              toast.success(`Đã tiếp nhận yêu cầu ô ${req.PlotCode}!`, 'Tiếp Nhận');
+                            }}
+                            leftIcon={<ArrowRight className="w-3.5 h-3.5" />}
+                          >
+                            Tiếp Nhận
+                          </Button>
+                        )}
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="min-h-[44px] touch-action-safe"
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setRequestResolveNotes(req.ResolvedNote || '');
+                            handleRemoveRequestImage();
+                            setRequestModalOpen(true);
+                          }}
+                          leftIcon={<CheckCircle className="w-3.5 h-3.5" />}
+                        >
+                          Xác Nhận Hoàn Thành
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         )}
 
@@ -728,10 +897,10 @@ export default function StaffPage() {
                     {item.Status === 'READY_TO_HARVEST' ? (
                       <Button
                         variant="primary"
-                        className="w-full mt-4"
+                        className="w-full mt-4 min-h-[44px] touch-action-safe"
                         onClick={() => {
                           setSelectedHarvestItem(item);
-                          setHarvestActualYieldKg(item.EstimatedYieldKg);
+                          setHarvestActualYieldStr(String(item.EstimatedYieldKg));
                           setHarvestNotes('');
                           setHarvestModalOpen(true);
                         }}
@@ -835,7 +1004,7 @@ export default function StaffPage() {
               Loại Hoạt Động Kỹ Thuật
             </label>
             <select
-              className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
               value={logActivityType}
               onChange={(e) => setLogActivityType(e.target.value)}
             >
@@ -855,7 +1024,7 @@ export default function StaffPage() {
               <button
                 type="button"
                 onClick={() => setLogHealthStatus('EXCELLENT')}
-                className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
                   logHealthStatus === 'EXCELLENT'
                     ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                     : 'border-slate-200 dark:border-slate-800 text-slate-500'
@@ -866,7 +1035,7 @@ export default function StaffPage() {
               <button
                 type="button"
                 onClick={() => setLogHealthStatus('GOOD')}
-                className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
                   logHealthStatus === 'GOOD'
                     ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
                     : 'border-slate-200 dark:border-slate-800 text-slate-500'
@@ -877,7 +1046,7 @@ export default function StaffPage() {
               <button
                 type="button"
                 onClick={() => setLogHealthStatus('NORMAL')}
-                className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
                   logHealthStatus === 'NORMAL'
                     ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
                     : 'border-slate-200 dark:border-slate-800 text-slate-500'
@@ -888,7 +1057,7 @@ export default function StaffPage() {
               <button
                 type="button"
                 onClick={() => setLogHealthStatus('ATTENTION_NEEDED')}
-                className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
                   logHealthStatus === 'ATTENTION_NEEDED'
                     ? 'border-rose-500 bg-rose-500/10 text-rose-600 dark:text-rose-400'
                     : 'border-slate-200 dark:border-slate-800 text-slate-500'
@@ -899,16 +1068,116 @@ export default function StaffPage() {
             </div>
           </div>
 
+          {/* Camera Capture Zone - Chụp ảnh luống rau 1 chạm */}
           <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-              Hình Ảnh Chứng Thực Tại Vườn
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+              📸 Hình Ảnh Chứng Thực Tại Vườn
             </label>
-            <Input
-              placeholder="Dán link ảnh hoặc để mặc định..."
-              value={logImageUrl}
-              onChange={(e) => setLogImageUrl(e.target.value)}
-              leftIcon={<Camera className="w-4 h-4" />}
+            {/* Hidden file inputs */}
+            <input
+              ref={logCameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleLogImageCapture}
+              className="hidden"
             />
+            <input
+              ref={logGalleryRef}
+              type="file"
+              accept="image/*"
+              onChange={handleLogImageCapture}
+              className="hidden"
+            />
+
+            {logImagePreview ? (
+              <div className="relative animate-fade-in">
+                <div className="image-preview-thumb w-full h-48 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <img src={logImagePreview} alt="Ảnh luống rau" className="w-full h-full object-cover" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveLogImage}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/60 text-white hover:bg-red-600 transition-colors touch-action-safe"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-emerald-600/90 text-white text-[10px] font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Đã chụp ảnh
+                </div>
+              </div>
+            ) : (
+              <div className="camera-capture-zone p-5">
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => logCameraRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 hover:shadow-xl hover:from-emerald-500 hover:to-teal-500 transition-all min-h-[48px] touch-action-safe active:scale-95"
+                  >
+                    <Camera className="w-5 h-5" />
+                    Chụp Ảnh Luống Rau
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => logGalleryRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs border border-slate-200 dark:border-slate-700 hover:border-emerald-400 transition-all min-h-[48px] touch-action-safe active:scale-95"
+                  >
+                    <ImagePlus className="w-5 h-5" />
+                    Chọn Từ Thư Viện
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 text-center mt-2.5">Bấm để bật camera sau hoặc chọn ảnh có sẵn</p>
+              </div>
+            )}
+          </div>
+
+          {/* Supply Materials Quick-Select - Vật tư nông nghiệp đã sử dụng */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+              🧪 Vật Tư Nông Nghiệp Đã Sử Dụng
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {SUPPLY_OPTIONS.map((supply) => (
+                <button
+                  key={supply.id}
+                  type="button"
+                  onClick={() => toggleSupply(supply.id)}
+                  className={`supply-chip flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold min-h-[44px] touch-action-safe ${
+                    logSuppliesUsed.includes(supply.id)
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-500/10'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
+                  }`}
+                >
+                  <span className={`flex-shrink-0 ${
+                    logSuppliesUsed.includes(supply.id) ? 'text-emerald-500' : 'text-slate-400'
+                  }`}>
+                    {supply.icon}
+                  </span>
+                  <span className="flex-1 text-left">{supply.label}</span>
+                  {logSuppliesUsed.includes(supply.id) && (
+                    <Check className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Water amount input */}
+            <div className="mt-2.5 flex items-center gap-2.5">
+              <div className="flex items-center gap-2 flex-1">
+                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
+                  <Droplet className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Lượng nước tưới (lít)"
+                  value={logWaterAmount}
+                  onChange={(e) => setLogWaterAmount(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[40px]"
+                />
+              </div>
+              <span className="text-xs font-bold text-slate-400">lít</span>
+            </div>
           </div>
 
           <div>
@@ -916,18 +1185,18 @@ export default function StaffPage() {
               Ghi Chú Chi Tiết Đặt Vườn
             </label>
             <textarea
-              className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[70px]"
+              className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[70px]"
               placeholder="Ghi chú thêm về diễn biến cây trồng..."
               value={logNotes}
               onChange={(e) => setLogNotes(e.target.value)}
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setLogModalOpen(false)}>
+          <div className="flex justify-end gap-3 pt-3">
+            <Button variant="ghost" className="min-h-[44px] touch-action-safe" onClick={() => setLogModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmittingLog} leftIcon={<Send className="w-4 h-4" />}>
+            <Button variant="primary" type="submit" isLoading={isSubmittingLog} leftIcon={<Send className="w-4 h-4" />} className="min-h-[44px] touch-action-safe">
               Đăng Nhật Ký Ngay
             </Button>
           </div>
@@ -953,18 +1222,79 @@ export default function StaffPage() {
               Ghi Chú Kết Quả Xử Lý Tại Vườn (*)
             </label>
             <textarea
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[80px]"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[80px]"
               placeholder="Nhập chi tiết xử lý (Ví dụ: Đã tưới thêm vi sinh và tỉa sạch lá sâu)..."
               value={requestResolveNotes}
               onChange={(e) => setRequestResolveNotes(e.target.value)}
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setRequestModalOpen(false)}>
+          {/* Camera Capture for Request Evidence */}
+          <div>
+            <label className="font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
+              📸 Ảnh Minh Chứng Xử Lý (Tùy chọn)
+            </label>
+            <input
+              ref={requestCameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleRequestImageCapture}
+              className="hidden"
+            />
+            <input
+              ref={requestGalleryRef}
+              type="file"
+              accept="image/*"
+              onChange={handleRequestImageCapture}
+              className="hidden"
+            />
+
+            {requestResolveImagePreview ? (
+              <div className="relative animate-fade-in">
+                <div className="image-preview-thumb w-full h-40 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <img src={requestResolveImagePreview} alt="Ảnh minh chứng" className="w-full h-full object-cover" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveRequestImage}
+                  className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/60 text-white hover:bg-red-600 transition-colors touch-action-safe"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-emerald-600/90 text-white text-[10px] font-bold flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Đã chụp
+                </div>
+              </div>
+            ) : (
+              <div className="camera-capture-zone p-4">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => requestCameraRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all min-h-[44px] touch-action-safe active:scale-95"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Chụp Ảnh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => requestGalleryRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs border border-slate-200 dark:border-slate-700 hover:border-emerald-400 transition-all min-h-[44px] touch-action-safe active:scale-95"
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    Thư Viện
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <Button variant="ghost" className="min-h-[44px] touch-action-safe" onClick={() => setRequestModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmittingRequest} leftIcon={<CheckCircle className="w-4 h-4" />}>
+            <Button variant="primary" type="submit" isLoading={isSubmittingRequest} leftIcon={<CheckCircle className="w-4 h-4" />} className="min-h-[44px] touch-action-safe">
               Hoàn Thành Xử Lý
             </Button>
           </div>
@@ -981,33 +1311,54 @@ export default function StaffPage() {
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300">
             <p className="font-bold">Cây trồng: {selectedHarvestItem?.SeedName}</p>
             <p>Khách hàng: {selectedHarvestItem?.CustomerName}</p>
+            <p className="mt-1 text-[11px] opacity-75">Sản lượng dự kiến: {selectedHarvestItem?.EstimatedYieldKg} kg</p>
           </div>
 
-          <Input
-            label="Sản Lượng Thực Tế Thu Được (Kg) (*)"
-            type="number"
-            step="0.1"
-            value={harvestActualYieldKg}
-            onChange={(e) => setHarvestActualYieldKg(parseFloat(e.target.value) || 0)}
-          />
+          <div>
+            <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase mb-1.5 block">
+              Sản Lượng Thực Tế Thu Được (Kg) (*)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={harvestActualYieldStr}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // Allow digits, single dot, and empty string for clearing
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setHarvestActualYieldStr(val);
+                  }
+                }}
+                placeholder="Ví dụ: 18.5"
+                className="w-full py-2.5 pl-4 pr-12 rounded-xl border text-sm transition-all duration-200 outline-none bg-white/80 dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 border-slate-200 dark:border-slate-700/80 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 min-h-[44px] font-mono text-lg font-bold"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">kg</span>
+            </div>
+            {harvestActualYieldStr && !isNaN(parseFloat(harvestActualYieldStr)) && (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1.5 flex items-center gap-1">
+                <Package className="w-3 h-3" /> Sản lượng ghi nhận: <strong>{harvestActualYieldStr} kg</strong>
+              </p>
+            )}
+          </div>
 
           <div>
             <label className="font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
               Ghi Chú Thu Hoạch & Đóng Gói
             </label>
             <textarea
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[70px]"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[70px]"
               placeholder="Ghi chú chất lượng nông sản..."
               value={harvestNotes}
               onChange={(e) => setHarvestNotes(e.target.value)}
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => setHarvestModalOpen(false)}>
+          <div className="flex justify-end gap-3 pt-3">
+            <Button variant="ghost" className="min-h-[44px] touch-action-safe" onClick={() => setHarvestModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmittingHarvest} leftIcon={<Package className="w-4 h-4" />}>
+            <Button variant="primary" type="submit" isLoading={isSubmittingHarvest} leftIcon={<Package className="w-4 h-4" />} className="min-h-[44px] touch-action-safe">
               Lưu Kết Quả Thu Hoạch
             </Button>
           </div>
