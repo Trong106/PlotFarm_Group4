@@ -174,7 +174,7 @@ const createMockCheckout = async (userId, data) => {
       .input('PlotId', sql.Int, plotId)
       .query(`UPDATE Plots SET Status = 'RENTED', ReservedUntil = NULL, ReservedByUserId = NULL WHERE PlotId = @PlotId`);
 
-    // E. Create Cultivations record
+    // E. Use the chosen seed's first stage, or NULL when its catalog is not seeded yet.
     const cultInsert = await transaction.request()
       .input('OrderId', sql.Int, orderId)
       .input('PlotId', sql.Int, plotId)
@@ -189,7 +189,8 @@ const createMockCheckout = async (userId, data) => {
         )
         OUTPUT INSERTED.CultivationId
         VALUES (
-          @OrderId, @PlotId, @SeedId, 1, @StartDate,
+          @OrderId, @PlotId, @SeedId,
+          (SELECT TOP (1) StageId FROM GrowthStages WHERE SeedId = @SeedId ORDER BY StageOrder, StageId), @StartDate,
           @ExpectedHarvestDate, @ProgressPercent, 'GROWING', 0, GETDATE()
         )
       `);

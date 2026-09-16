@@ -44,3 +44,13 @@ Mặc định frontend gọi API tại `http://localhost:5000/api`. Chức năng
 Khi deploy, đặt `NEXT_PUBLIC_API_BASE_URL=https://<ten-mien-backend>/api` trong môi trường build của dịch vụ hosting **trước khi chạy build**, rồi build/deploy lại. Trang hồ sơ và Header dùng chung cấu hình này. Backend cần cho phép CORS từ tên miền frontend; nếu frontend dùng HTTPS thì URL backend cũng cần HTTPS. Không đặt `localhost` cho bản deploy vì trình duyệt sẽ gọi vào máy của người truy cập.
 
 Chạy `npm.cmd run test:auth` để kiểm tra hồi quy việc tải hồ sơ, khởi tạo lại Header, hết hạn phiên và lỗi kết nối.
+
+## Chọn ô đất và chia sẻ cấu hình
+
+Trang `/plots` hỗ trợ chế độ lưới và danh sách, kết hợp bộ lọc giá thuê theo tháng (VND), loại đất của phân khu và trạng thái ô đất. Bảng danh sách cuộn ngang trong khung trên điện thoại.
+
+URL lưu các tham số `areaId`, `plotId`, `seedId`, `pkgId`, `view` (`grid` hoặc `list`), `status`, `minPrice`, `maxPrice`, `soil`. Dùng nút chia sẻ trên trang để lấy liên kết với mã ô thực tế. Khi mở liên kết, dữ liệu lựa chọn được kiểm tra lại với API; ô không còn sẵn sàng thuê chỉ được xem, không thể tiếp tục đặt thuê.
+
+Chạy `node --test tests/plot-selection.test.cjs` để kiểm tra bộ lọc, khôi phục URL, mã không hợp lệ và sự nhất quán khi chuyển phân khu liên tiếp.
+
+Kiểm tra giao diện thủ công: mở `/plots` ở chiều rộng 320, 360, 374 và 1280px; chuyển nhanh các phân khu; thử cả lưới/danh sách; chọn giống và gói rồi mở liên kết chia sẻ trong tab khác. Kiểm tra khoảng giá rỗng, giá 0, giá tối thiểu lớn hơn tối đa, bộ lọc không có kết quả và ô đã thuê.
