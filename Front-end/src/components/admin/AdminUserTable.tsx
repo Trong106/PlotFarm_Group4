@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 
 import React from 'react';
 import {
@@ -10,6 +11,8 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Users,
   SearchX,
   Loader2,
@@ -62,16 +65,16 @@ export const AdminUserTable: React.FC = () => {
   const startIndex = (validCurrentPage - 1) * pageSize;
   const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize);
 
-  const handleToggleLock = (user: AdminUser) => {
+    const handleToggleLock = (user: AdminUser) => {
     toggleLockUser(user.userId);
     if (user.status === 'LOCKED') {
-      toast.success(`Đã mở khóa tài khoản ${user.fullName}`, 'Mở khóa tài khoản');
+      toast.success(`Đã mở khóa tài khoản ${user.fullName} (ACTIVE)`, 'Cập nhật trạng thái tức thì');
     } else {
-      toast.warning(`Đã tạm khóa tài khoản ${user.fullName}`, 'Khóa tài khoản');
+      toast.warning(`Đã tạm khóa tài khoản ${user.fullName} (LOCKED)`, 'Cập nhật trạng thái tức thì');
     }
   };
 
-  const getRoleBadge = (role: string) => {
+const getRoleBadge = (role: string) => {
     switch (role) {
       case 'Admin':
         return (
@@ -179,9 +182,12 @@ export const AdminUserTable: React.FC = () => {
                   {/* User Profile */}
                   <td className="py-4 px-4 sm:px-6">
                     <div className="flex items-center gap-3.5">
-                      <img
+                      <Image
                         src={user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
                         alt={user.fullName}
+                        width={40}
+                        height={40}
+                        unoptimized
                         className="w-10 h-10 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm"
                       />
                       <div className="space-y-0.5">

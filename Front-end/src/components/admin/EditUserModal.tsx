@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 
 import React, { useState, useEffect } from 'react';
 import { Shield, CheckCircle, AlertTriangle } from 'lucide-react';
@@ -43,9 +44,12 @@ export const EditUserModal: React.FC = () => {
     >
       <form onSubmit={handleSubmit} className="space-y-5 text-slate-800 dark:text-slate-200">
         <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800">
-          <img
+          <Image
             src={selectedUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
             alt={selectedUser.fullName}
+            width={48}
+            height={48}
+            unoptimized
             className="w-12 h-12 rounded-xl object-cover border border-slate-300 dark:border-slate-700"
           />
           <div>

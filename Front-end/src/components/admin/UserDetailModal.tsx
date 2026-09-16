@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 
 import React from 'react';
 import { Mail, Phone, Calendar, Shield, Lock, Unlock, Edit3, Trash2, User } from 'lucide-react';
@@ -123,9 +124,12 @@ export const UserDetailModal: React.FC = () => {
       <div className="space-y-6 text-slate-800 dark:text-slate-200">
         {/* User Card Header */}
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-3xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
-          <img
+          <Image
             src={selectedUser.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
             alt={selectedUser.fullName}
+            width={80}
+            height={80}
+            unoptimized
             className="w-20 h-20 rounded-2xl object-cover border-2 border-slate-200 dark:border-slate-700 shadow-md"
           />
           <div className="space-y-1.5 text-center sm:text-left flex-1">

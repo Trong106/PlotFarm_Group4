@@ -172,7 +172,7 @@ export const useAdminUserStore = create<AdminUserStoreState>((set) => ({
   roleFilter: 'ALL',
   statusFilter: 'ALL',
   currentPage: 1,
-  pageSize: 6,
+  pageSize: 10,
   isLoading: false,
 
   selectedUser: null,
