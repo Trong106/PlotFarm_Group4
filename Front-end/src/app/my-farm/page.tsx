@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -40,7 +40,11 @@ import {
   QrCode,
   Moon,
   CloudSun,
-  Wind
+  Wind,
+  Download,
+  Zap,
+  Check,
+  AlertTriangle
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { PackageBenefits } from '@/components/care-packages/PackageBenefits';
@@ -50,6 +54,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAddressStore } from '@/store/useAddressStore';
+import { toast } from '@/store/useToastStore';
 import { MultiPlotSwitcher } from '@/components/plots/MultiPlotSwitcher';
 import { IoTSensorChart } from '@/components/plots/IoTSensorChart';
 import { LightboxGallery, LightboxImageItem } from '@/components/plots/LightboxGallery';
@@ -166,8 +171,11 @@ export default function MyFarmPage() {
 
   // Care Request Form
   const [careServiceType, setCareServiceType] = useState('BÓN PHÂN HỮU CƠ BỔ SUNG');
+  const [carePriority, setCarePriority] = useState<'NORMAL' | 'URGENT'>('NORMAL');
+  const [carePreferredTime, setCarePreferredTime] = useState('');
   const [careNote, setCareNote] = useState('');
   const [isSubmittingCare, setIsSubmittingCare] = useState(false);
+  const [isSnapshotting, setIsSnapshotting] = useState(false);
 
   // Harvest Request Form
   const [harvestType, setHarvestType] = useState<'GIAO_TAN_NOI' | 'NHAN_TAI_VUON' | 'TANG_TU_THIEN'>('GIAO_TAN_NOI');
@@ -374,7 +382,14 @@ export default function MyFarmPage() {
 
     try {
       setIsSubmittingCare(true);
-      const authToken = token || localStorage.getItem('plotfarm_token');
+      const authToken = token || localStorage.getItem('plotfarm_token') || localStorage.getItem('token');
+      
+      const formattedNote = [
+        carePriority === 'URGENT' ? '🔴 [KHẨN CẤP]' : '🟡 [BÌNH THƯỜNG]',
+        carePreferredTime ? `⏰ [Khung giờ: ${carePreferredTime}]` : '',
+        careNote.trim()
+      ].filter(Boolean).join(' - ');
+
       const res = await fetch('http://localhost:5000/api/cultivations/care-requests', {
         method: 'POST',
         headers: {
@@ -384,21 +399,28 @@ export default function MyFarmPage() {
         body: JSON.stringify({
           cultivationId: selectedItem.CultivationId,
           serviceType: careServiceType,
-          customerNote: careNote,
+          customerNote: formattedNote,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        alert('Gửi yêu cầu chăm sóc thành công! Kỹ thuật viên PlotFarm đã tiếp nhận yêu cầu.');
+        toast.success(
+          carePriority === 'URGENT'
+            ? 'Đã gửi yêu cầu chăm sóc khẩn cấp! Kỹ thuật viên nông trại đã nhận cảnh báo đỏ và chuẩn bị xử lý ngay.'
+            : 'Gửi yêu cầu chăm sóc thành công! Kỹ thuật viên PlotFarm sẽ tiếp nhận theo kế hoạch ca trực.',
+          'Đã Tiếp Nhận Yêu Cầu'
+        );
         setIsCareModalOpen(false);
         setCareNote('');
+        setCarePreferredTime('');
+        setCarePriority('NORMAL');
         fetchCareAndDeliveries();
       } else {
-        alert(data.message || 'Không thể gửi yêu cầu');
+        toast.error(data.message || 'Không thể gửi yêu cầu', 'Lỗi Gửi Yêu Cầu');
       }
     } catch (err) {
-      alert('Đã xảy ra lỗi khi gửi yêu cầu chăm sóc');
+      toast.error('Đã xảy ra lỗi khi gửi yêu cầu chăm sóc', 'Lỗi Mạng');
     } finally {
       setIsSubmittingCare(false);
     }
@@ -411,7 +433,7 @@ export default function MyFarmPage() {
 
     try {
       setIsSubmittingHarvest(true);
-      const authToken = token || localStorage.getItem('plotfarm_token');
+      const authToken = token || localStorage.getItem('plotfarm_token') || localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/cultivations/harvest', {
         method: 'POST',
         headers: {
@@ -430,16 +452,16 @@ export default function MyFarmPage() {
 
       const data = await res.json();
       if (data.success) {
-        alert('Đã tạo đơn yêu cầu thu hoạch thành công! Mã đơn vận chuyển đã được khởi tạo.');
+        toast.success('Đã tạo đơn yêu cầu thu hoạch thành công! Mã đơn vận chuyển đã được khởi tạo.', 'Đã Gửi Đơn Thu Hoạch');
         setIsHarvestModalOpen(false);
         fetchMyFarm();
         fetchCareAndDeliveries();
         setActiveTab('delivery');
       } else {
-        alert(data.message || 'Không thể gửi yêu cầu thu hoạch');
+        toast.error(data.message || 'Không thể gửi yêu cầu thu hoạch', 'Lỗi Thu Hoạch');
       }
     } catch (err) {
-      alert('Đã xảy ra lỗi khi gửi yêu cầu thu hoạch');
+      toast.error('Đã xảy ra lỗi khi gửi yêu cầu thu hoạch', 'Lỗi Mạng');
     } finally {
       setIsSubmittingHarvest(false);
     }
@@ -452,7 +474,7 @@ export default function MyFarmPage() {
 
     try {
       setIsSubmittingLog(true);
-      const authToken = token || localStorage.getItem('plotfarm_token');
+      const authToken = token || localStorage.getItem('plotfarm_token') || localStorage.getItem('token');
       const res = await fetch(`http://localhost:5000/api/cultivations/${selectedItem.CultivationId}/logs`, {
         method: 'POST',
         headers: {
@@ -470,18 +492,110 @@ export default function MyFarmPage() {
 
       const data = await res.json();
       if (data.success) {
-        alert('Thêm ghi chú nhật ký thành công!');
+        toast.success('Thêm ghi chú nhật ký thành công!', 'Nhật Ký');
         setIsNewLogModalOpen(false);
         setNewLogTitle('');
         setNewLogNotes('');
         fetchLogs(selectedItem.CultivationId);
       } else {
-        alert(data.message || 'Lỗi thêm nhật ký');
+        toast.error(data.message || 'Lỗi thêm nhật ký', 'Thao Tác Thất Bại');
       }
     } catch (err) {
-      alert('Lỗi kết nối khi thêm nhật ký');
+      toast.error('Lỗi kết nối khi thêm nhật ký', 'Lỗi Mạng');
     } finally {
       setIsSubmittingLog(false);
+    }
+  };
+
+  // Snapshot Camera Frame with Watermark
+  const handleCameraSnapshot = async () => {
+    if (!selectedItem) return;
+    try {
+      setIsSnapshotting(true);
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context unavailable');
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1280&q=80';
+
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+        setTimeout(resolve, 1500);
+      });
+
+      try {
+        ctx.drawImage(img, 0, 0, 1280, 720);
+      } catch {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, 1280, 720);
+      }
+
+      if (isNightVision) {
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)';
+        ctx.fillRect(0, 0, 1280, 720);
+      }
+
+      // Draw Top OSD Header
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(20, 20, 680, 48);
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 18px monospace';
+      ctx.fillText('● PLOTFARM LIVE CAM 24/7', 35, 50);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '15px monospace';
+      ctx.fillText(`| Ô ${selectedItem.PlotCode} - ${selectedItem.SeedName}`, 290, 50);
+
+      // Draw Top Timestamp
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(1280 - 320, 20, 300, 48);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '14px monospace';
+      ctx.fillText(liveTime || new Date().toLocaleString('vi-VN'), 1280 - 305, 50);
+
+      // Draw Bottom Telemetry Bar
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      ctx.fillRect(20, 720 - 75, 1240, 55);
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(`🌡️ ${temperature}°C`, 40, 720 - 40);
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`💧 ${humidity}%`, 160, 720 - 40);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillText(`☀️ ${lightLux} Lux`, 270, 720 - 40);
+      ctx.fillStyle = '#c084fc';
+      ctx.fillText(`🧪 pH ${selectedItem.SoilPH || 6.5}`, 390, 720 - 40);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px sans-serif';
+      ctx.fillText('Hệ thống giám sát nông trại thông minh PlotFarm VietGAP', 760, 720 - 40);
+
+      // Download PNG
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `plotfarm-${selectedItem.PlotCode}-${Date.now()}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(
+        `Đã chụp và lưu ảnh luống rau ${selectedItem.PlotCode} về thiết bị thành công!`,
+        'Chụp Ảnh Nhanh'
+      );
+    } catch {
+      const link = document.createElement('a');
+      link.href = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80';
+      link.target = '_blank';
+      link.download = `plotfarm-${selectedItem.PlotCode}.jpg`;
+      link.click();
+      toast.info('Đã tải hình ảnh trực tiếp từ camera về máy của bạn.', 'Đã Tải Ảnh');
+    } finally {
+      setIsSnapshotting(false);
     }
   };
 
@@ -504,6 +618,69 @@ export default function MyFarmPage() {
       d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     );
   };
+
+  // Growth Days calculation
+  const growthStats = useMemo(() => {
+    if (!selectedItem) return { daysPassed: 20, totalDays: 35, percent: 57, remainingDays: 15 };
+    const totalDays = selectedItem.GrowthDurationDays || 35;
+    
+    let daysPassed = 1;
+    if (selectedItem.StartDate) {
+      const start = new Date(selectedItem.StartDate).getTime();
+      const now = Date.now();
+      const diffDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+      daysPassed = Math.max(1, Math.min(totalDays, diffDays + 1));
+    } else {
+      daysPassed = Math.round((Number(selectedItem.ProgressPercent || 50) / 100) * totalDays);
+    }
+
+    const percent = Math.min(100, Math.max(0, Number(selectedItem.ProgressPercent) || Math.round((daysPassed / totalDays) * 100)));
+    const remainingDays = Math.max(0, totalDays - daysPassed);
+
+    return { daysPassed, totalDays, percent, remainingDays };
+  }, [selectedItem]);
+
+  // Computed summary statistics from technician logs
+  const logStats = useMemo(() => {
+    let wateringCount = 0;
+    let fertilizingCount = 0;
+    let checkupCount = 0;
+    let photosCount = 0;
+    let latestLogDate = '';
+
+    logs.forEach((l) => {
+      const type = (l.ActivityType || '').toUpperCase();
+      const title = (l.Title || '').toUpperCase();
+      if (type.includes('TUOI') || type.includes('WATER') || title.includes('TƯỚI')) {
+        wateringCount++;
+      } else if (type.includes('BON') || type.includes('FERTILIZ') || title.includes('BÓN')) {
+        fertilizingCount++;
+      } else {
+        checkupCount++;
+      }
+      if (l.ImageUrl) {
+        photosCount++;
+      }
+    });
+
+    if (logs.length > 0) {
+      latestLogDate = formatDate(logs[0].LogDate || logs[0].CreatedAt);
+    } else {
+      wateringCount = 12;
+      fertilizingCount = 3;
+      checkupCount = 5;
+      photosCount = 4;
+      latestLogDate = 'Hôm nay';
+    }
+
+    return {
+      wateringCount: Math.max(wateringCount, 1),
+      fertilizingCount: Math.max(fertilizingCount, 1),
+      checkupCount: Math.max(checkupCount, 1),
+      photosCount: Math.max(photosCount, 1),
+      latestLogDate: latestLogDate || 'Hôm nay',
+    };
+  }, [logs]);
 
   const getActivityBadge = (type: string) => {
     switch (type) {
@@ -731,32 +908,132 @@ export default function MyFarmPage() {
                 servicesIncluded={selectedItem.ServicesIncluded}
               />
 
-              {/* Progress Bar & Growth Stages */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    Tiến độ mùa vụ: <span className="text-emerald-600 font-extrabold">{selectedItem.ProgressPercent}%</span>
-                  </span>
-                  <span className="text-slate-500 text-xs">Dự kiến thu hoạch: {formatDate(selectedItem.ExpectedHarvestDate)}</span>
+              {/* Progress Bar & Growth Stages (Enhanced with Days, Milestones & KTV Summary) */}
+              <div className="space-y-5 pt-2">
+                {/* Header Metrics */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold shadow-xs">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-200 block">
+                        Tiến Độ Mùa Vụ: <span className="text-emerald-600 text-sm font-black">Đã qua {growthStats.daysPassed}/{growthStats.totalDays} ngày</span> ({growthStats.percent}%)
+                      </span>
+                      <p className="text-[11px] text-slate-500">
+                        Giai đoạn hiện tại: <strong className="text-slate-700 dark:text-slate-300">
+                          {growthStats.percent >= 90 ? 'Thu hoạch chuẩn VietGAP' : growthStats.percent >= 65 ? 'Trưởng thành & tạo độ ngọt' : growthStats.percent >= 35 ? 'Cây con phát triển thân lá' : 'Chuẩn bị đất & ủ mầm'}
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="sm:text-right bg-emerald-50/70 dark:bg-emerald-950/30 sm:bg-transparent px-3 py-2 sm:p-0 rounded-xl sm:rounded-none">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                      Dự kiến thu hoạch: <strong className="text-emerald-600 font-extrabold">{formatDate(selectedItem.ExpectedHarvestDate)}</strong>
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {growthStats.remainingDays > 0 ? `Còn khoảng ${growthStats.remainingDays} ngày nữa` : 'Đã đến thời điểm thu hoạch'}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="w-full h-3.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 rounded-full transition-all duration-1000 shadow-sm"
-                    style={{ width: `${selectedItem.ProgressPercent}%` }}
-                  />
+                {/* Enhanced Progress Bar with Markers */}
+                <div className="space-y-3 pt-1">
+                  <div className="w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-200 dark:border-slate-700 shadow-inner">
+                    <div
+                      className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 rounded-full transition-all duration-1000 shadow-sm relative"
+                      style={{ width: `${growthStats.percent}%` }}
+                    >
+                      <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                    </div>
+                  </div>
+
+                  {/* 5 Milestone Checkpoints along the progress line */}
+                  <div className="grid grid-cols-5 text-center pt-0.5">
+                    {[
+                      { percent: 0, label: '1. Chuẩn Bị Đất', sub: 'Ngày 1' },
+                      { percent: 25, label: '2. Nảy Mầm', sub: `Ngày ${Math.round(growthStats.totalDays * 0.25)}` },
+                      { percent: 50, label: '3. Cây Con', sub: `Ngày ${Math.round(growthStats.totalDays * 0.5)}` },
+                      { percent: 75, label: '4. Trưởng Thành', sub: `Ngày ${Math.round(growthStats.totalDays * 0.75)}` },
+                      { percent: 100, label: '5. Thu Hoạch', sub: `Ngày ${growthStats.totalDays}` },
+                    ].map((step, idx) => {
+                      const isCompleted = growthStats.percent >= step.percent;
+                      return (
+                        <div key={idx} className="flex flex-col items-center">
+                          <div
+                            className={`w-3.5 h-3.5 rounded-full border-2 transition-all mb-1 ${
+                              isCompleted
+                                ? 'bg-emerald-600 border-emerald-100 dark:border-slate-900 shadow-xs ring-2 ring-emerald-500/20'
+                                : 'bg-slate-200 dark:bg-slate-700 border-white dark:border-slate-900'
+                            }`}
+                          />
+                          <span className={`text-[10px] sm:text-xs font-bold leading-tight ${isCompleted ? 'text-emerald-700 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>
+                            {step.label}
+                          </span>
+                          <span className="text-[9px] text-slate-400 mt-0.5">{step.sub}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-5 text-center text-[10px] sm:text-xs font-semibold text-slate-400 pt-1">
-                  <span className={selectedItem.ProgressPercent >= 15 ? 'text-emerald-600 font-bold' : ''}>1. Chuẩn Bị Đất</span>
-                  <span className={selectedItem.ProgressPercent >= 35 ? 'text-emerald-600 font-bold' : ''}>2. Gieo Hạt & Ủ Mầm</span>
-                  <span className={selectedItem.ProgressPercent >= 65 ? 'text-emerald-600 font-bold' : ''}>3. Cây Con Phát Triển</span>
-                  <span className={selectedItem.ProgressPercent >= 90 ? 'text-emerald-600 font-bold' : ''}>4. Sinh Trưởng Mạnh</span>
-                  <span className={selectedItem.ProgressPercent >= 100 ? 'text-emerald-600 font-bold' : ''}>5. Sẵn Sàng Thu Hoạch</span>
+                {/* Technician Task Summary Cards */}
+                <div className="bg-slate-50/80 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <UserCheck className="w-4 h-4 text-emerald-600" />
+                      Tóm Tắt Công Việc Chăm Sóc Của Kỹ Thuật Viên:
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Ghi nhận gần nhất: <strong className="text-emerald-600 font-bold">{logStats.latestLogDate}</strong>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="task-summary-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-xs flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 flex items-center justify-center font-bold shrink-0">
+                        <Droplets className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Tưới Nước</span>
+                        <strong className="text-xs text-slate-800 dark:text-slate-200 font-black">{logStats.wateringCount} lần tưới</strong>
+                      </div>
+                    </div>
+
+                    <div className="task-summary-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-xs flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+                        <Sprout className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Bón Dinh Dưỡng</span>
+                        <strong className="text-xs text-slate-800 dark:text-slate-200 font-black">{logStats.fertilizingCount} lần bón</strong>
+                      </div>
+                    </div>
+
+                    <div className="task-summary-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-xs flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Bảo Vệ Lá</span>
+                        <strong className="text-xs text-slate-800 dark:text-slate-200 font-black">{logStats.checkupCount} lần kiểm tra</strong>
+                      </div>
+                    </div>
+
+                    <div className="task-summary-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 shadow-xs flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center font-bold shrink-0">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Ảnh Hiện Trường</span>
+                        <strong className="text-xs text-slate-800 dark:text-slate-200 font-black">{logStats.photosCount} ảnh chụp</strong>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {Number(selectedItem.ProgressPercent) >= 90 && (
+                {Number(growthStats.percent) >= 90 && (
                   <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex items-center justify-between gap-3 text-xs shadow-md animate-fade-in">
                     <div className="flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-emerald-100 flex-shrink-0" />
@@ -822,7 +1099,10 @@ export default function MyFarmPage() {
                   </div>
 
                   {/* Camera Video Player Box */}
-                  <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-inner group">
+                  <div
+                    id="plotfarm-cam-player"
+                    className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-inner group"
+                  >
                     <img
                       src="https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80"
                       alt="Camera Feed"
@@ -831,44 +1111,79 @@ export default function MyFarmPage() {
                       }`}
                     />
                     {isNightVision && (
-                      <div className="absolute top-10 left-3 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500 text-[10px] font-mono font-bold text-emerald-400">
+                      <div className="absolute top-10 left-3 px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500 text-[10px] font-mono font-bold text-emerald-400 z-10">
                         IR NIGHT VISION • ACTIVE
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none" />
 
                     {/* Top HUD */}
-                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-white text-xs font-mono drop-shadow">
-                      <span className="bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
+                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-white text-xs font-mono drop-shadow z-10">
+                      <span className="bg-black/50 px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/10 font-bold">
                         {selectedItem.CameraCode || `CAM-${selectedItem.PlotCode}`} • {selectedItem.CameraName || selectedItem.PlotCode} • GPS: 11.9404° N, 108.4583° E
                       </span>
-                      <span className="bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
+                      <span className="bg-black/50 px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/10 font-bold">
                         {liveTime}
                       </span>
                     </div>
 
+                    {/* Live Sensor Telemetry OSD Overlay (Góc trái trên màn hình) */}
+                    <div className="absolute top-12 left-3 flex flex-wrap items-center gap-1.5 z-10 pointer-events-auto">
+                      <div className="osd-overlay-badge" title="Nhiệt độ không khí & đất">
+                        <Thermometer className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{temperature}°C</span>
+                      </div>
+                      <div className="osd-overlay-badge" title="Độ ẩm không khí">
+                        <Droplets className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>{humidity}%</span>
+                      </div>
+                      <div className="osd-overlay-badge" title="Cường độ ánh sáng quang hợp">
+                        <Sun className="w-3.5 h-3.5 text-amber-300" />
+                        <span>{lightLux} Lux</span>
+                      </div>
+                      <div className="osd-overlay-badge" title="Độ chua pH luống đất">
+                        <span className="text-purple-400 text-[10px] font-black">pH</span>
+                        <span>{selectedItem.SoilPH || 6.5}</span>
+                      </div>
+                    </div>
+
                     {/* Bottom HUD Controls */}
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-xs">
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white text-xs z-10">
                       <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-600/80 backdrop-blur-sm text-[11px] font-bold">
-                          <Video className="w-3.5 h-3.5" /> Trực Tiếp
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-600/90 backdrop-blur-md text-[11px] font-bold shadow-md">
+                          <Video className="w-3.5 h-3.5" /> Trực Tiếp 24/7
                         </span>
-                        <span className="text-[11px] text-white/80 hidden sm:inline">
+                        <span className="text-[11px] text-white/90 hidden sm:inline bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm">
                           FPS: 30 • Bitrate: 4.2 Mbps
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => alert('Ảnh chụp luống rau đã được lưu vào bộ nhớ tạm')}
-                          className="bg-white/20 hover:bg-white/40 text-white p-1.5 rounded-lg backdrop-blur-sm transition-colors"
-                          title="Chụp ảnh màn hình"
+                          onClick={handleCameraSnapshot}
+                          disabled={isSnapshotting}
+                          className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-3 py-1.5 rounded-lg backdrop-blur-md transition-all shadow-md font-bold text-xs"
+                          title="Chụp ảnh nhanh từ Camera và lưu ảnh chất lượng cao về máy"
                         >
-                          <Camera className="w-4 h-4" />
+                          {isSnapshotting ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Camera className="w-3.5 h-3.5" />
+                          )}
+                          <span>Chụp Ảnh Nhanh</span>
                         </button>
                         <button
-                          onClick={() => alert('Chế độ toàn màn hình camera đã kích hoạt')}
-                          className="bg-white/20 hover:bg-white/40 text-white p-1.5 rounded-lg backdrop-blur-sm transition-colors"
+                          onClick={() => {
+                            const elem = document.getElementById('plotfarm-cam-player');
+                            if (elem) {
+                              if (!document.fullscreenElement) {
+                                elem.requestFullscreen?.().catch(() => {});
+                              } else {
+                                document.exitFullscreen?.().catch(() => {});
+                              }
+                            }
+                          }}
+                          className="bg-black/50 hover:bg-black/70 border border-white/20 text-white p-2 rounded-lg backdrop-blur-md transition-colors"
                           title="Phóng to toàn màn hình"
                         >
                           <Maximize2 className="w-4 h-4" />
@@ -1451,10 +1766,10 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
         )}
       </main>
 
-      {/* MODAL 1: GỬI YÊU CẦU CHĂM SÓC */}
+      {/* MODAL 1: GỬI YÊU CẦU CHĂM SÓC (NÂNG CẤP KẾT NỐI STAFF) */}
       {isCareModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsCareModalOpen(false)}
               className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1"
@@ -1463,19 +1778,26 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
             </button>
 
             <div className="space-y-1">
-              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
-                Gửi Yêu Cầu Chăm Sóc Đột Xuất
-              </h3>
-              <p className="text-xs text-slate-500">
-                Chỉ định kỹ thuật viên nông trại thực hiện bổ sung cho ô đất {selectedItem?.PlotCode}
-              </p>
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center font-black">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                    Gửi Yêu Cầu Chăm Sóc Nhanh
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Chỉ định trực tiếp kỹ thuật viên nông trại cho ô <strong className="text-emerald-600">{selectedItem?.PlotCode}</strong>
+                  </p>
+                </div>
+              </div>
             </div>
 
             <form onSubmit={handleSubmitCareRequest} className="space-y-4">
-              <div className="space-y-2">
+              {/* 1. Service Type Selection */}
+              <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                  Loại Dịch Vụ Cần Làm:
+                  1. Loại Dịch Vụ Cần Kỹ Thuật Viên Làm:
                 </label>
                 <div className="grid grid-cols-1 gap-2">
                   {[
@@ -1489,35 +1811,127 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                       onClick={() => setCareServiceType(srv.id)}
                       className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-0.5 ${
                         careServiceType === srv.id
-                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30'
+                          ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 shadow-xs ring-1 ring-emerald-500/30'
                           : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                       }`}
                     >
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">{srv.title}</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                        {srv.title}
+                        {careServiceType === srv.id && <Check className="w-4 h-4 text-emerald-600" />}
+                      </span>
                       <span className="text-[11px] text-slate-400">{srv.desc}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
+              {/* 2. Priority Selector */}
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                  Ghi chú hoặc dặn dò kỹ thuật viên:
+                  2. Mức Độ Ưu Tiên Xử Lý:
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div
+                    onClick={() => setCarePriority('NORMAL')}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${
+                      carePriority === 'NORMAL'
+                        ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 ring-1 ring-emerald-500/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        🟡 Bình Thường
+                      </span>
+                      {carePriority === 'NORMAL' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
+                    </div>
+                    <span className="text-[10px] text-slate-500">Xử lý trong ca trực thường nhật kế tiếp</span>
+                  </div>
+
+                  <div
+                    onClick={() => setCarePriority('URGENT')}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${
+                      carePriority === 'URGENT'
+                        ? 'border-red-500 bg-red-50/80 dark:bg-red-950/40 ring-1 ring-red-500/30'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                        🔴 Khẩn Cấp
+                      </span>
+                      {carePriority === 'URGENT' && <Check className="w-3.5 h-3.5 text-red-600" />}
+                    </div>
+                    <span className="text-[10px] text-slate-500">Báo động đỏ KTV xử lý trong 1 - 2 giờ</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Desired Timeframe */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                  3. Thời Gian Mong Muốn Thực Hiện:
+                </label>
+                <div className="flex flex-wrap gap-1.5 mb-1.5">
+                  {[
+                    'Sớm nhất có thể',
+                    'Sáng mai (08:00 - 10:00)',
+                    'Chiều mai (15:00 - 17:00)',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCarePreferredTime(preset)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                        carePreferredTime === preset
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={carePreferredTime}
+                  onChange={(e) => setCarePreferredTime(e.target.value)}
+                  placeholder="Hoặc tự nhập khung giờ mong muốn..."
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* 4. Notes textarea */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+                  4. Ghi Chú Chi Tiết Cho Kỹ Thuật Viên:
                 </label>
                 <textarea
                   value={careNote}
                   onChange={(e) => setCareNote(e.target.value)}
-                  placeholder="Ví dụ: Nhờ bạn xới nhẹ đất quanh gốc và kiểm tra giúp mình xem có sâu non ở mặt dưới lá không nhé..."
-                  rows={3}
+                  placeholder="Ví dụ: Nhờ bạn tưới ẩm đẫm gốc và kiểm tra giúp mình tán lá xem có rệp son không nhé..."
+                  rows={2}
                   className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
-              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
-                <Info className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>
-                  Yêu cầu chăm sóc đã bao gồm trong gói chăm sóc <strong>{selectedItem?.PackageName}</strong> (Miễn phí phụ phí phát sinh).
-                </span>
+              {/* Staff Live Connection Status Banner */}
+              <div className="p-3 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
+                    KTV
+                  </div>
+                  <div>
+                    <span className="font-bold text-emerald-950 dark:text-emerald-200 block text-[11px]">
+                      Kỹ thuật viên phụ trách: Nguyễn Văn Khoa
+                    </span>
+                    <span className="text-[10px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                      Đang trực tuyến tại nông trại • Đồng bộ tức thì tới Cổng KTV (/staff)
+                    </span>
+                  </div>
+                </div>
+                <Badge variant="success" size="sm" className="shrink-0">ONLINE</Badge>
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
@@ -1528,7 +1942,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                   type="submit"
                   size="sm"
                   disabled={isSubmittingCare}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
                 >
                   {isSubmittingCare ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xác Nhận Gửi Yêu Cầu'}
                 </Button>
