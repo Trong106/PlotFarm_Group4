@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { Check, HelpCircle, Minus, Package } from 'lucide-react';
+import { Check, ChevronDown, HelpCircle, Minus, Package } from 'lucide-react';
 import { getPackageName, getPackageTier, PACKAGE_TIERS, parsePackageServices, serviceKey } from '@/lib/care-packages';
 import { ResponseTimeBadge } from './PackageBenefits';
 
@@ -72,6 +72,7 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
   error?: string | null;
 }) {
   const benefitSets = packages.map((pkg) => ({ pkg, ...parsePackageServices(pkg.ServicesIncluded) }));
+  const selectedBenefits = selectedPackage ? parsePackageServices(selectedPackage.ServicesIncluded) : null;
   const services = new Map<string, string>();
   benefitSets.forEach((benefits) => benefits.services.forEach((service) => services.set(serviceKey(service), service)));
 
@@ -81,7 +82,6 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
         <h4 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
           <Package aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" /> Gói Dịch Vụ Chăm Sóc
         </h4>
-        {packages.length > 0 && <ComparisonTooltip packages={packages} />}
       </div>
       {packages.length === 0 ? (
         <p role="status" className="rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -108,11 +108,36 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
               );
             })}
           </div>
-          {selectedPackage && <div aria-live="polite" className="space-y-1.5">
-            <p className="break-words text-xs text-slate-600 dark:text-slate-300">Đang chọn: <strong className="text-emerald-800 dark:text-emerald-200">{getPackageName(selectedPackage.PackageName)}</strong></p>
-            <ResponseTimeBadge packageName={selectedPackage.PackageName} />
-          </div>}
-          <div tabIndex={0} role="region" aria-label="Bảng so sánh quyền lợi, cuộn ngang để xem các gói" className="max-w-full overflow-x-auto rounded-xl border border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700">
+          <div aria-live="polite" aria-atomic="true" className="min-w-0 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+            {selectedPackage && selectedBenefits ? <>
+              <p className="break-words text-xs text-slate-600 dark:text-slate-300">Đang chọn: <strong className="text-emerald-800 dark:text-emerald-200">{getPackageName(selectedPackage.PackageName)}</strong></p>
+              <div className="mt-2"><ResponseTimeBadge packageName={selectedPackage.PackageName} /></div>
+              {selectedBenefits.services.length > 0 && <>
+                <p className="mb-2 mt-3 text-xs font-bold text-slate-800 dark:text-slate-100">Quyền lợi chính</p>
+                <ul className="space-y-2">
+                  {selectedBenefits.services.slice(0, 3).map((service) => <li key={serviceKey(service)} className="flex min-w-0 items-start gap-2 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                    <Check aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="min-w-0 break-words">{service}</span>
+                  </li>)}
+                </ul>
+                {selectedBenefits.services.length > 3 && <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">+{selectedBenefits.services.length - 3} quyền lợi khác trong bảng so sánh.</p>}
+              </>}
+              {(!selectedBenefits.available || selectedBenefits.services.length === 0) && <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                {selectedBenefits.available ? 'Gói này chưa có dịch vụ đính kèm được công bố.' : 'Chi tiết quyền lợi chưa được cập nhật đầy đủ. Vui lòng liên hệ nông trại để xác nhận.'}
+              </p>}
+            </> : <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">Chọn một gói để xem quyền lợi và thời gian phản hồi.</p>}
+          </div>
+          <details className="group min-w-0 rounded-xl border border-slate-200 dark:border-slate-700">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl p-3 text-xs font-bold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-slate-100 dark:hover:bg-slate-800/60 [&::-webkit-details-marker]:hidden">
+              <span>So sánh chi tiết các gói</span>
+              <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-700 group-open:rotate-180 dark:text-emerald-400" />
+            </summary>
+            <div className="min-w-0 space-y-3 border-t border-slate-200 p-3 dark:border-slate-700">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">Cuộn bảng để xem đầy đủ quyền lợi.</p>
+                <ComparisonTooltip packages={packages} />
+              </div>
+          <div tabIndex={0} role="region" aria-label="Bảng so sánh quyền lợi, cuộn để xem đầy đủ các gói và dịch vụ" className="max-h-80 max-w-full overflow-auto rounded-xl border border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700">
             <table className="w-full min-w-[420px] border-collapse text-xs">
               <caption className="sr-only">Chi tiết dịch vụ đính kèm theo từng gói chăm sóc</caption>
               <thead>
@@ -154,6 +179,8 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
           </p>
           {benefitSets.some(({ available }) => !available) && <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-400">Một số quyền lợi chưa được cập nhật đầy đủ. Các ô “Chưa rõ” cần được nông trại xác nhận.</p>}
           {services.size === 0 && benefitSets.every(({ available }) => available) && <p className="text-xs text-slate-600 dark:text-slate-400">Chưa có dịch vụ đính kèm được công bố.</p>}
+            </div>
+          </details>
         </>
       )}
     </section>

@@ -7,7 +7,12 @@ const getPlotGrid = async (filters = {}) => {
     SELECT p.PlotId, p.PlotCode, p.AreaId, fa.AreaName, p.RowNum, p.ColNum,
            p.SizeM2, p.SoilPH, p.StandardHumidity,
            p.BasePricePerMonth, p.Status, p.ReservedUntil, p.FallowingUntil,
-           p.CameraId, cam.CameraCode, cam.CameraName, cam.Status as CameraStatus
+           p.CameraId, cam.CameraCode, cam.CameraName, cam.Status as CameraStatus,
+           CAST(CASE WHEN EXISTS (
+             SELECT 1 FROM ${TABLES.CULTIVATIONS} c
+             WHERE c.PlotId = p.PlotId
+               AND c.Status IN ('PLANTING', 'GROWING', 'READY_TO_HARVEST')
+           ) THEN 1 ELSE 0 END AS BIT) AS HasActiveCultivation
     FROM ${TABLES.PLOTS} p
     LEFT JOIN ${TABLES.FARM_AREAS} fa ON p.AreaId = fa.AreaId
     LEFT JOIN Cameras cam ON p.CameraId = cam.CameraId

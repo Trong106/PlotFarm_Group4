@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { getPlotStatus } from '@/lib/plot-status';
+import { PlotStatusBadge, PlotStatusLegend, plotStatusStyles } from './PlotStatus';
 import { Check, CheckCircle2, Filter, LayoutGrid, ListFilter, MapPin, RotateCcw, Video } from 'lucide-react';
 import { filterPlots, PLOT_STATUS_LABELS, PlotSelection, PlotStatusFilter, SelectionArea, SelectionPlot, validatePriceRange } from '@/lib/plot-selection';
 
@@ -10,6 +12,7 @@ interface BrowserPlot extends SelectionPlot {
   SoilPH: number;
   StandardHumidity: number;
   CameraCode?: string;
+  HasActiveCultivation?: boolean | number;
 }
 interface BrowserArea extends SelectionArea { AreaName: string }
 
@@ -28,6 +31,13 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
   const [minDraft, setMinDraft] = useState('');
   const [maxDraft, setMaxDraft] = useState('');
   const [priceError, setPriceError] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterId = useId();
+  const appliedFilters = [
+    selection.minPrice !== null || selection.maxPrice !== null ? `Giá: ${selection.minPrice === null ? '0 đ' : money(selection.minPrice)} – ${selection.maxPrice === null ? 'không giới hạn' : money(selection.maxPrice)}` : null,
+    selection.soil || null,
+    selection.status !== 'ALL' ? PLOT_STATUS_LABELS[selection.status] : null,
+  ].filter(Boolean);
   useEffect(() => {
     setMinDraft(selection.minPrice === null ? '' : String(selection.minPrice));
     setMaxDraft(selection.maxPrice === null ? '' : String(selection.maxPrice));
@@ -55,13 +65,19 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
         </div>
       </div>
 
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"><Filter aria-hidden="true" className="h-4 w-4 text-emerald-600" /> Lọc ô đất {appliedFilters.length > 0 && `(${appliedFilters.length})`}</h3>
+          <button type="button" aria-expanded={filtersOpen} aria-controls={filterId} onClick={() => setFiltersOpen((open) => !open)} className="rounded-lg px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300 dark:hover:bg-slate-700">{filtersOpen ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}</button>
+        </div>
+        {appliedFilters.length > 0 && <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200"><p className="min-w-0 flex-1 break-words">Đang áp dụng: {appliedFilters.join(' · ')}</p><button type="button" onClick={reset} className="rounded-lg px-2 py-2 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">Xóa bộ lọc</button></div>}
+      <div id={filterId} hidden={!filtersOpen}>
       <form onSubmit={(event) => {
         event.preventDefault();
         const result = validatePriceRange(minDraft, maxDraft);
         setPriceError(result.error);
         if (!result.error) onChange({ minPrice: result.minPrice, maxPrice: result.maxPrice });
-      }} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-        <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"><Filter aria-hidden="true" className="h-4 w-4 text-emerald-600" /> Lọc ô đất</h3>
+      }} className="mt-3 space-y-3">
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200"><span>Giá tối thiểu (đ/tháng)</span>
             <input type="text" inputMode="decimal" value={minDraft} onChange={(e) => setMinDraft(e.target.value)} placeholder="Không giới hạn" aria-invalid={!!priceError} aria-describedby={priceError ? 'plot-price-error' : undefined} className={fieldClass} />
@@ -92,11 +108,15 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
         </div>
         <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">Bộ lọc áp dụng trong phân khu đang xem. Chọn loại đất sẽ chuyển đến phân khu phù hợp.</p>
       </form>
+      </div>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <p role="status" aria-live="polite" className="font-semibold text-slate-600 dark:text-slate-300">{visible.length}/{areaPlots.length} ô đất phù hợp</p>
         {comparedIds.length > 0 && <button type="button" onClick={onOpenCompare} className="rounded-lg border border-emerald-300 px-3 py-2 font-bold text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">Đối chiếu ({comparedIds.length}/3)</button>}
       </div>
+
+      <PlotStatusLegend />
 
       <div className="min-h-[420px]">
         {visible.length === 0 ? <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 p-5 text-center dark:border-slate-700">
@@ -107,14 +127,15 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
           <ul className="grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 sm:grid-cols-4 xl:grid-cols-5">
             {visible.map((plot) => {
               const selected = selection.plotId === plot.PlotId;
-              return <li key={plot.PlotId} className={`min-w-0 rounded-2xl border ${selected ? 'border-emerald-600 bg-emerald-50 ring-1 ring-emerald-600 dark:bg-emerald-950/40' : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40'}`}>
-                <button type="button" aria-pressed={selected} aria-label={`Xem ô đất ${plot.PlotCode}`} onClick={() => onChange({ plotId: plot.PlotId })}
+              const status = getPlotStatus(plot);
+              return <li key={plot.PlotId} className={`min-w-0 rounded-2xl border ${plotStatusStyles[status.tone]} ${selected ? 'ring-2 ring-blue-600 ring-offset-2 dark:ring-blue-400 dark:ring-offset-slate-900' : ''}`}>
+                <button type="button" aria-pressed={selected} aria-label={`Xem ô đất ${plot.PlotCode}: ${status.label}${selected ? ', đang chọn' : ''}`} onClick={() => onChange({ plotId: plot.PlotId })}
                   className="flex w-full min-w-0 flex-col items-start gap-2 rounded-t-2xl p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">
-                  <span className="flex w-full items-start justify-between gap-1"><MapPin aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" />{selected && <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" />}</span>
+                  <span className="flex w-full items-start justify-between gap-1"><MapPin aria-hidden="true" className="h-4 w-4 shrink-0" />{selected && <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-blue-700 dark:text-blue-300" />}</span>
                   <strong className="w-full break-words text-xs text-slate-900 dark:text-white">{plot.PlotCode}</strong>
                   <span className="text-[11px] text-slate-600 dark:text-slate-300">{plot.SizeM2} m² · pH {plot.SoilPH}</span>
                   <span className="break-words text-[11px] font-bold text-emerald-700 dark:text-emerald-300">{money(plot.BasePricePerMonth)}/th</span>
-                  <span className="min-h-8 text-[10px] font-semibold text-slate-600 dark:text-slate-300">{PLOT_STATUS_LABELS[plot.Status as PlotStatusFilter] || plot.Status}</span>
+                  <span className="min-h-8 text-[11px] font-semibold">{status.label}</span>
                 </button>
                 <button type="button" aria-pressed={comparedIds.includes(plot.PlotId)} aria-label={`Đối chiếu ô ${plot.PlotCode}`} onClick={(event) => onCompare(plot.PlotId, event)} className="flex w-full items-center gap-1 rounded-b-2xl border-t border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700 dark:text-slate-300">
                   <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border border-slate-400">{comparedIds.includes(plot.PlotId) && <Check aria-hidden="true" className="h-3 w-3 text-emerald-600" />}</span> Đối chiếu
@@ -131,12 +152,12 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
                 {['Mã ô', 'Diện tích (m²)', 'Loại đất', 'pH đất', 'Độ ẩm (%)', 'Camera', 'Giá thuê (đ/tháng)', 'Trạng thái', 'Thao tác'].map((title) => <th key={title} scope="col" className="p-3 font-bold">{title}</th>)}
               </tr></thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {visible.map((plot) => <tr key={plot.PlotId} className={selection.plotId === plot.PlotId ? 'bg-emerald-50 dark:bg-emerald-950/40' : ''}>
-                  <th scope="row" className="p-3 font-bold text-slate-900 dark:text-white">{plot.PlotCode}{selection.plotId === plot.PlotId && <span className="mt-1 block text-[10px] text-emerald-700 dark:text-emerald-300">Đang chọn</span>}</th>
+                {visible.map((plot) => <tr key={plot.PlotId} className={selection.plotId === plot.PlotId ? 'bg-blue-50 dark:bg-blue-950/40' : ''}>
+                  <th scope="row" className="p-3 font-bold text-slate-900 dark:text-white">{plot.PlotCode}{selection.plotId === plot.PlotId && <span className="mt-1 block text-[10px] text-blue-700 dark:text-blue-300">Đang chọn</span>}</th>
                   <td className="p-3">{plot.SizeM2}</td><td className="p-3">{currentArea?.SoilType || 'Chưa cập nhật'}</td><td className="p-3">{plot.SoilPH}</td><td className="p-3">{plot.StandardHumidity}</td>
                   <td className="p-3"><span className="flex items-center gap-1"><Video aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />{plot.CameraCode || 'Chưa cập nhật'}</span></td>
                   <td className="whitespace-nowrap p-3 font-bold text-emerald-700 dark:text-emerald-300">{money(plot.BasePricePerMonth)}</td>
-                  <td className="p-3">{PLOT_STATUS_LABELS[plot.Status as PlotStatusFilter] || plot.Status}</td>
+                  <td className="p-3"><PlotStatusBadge plot={plot} /></td>
                   <td className="p-3"><button type="button" aria-pressed={selection.plotId === plot.PlotId} onClick={() => onChange({ plotId: plot.PlotId })} className="whitespace-nowrap rounded-lg border border-emerald-400 px-3 py-2 font-bold text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950">{selection.plotId === plot.PlotId ? 'Đang chọn' : 'Xem ô đất'}</button></td>
                 </tr>)}
               </tbody>
