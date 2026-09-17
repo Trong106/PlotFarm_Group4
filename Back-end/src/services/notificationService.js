@@ -71,9 +71,30 @@ const markAllAsRead = async (userId) => {
   return { message: 'Đã đánh dấu tất cả thông báo là đã đọc' };
 };
 
+/**
+ * Tạo một thông báo mới cho người dùng
+ */
+const createNotification = async ({ userId, title, message, type = 'GENERAL', relatedId = null }) => {
+  const pool = getPool();
+  const result = await pool.request()
+    .input('UserId', sql.Int, userId)
+    .input('Title', sql.NVarChar(150), title)
+    .input('Message', sql.NVarChar(sql.MAX), message)
+    .input('Type', sql.NVarChar(50), type)
+    .input('RelatedId', sql.Int, relatedId)
+    .query(`
+      INSERT INTO Notifications (UserId, Title, Message, Type, RelatedId, IsRead, CreatedAt)
+      OUTPUT INSERTED.*
+      VALUES (@UserId, @Title, @Message, @Type, @RelatedId, 0, SYSDATETIME())
+    `);
+  return result.recordset[0];
+};
+
 module.exports = {
   getMyNotifications,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
+  createNotification,
 };
+
