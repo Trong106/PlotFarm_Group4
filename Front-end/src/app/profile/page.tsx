@@ -81,6 +81,7 @@ export default function ProfilePage() {
 
   // Address modal state
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<UserAddress | null>(null);
   const [addressFeedback, setAddressFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Order History state
@@ -599,7 +600,7 @@ export default function ProfilePage() {
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => setIsAddressModalOpen(true)}
+                  onClick={() => { setEditingAddress(null); setIsAddressModalOpen(true); }}
                   leftIcon={<Plus className="w-4 h-4" />}
                   className="bg-emerald-600 text-white text-xs font-bold"
                 >
