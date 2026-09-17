@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -44,6 +44,9 @@ import {
   Leaf,
   Bug,
   FlaskConical,
+  AlertTriangle,
+  Flame,
+  CloudRain,
   History
 } from 'lucide-react';
 import Header from '@/components/Header';
@@ -58,6 +61,7 @@ import { toast } from '@/store/useToastStore';
 // Interfaces for Staff Portal Data
 interface AssignedPlot {
   PlotId: number;
+  CultivationId?: number;
   PlotCode: string;
   AreaName: string;
   CustomerName: string;
@@ -72,24 +76,28 @@ interface AssignedPlot {
 
 interface CareRequest {
   RequestId: number;
+  CultivationId?: number;
   PlotCode: string;
   CustomerName: string;
   CustomerPhone: string;
   RequestType: string;
   Note: string;
   CreatedAt: string;
-  Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   ResolvedNote?: string;
   ResolvedImage?: string;
 }
 
 interface HarvestItem {
+  HarvestRequestId?: number;
   CultivationId: number;
   PlotCode: string;
   CustomerName: string;
   SeedName: string;
   ExpectedHarvestDate: string;
   EstimatedYieldKg: number;
+  ActualYieldKg?: number;
+  QualityGrade?: 'GRADE_A' | 'GRADE_B' | 'PREMIUM';
   Status: 'READY_TO_HARVEST' | 'HARVESTED';
 }
 
@@ -99,6 +107,7 @@ export default function StaffPage() {
 
   const [activeTab, setActiveTab] = useState<'plots' | 'requests' | 'harvest' | 'resources'>('plots');
   const [filterArea, setFilterArea] = useState<string>('ALL');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Auth Guard: ensure only Staff or Admin can access
   useEffect(() => {
@@ -119,7 +128,7 @@ export default function StaffPage() {
     }
   }, [user, token, router]);
 
-  // Modal states for creating Cultivation Log
+  // Modal states for creating Cultivation Log / Emergency Alert
   const [isLogModalOpen, setLogModalOpen] = useState(false);
   const [selectedPlotForLog, setSelectedPlotForLog] = useState<AssignedPlot | null>(null);
   const [logTitle, setLogTitle] = useState('');
@@ -242,6 +251,10 @@ export default function StaffPage() {
   };
 
 
+  // Emergency Alert toggle in Log Modal (Task 3)
+  const [isEmergencyAlert, setIsEmergencyAlert] = useState(false);
+  const [emergencyType, setEmergencyType] = useState<'SÂU BỆNH' | 'ÚNG NGẬP' | 'THỜI TIẾT XẤU' | 'CẦN XỬ LÝ KHẨN'>('SÂU BỆNH');
+
   // Camera capture states for Log Modal
   const logCameraRef = useRef<HTMLInputElement>(null);
   const logGalleryRef = useRef<HTMLInputElement>(null);
@@ -267,147 +280,124 @@ export default function StaffPage() {
   // Request status filter
   const [requestStatusFilter, setRequestStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('ALL');
 
-  // Modal states for Harvest Recording
+  // Modal states for Harvest Recording (Task 2)
   const [isHarvestModalOpen, setHarvestModalOpen] = useState(false);
   const [selectedHarvestItem, setSelectedHarvestItem] = useState<HarvestItem | null>(null);
   const [harvestActualYieldStr, setHarvestActualYieldStr] = useState('15.5');
+  const [harvestQualityGrade, setHarvestQualityGrade] = useState<'GRADE_A' | 'GRADE_B' | 'PREMIUM'>('GRADE_A');
   const [harvestNotes, setHarvestNotes] = useState('');
   const [isSubmittingHarvest, setIsSubmittingHarvest] = useState(false);
 
-  // Initial Mock State for Assigned Plots
-  const [plots, setPlots] = useState<AssignedPlot[]>([
-    {
-      PlotId: 28,
-      PlotCode: 'PLOT_B08',
-      AreaName: 'Khu Củ Quả & Dâu Tây B',
-      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
-      SeedName: 'Cải thìa baby thủy canh',
-      GrowthDays: 15,
-      ProgressPercent: 45,
-      HealthStatus: 'EXCELLENT',
-      LastLogDate: 'Hôm nay (Vừa tưới vi sinh)',
-      Humidity: 70,
-      SoilPH: 6.4,
-    },
-    {
-      PlotId: 101,
-      PlotCode: 'PLOT_A01',
-      AreaName: 'Khu Rau Ăn Lá Hữu Cơ A',
-      CustomerName: 'Hoàng Anh Tuấn',
-      SeedName: 'Cải Bẹ Xanh',
-      GrowthDays: 24,
-      ProgressPercent: 70,
-      HealthStatus: 'EXCELLENT',
-      LastLogDate: '14/09/2026 15:30',
-      Humidity: 72,
-      SoilPH: 6.5,
-    },
-    {
-      PlotId: 102,
-      PlotCode: 'A-02',
-      AreaName: 'Khu A (Đất Thịt Phù Sa)',
-      CustomerName: 'Phạm Thị Trà My',
-      SeedName: 'Rau Muống Hạt',
-      GrowthDays: 18,
-      ProgressPercent: 55,
-      HealthStatus: 'GOOD',
-      LastLogDate: '13/09/2026 09:00',
-      Humidity: 68,
-      SoilPH: 6.8,
-    },
-    {
-      PlotId: 105,
-      PlotCode: 'A-05',
-      AreaName: 'Khu A (Đất Thịt Phù Sa)',
-      CustomerName: 'Trần Văn Bình',
-      SeedName: 'Xà Lách Lô Tô',
-      GrowthDays: 32,
-      ProgressPercent: 95,
-      HealthStatus: 'ATTENTION_NEEDED',
-      LastLogDate: '12/09/2026 14:15',
-      Humidity: 60,
-      SoilPH: 5.9,
-    },
-    {
-      PlotId: 201,
-      PlotCode: 'B-01',
-      AreaName: 'Khu B (Đất Cát Pha)',
-      CustomerName: 'Lê Ngọc Lan',
-      SeedName: 'Cà Tomato Cherry',
-      GrowthDays: 45,
-      ProgressPercent: 80,
-      HealthStatus: 'EXCELLENT',
-      LastLogDate: '14/09/2026 08:30',
-      Humidity: 75,
-      SoilPH: 6.7,
-    },
-  ]);
+  // Data states from Real Database
+  const [plots, setPlots] = useState<AssignedPlot[]>([]);
+  const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
+  const [harvestList, setHarvestList] = useState<HarvestItem[]>([]);
 
-  // Initial Mock State for Care Requests
-  const [careRequests, setCareRequests] = useState<CareRequest[]>([
-    {
-      RequestId: 4,
-      PlotCode: 'PLOT_B08',
-      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
-      CustomerPhone: '0901234567',
-      RequestType: 'BÓN PHÂN HỮU CƠ BỔ SUNG',
-      Note: 'Nhờ kỹ thuật viên bón thêm dinh dưỡng vi sinh và tỉa lá vàng đợt này giúp em nhé.',
-      CreatedAt: 'Hôm nay (11:57)',
-      Status: 'PENDING',
-    },
-    {
-      RequestId: 1,
-      PlotCode: 'PLOT_A05',
-      CustomerName: 'Trần Văn Bình',
-      CustomerPhone: '0903000001',
-      RequestType: 'Tưới nước bổ sung',
-      Note: 'Nhờ kỹ thuật viên tưới thêm nước bón vi sinh giúp lá xà lách hơi héo.',
-      CreatedAt: '15/09/2026 08:15',
-      Status: 'PENDING',
-    },
-    {
-      RequestId: 2,
-      PlotCode: 'A-01',
-      CustomerName: 'Hoàng Anh Tuấn',
-      CustomerPhone: '0978901234',
-      RequestType: 'Kiểm tra sâu đốm lá',
-      Note: 'Nhờ chú Đức chụp lại ảnh lá cải bẹ xanh góc trái giùm anh nhé.',
-      CreatedAt: '14/09/2026 16:45',
-      Status: 'IN_PROGRESS',
-      ResolvedNote: 'Đã tỉa các lá vàng sẫm và phun vi sinh thảo mộc phòng sâu.',
-    },
-  ]);
+  // Fetch Plots from Backend API
+  const fetchStaffPlots = useCallback(async () => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!savedToken) return;
 
-  // Initial Mock State for Harvest Items
-  const [harvestList, setHarvestList] = useState<HarvestItem[]>([
-    {
-      CultivationId: 4,
-      PlotCode: 'PLOT_B08',
-      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
-      SeedName: 'Cải thìa baby thủy canh',
-      ExpectedHarvestDate: '15/10/2026',
-      EstimatedYieldKg: 20.0,
-      Status: 'READY_TO_HARVEST',
-    },
-    {
-      CultivationId: 301,
-      PlotCode: 'PLOT_A05',
-      CustomerName: 'Trần Văn Bình',
-      SeedName: 'Xà Lách Lô Tô',
-      ExpectedHarvestDate: '16/09/2026',
-      EstimatedYieldKg: 18.0,
-      Status: 'READY_TO_HARVEST',
-    },
-    {
-      CultivationId: 302,
-      PlotCode: 'B-03',
-      CustomerName: 'Nguyễn Thị Hoa',
-      SeedName: 'Rau Muống Hạt',
-      ExpectedHarvestDate: '18/09/2026',
-      EstimatedYieldKg: 25.0,
-      Status: 'READY_TO_HARVEST',
-    },
-  ]);
+      const res = await fetch('http://localhost:5000/api/staff/my-plots', {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data && data.data.length > 0) {
+        const mapped: AssignedPlot[] = data.data.map((item: any) => ({
+          PlotId: item.PlotId,
+          CultivationId: item.CultivationId,
+          PlotCode: item.PlotCode || `Ô-${item.PlotId}`,
+          AreaName: item.AreaName || 'Khu Nông Trại Kỹ Thuật',
+          CustomerName: item.CustomerName || 'Chưa gán khách',
+          SeedName: item.SeedName || 'Cây trồng hữu cơ VietGAP',
+          GrowthDays: item.StartDate ? Math.max(1, Math.floor((Date.now() - new Date(item.StartDate).getTime()) / (1000 * 60 * 60 * 24))) : 20,
+          ProgressPercent: item.ProgressPercent ? Number(item.ProgressPercent) : 50,
+          HealthStatus: item.CultivationStatus === 'FAILED' ? 'ATTENTION_NEEDED' : 'EXCELLENT',
+          LastLogDate: 'Vừa đồng bộ CSDL',
+          Humidity: item.StandardHumidity || 72,
+          SoilPH: item.SoilPH || 6.5,
+        }));
+        setPlots(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching staff plots:', err);
+    }
+  }, [token]);
+
+  // Fetch Care Requests from Backend API (Task 1)
+  const fetchStaffCareRequests = useCallback(async () => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!savedToken) return;
+
+      const res = await fetch('http://localhost:5000/api/staff/care-requests', {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const mapped: CareRequest[] = data.data.map((item: any) => ({
+          RequestId: item.RequestId,
+          CultivationId: item.CultivationId,
+          PlotCode: item.PlotCode || `Ô-${item.CultivationId}`,
+          CustomerName: item.CustomerName || 'Khách Hàng PlotFarm',
+          CustomerPhone: item.CustomerPhone || '0901234567',
+          RequestType: item.ServiceType || 'Yêu cầu bón phân & tưới vi sinh',
+          Note: item.CustomerNote || 'Kỹ thuật viên vui lòng kiểm tra ô đất giúp em.',
+          CreatedAt: item.RequestedAt ? new Date(item.RequestedAt).toLocaleString('vi-VN') : 'Hôm nay',
+          Status: item.Status || 'PENDING',
+          ResolvedNote: item.ResultNote,
+          ResolvedImage: item.ResultImageUrl,
+        }));
+        setCareRequests(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching care requests:', err);
+    }
+  }, [token]);
+
+  // Fetch Harvest Orders from Backend API (Task 2)
+  const fetchStaffHarvestOrders = useCallback(async () => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!savedToken) return;
+
+      const res = await fetch('http://localhost:5000/api/staff/harvest-orders', {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const mapped: HarvestItem[] = data.data.map((item: any) => ({
+          HarvestRequestId: item.HarvestRequestId,
+          CultivationId: item.CultivationId,
+          PlotCode: item.PlotCode || `Ô-${item.CultivationId}`,
+          CustomerName: item.CustomerName || 'Khách Hàng PlotFarm',
+          SeedName: item.SeedName || 'Nông sản VietGAP',
+          ExpectedHarvestDate: item.RequestDate ? new Date(item.RequestDate).toLocaleDateString('vi-VN') : '15/10/2026',
+          EstimatedYieldKg: (Number(item.ExpectedYieldKgPerM2) || 3) * (Number(item.SizeM2) || 5),
+          ActualYieldKg: item.ActualYieldKg ? Number(item.ActualYieldKg) : undefined,
+          QualityGrade: item.QualityGrade || 'GRADE_A',
+          Status: item.HarvestStatus === 'HARVESTED' || item.HarvestStatus === 'DELIVERED' ? 'HARVESTED' : 'READY_TO_HARVEST',
+        }));
+        setHarvestList(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching harvest orders:', err);
+    }
+  }, [token]);
+
+  // Load all real data on mount
+  useEffect(() => {
+    setIsLoading(true);
+    Promise.all([fetchStaffPlots(), fetchStaffCareRequests(), fetchStaffHarvestOrders()])
+      .finally(() => setIsLoading(false));
+  }, [fetchStaffPlots, fetchStaffCareRequests, fetchStaffHarvestOrders]);
+
+  // Extract Unique Area Names for Dynamic Filtering (Task 3)
+  const uniqueAreas = useMemo(() => {
+    const areas = Array.from(new Set(plots.map((p) => p.AreaName).filter(Boolean)));
+    return areas.length > 0 ? ['ALL', ...areas] : ['ALL', 'Khu A', 'Khu B'];
+  }, [plots]);
 
   // Filtered assigned plots
   const filteredPlots = useMemo(() => {
@@ -479,14 +469,16 @@ export default function StaffPage() {
     setLogActivityType('TƯỚI NƯỚC');
     setLogNotes('');
     setLogHealthStatus(plot.HealthStatus);
+    setIsEmergencyAlert(false);
+    setEmergencyType('SÂU BỆNH');
     handleRemoveLogImage();
     setLogSuppliesUsed([]);
     setLogWaterAmount('');
     setLogModalOpen(true);
   };
 
-  // Submit Cultivation Log
-  const handleSubmitLog = (e: React.FormEvent) => {
+  // Submit Cultivation Log or Emergency Alert (Task 3)
+  const handleSubmitLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!logTitle.trim()) {
       toast.error('Vui lòng nhập tiêu đề nhật ký!');
@@ -494,34 +486,91 @@ export default function StaffPage() {
     }
 
     setIsSubmittingLog(true);
-    setTimeout(() => {
-      setIsSubmittingLog(false);
-      setLogModalOpen(false);
+    const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
 
-      // Update plot status locally
-      if (selectedPlotForLog) {
-        setPlots((prev) =>
-          prev.map((p) =>
-            p.PlotId === selectedPlotForLog.PlotId
-              ? {
-                  ...p,
-                  HealthStatus: logHealthStatus,
-                  LastLogDate: 'Hôm nay (Vừa cập nhật)',
-                }
-              : p
-          )
+    try {
+      if (isEmergencyAlert && selectedPlotForLog?.CultivationId) {
+        // Send Emergency Alert API call
+        const res = await fetch('http://localhost:5000/api/staff/emergency-alert', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${savedToken}`,
+          },
+          body: JSON.stringify({
+            cultivationId: selectedPlotForLog.CultivationId,
+            emergencyType,
+            title: logTitle,
+            notes: logNotes,
+            imageUrl: logImagePreview || null,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          toast.success(
+            `Đã gửi cảnh báo khẩn cấp "${emergencyType}" & thông báo ưu tiên tới chủ ô ${selectedPlotForLog.PlotCode}!`,
+            '🚨 Cảnh Báo Khẩn Cấp'
+          );
+          setLogModalOpen(false);
+          fetchStaffPlots();
+        } else {
+          toast.error(data.message || 'Không thể gửi cảnh báo khẩn cấp');
+        }
+      } else {
+        // Normal Cultivation Log API call
+        if (selectedPlotForLog?.CultivationId) {
+          await fetch(`http://localhost:5000/api/cultivations/${selectedPlotForLog.CultivationId}/logs`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${savedToken}`,
+            },
+            body: JSON.stringify({
+              activityType: logActivityType,
+              title: logTitle,
+              notes: `${logNotes}${logWaterAmount ? ` (Lượng nước: ${logWaterAmount}L)` : ''}`,
+              imageUrl: logImagePreview || null,
+              plantHealthStatus: logHealthStatus,
+            }),
+          });
+        }
+
+        toast.success(
+          `Đã đăng nhật ký thành công cho ô đất ${selectedPlotForLog?.PlotCode}!`,
+          'Nhật Ký Thực Địa'
         );
+        setLogModalOpen(false);
+        fetchStaffPlots();
       }
-
-      toast.success(
-        `Đã đăng nhật ký thành công cho ô đất ${selectedPlotForLog?.PlotCode}!`,
-        'Nhật Ký Thực Địa'
-      );
-    }, 800);
+    } catch (err) {
+      toast.error('Đã xảy ra lỗi khi kết nối máy chủ');
+    } finally {
+      setIsSubmittingLog(false);
+    }
   };
 
-  // Submit Request Resolution
-  const handleResolveRequest = (e: React.FormEvent) => {
+  // Task 1: Accept Care Request (PENDING -> IN_PROGRESS)
+  const handleAcceptCareRequest = async (reqItem: CareRequest) => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      const res = await fetch(`http://localhost:5000/api/staff/care-requests/${reqItem.RequestId}/accept`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`Đã tiếp nhận yêu cầu chăm sóc cho ô ${reqItem.PlotCode}!`, 'Tiếp Nhận Xử Lý');
+        fetchStaffCareRequests();
+      } else {
+        toast.error(data.message || 'Không thể tiếp nhận yêu cầu');
+      }
+    } catch (err) {
+      toast.error('Lỗi khi tiếp nhận yêu cầu');
+    }
+  };
+
+  // Task 1: Complete Care Request (IN_PROGRESS -> COMPLETED)
+  const handleResolveRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requestResolveNotes.trim()) {
       toast.error('Vui lòng nhập ghi chú xử lý thực địa!');
@@ -529,33 +578,44 @@ export default function StaffPage() {
     }
 
     setIsSubmittingRequest(true);
-    setTimeout(() => {
-      setIsSubmittingRequest(false);
-      setRequestModalOpen(false);
+    const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
 
+    try {
       if (selectedRequest) {
-        setCareRequests((prev) =>
-          prev.map((r) =>
-            r.RequestId === selectedRequest.RequestId
-              ? {
-                  ...r,
-                  Status: 'COMPLETED',
-                  ResolvedNote: requestResolveNotes,
-                }
-              : r
-          )
-        );
-      }
+        const res = await fetch(`http://localhost:5000/api/staff/care-requests/${selectedRequest.RequestId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${savedToken}`,
+          },
+          body: JSON.stringify({
+            resultNote: requestResolveNotes.trim(),
+            resultImageUrl: requestResolveImagePreview || null,
+            plantHealthStatus: 'GOOD',
+          }),
+        });
 
-      toast.success(
-        `Đã duyệt & hoàn thành yêu cầu cho ô đất ${selectedRequest?.PlotCode}!`,
-        'Xử Lý Yêu Cầu'
-      );
-    }, 800);
+        const data = await res.json();
+        if (data.success) {
+          toast.success(
+            `Đã duyệt & hoàn thành yêu cầu cho ô đất ${selectedRequest.PlotCode}!`,
+            'Hoàn Thành Yêu Cầu'
+          );
+          setRequestModalOpen(false);
+          fetchStaffCareRequests();
+        } else {
+          toast.error(data.message || 'Lỗi xử lý yêu cầu');
+        }
+      }
+    } catch (err) {
+      toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setIsSubmittingRequest(false);
+    }
   };
 
-  // Submit Harvest Result
-  const handleSubmitHarvest = (e: React.FormEvent) => {
+  // Task 2: Submit Actual Harvest Result & Quality Grade with Customer Delivery Notification
+  const handleSubmitHarvest = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedYield = parseFloat(harvestActualYieldStr);
     if (isNaN(parsedYield) || parsedYield <= 0) {
@@ -564,25 +624,42 @@ export default function StaffPage() {
     }
 
     setIsSubmittingHarvest(true);
-    setTimeout(() => {
-      setIsSubmittingHarvest(false);
-      setHarvestModalOpen(false);
+    const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
 
+    try {
       if (selectedHarvestItem) {
-        setHarvestList((prev) =>
-          prev.map((h) =>
-            h.CultivationId === selectedHarvestItem.CultivationId
-              ? { ...h, Status: 'HARVESTED' }
-              : h
-          )
-        );
-      }
+        const reqId = selectedHarvestItem.HarvestRequestId || selectedHarvestItem.CultivationId;
+        const res = await fetch(`http://localhost:5000/api/staff/harvest-orders/${reqId}/result`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${savedToken}`,
+          },
+          body: JSON.stringify({
+            actualYieldKg: parsedYield,
+            qualityGrade: harvestQualityGrade,
+            inspectionNote: harvestNotes,
+            productImageUrl: null,
+          }),
+        });
 
-      toast.success(
-        `Đã ghi nhận thu hoạch thành công ${harvestActualYieldStr} kg nông sản cho ô ${selectedHarvestItem?.PlotCode}!`,
-        'Ghi Nhận Thu Hoạch'
-      );
-    }, 800);
+        const data = await res.json();
+        if (data.success) {
+          toast.success(
+            `Đã ghi nhận thu hoạch thành công ${parsedYield} kg nông sản (${harvestQualityGrade === 'GRADE_A' ? 'Loại 1 VietGAP' : 'Tiêu chuẩn'}) cho ô ${selectedHarvestItem.PlotCode}! Thông báo giao hàng đã được kích hoạt tới khách hàng.`,
+            'Ghi Nhận Thu Hoạch'
+          );
+          setHarvestModalOpen(false);
+          fetchStaffHarvestOrders();
+        } else {
+          toast.error(data.message || 'Lỗi ghi nhận thu hoạch');
+        }
+      }
+    } catch (err) {
+      toast.error('Lỗi kết nối máy chủ khi thu hoạch');
+    } finally {
+      setIsSubmittingHarvest(false);
+    }
   };
 
   return (
@@ -600,7 +677,7 @@ export default function StaffPage() {
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Cổng Kỹ Thuật Viên Thực Địa (Staff Portal)
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Xin chào, {user?.fullName || 'Kỹ Thuật Viên Nguyễn Văn Đức'}
+                Xin chào, {user?.fullName || 'Kỹ Thuật Viên Phan Minh Tuấn'}
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm mt-1 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-400" /> Ca Sáng (07:00 - 11:30) • <MapPin className="w-4 h-4 text-amber-400" /> Phụ trách Khu A & Khu B
@@ -613,10 +690,13 @@ export default function StaffPage() {
                 className="w-full sm:w-auto shadow-lg"
                 onClick={() => {
                   toast.info('Đang đồng bộ dữ liệu cảm biến thực địa...', 'Realtime Sync');
+                  fetchStaffPlots();
+                  fetchStaffCareRequests();
+                  fetchStaffHarvestOrders();
                 }}
                 leftIcon={<RefreshCw className="w-4 h-4" />}
               >
-                Đồng Bộ Nhanh
+                Đồng Bộ CSDL Nông Trại
               </Button>
             </div>
           </div>
@@ -723,42 +803,25 @@ export default function StaffPage() {
         {/* TAB 1: ASSIGNED PLOTS & QUICK LOG POSTING */}
         {activeTab === 'plots' && (
           <div className="space-y-4 animate-fade-in">
-            {/* Area Filter Selector */}
-            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+            {/* Dynamic Area Filter Selector (Task 3) */}
+            <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex-wrap gap-2">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Filter className="w-3.5 h-3.5" /> Lọc theo Khu Vực:
+                <Filter className="w-3.5 h-3.5" /> Lọc theo Phân Khu (Khu A, Khu B...):
               </span>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => setFilterArea('ALL')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    filterArea === 'ALL'
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Tất Cả
-                </button>
-                <button
-                  onClick={() => setFilterArea('Khu A')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    filterArea === 'Khu A'
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Khu A
-                </button>
-                <button
-                  onClick={() => setFilterArea('Khu B')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    filterArea === 'Khu B'
-                      ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Khu B
-                </button>
+              <div className="flex gap-1.5 flex-wrap">
+                {uniqueAreas.map((areaName) => (
+                  <button
+                    key={areaName}
+                    onClick={() => setFilterArea(areaName)}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                      filterArea === areaName
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border border-transparent'
+                    }`}
+                  >
+                    {areaName === 'ALL' ? 'Tất Cả Phân Khu' : areaName}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -808,7 +871,7 @@ export default function StaffPage() {
                         onClick={() => handleOpenLogModal(plot)}
                         leftIcon={<Camera className="w-3.5 h-3.5" />}
                       >
-                        Đăng Nhật Ký
+                        Đăng Nhật Ký / Cảnh Báo
                       </Button>
                     </div>
 
@@ -869,7 +932,7 @@ export default function StaffPage() {
           </div>
         )}
 
-        {/* TAB 2: FIELD CARE REQUESTS RESOLUTION */}
+        {/* TAB 2: FIELD CARE REQUESTS RESOLUTION (Task 1) */}
         {activeTab === 'requests' && (
           <div className="space-y-4 animate-fade-in">
             {/* Status Filter Bar */}
@@ -958,7 +1021,7 @@ export default function StaffPage() {
                         {req.Status === 'COMPLETED'
                           ? 'Đã Hoàn Thành'
                           : req.Status === 'IN_PROGRESS'
-                          ? 'Đang Thực Hiện'
+                          ? 'Đang Xử Lý'
                           : 'Chờ Tiếp Nhận'}
                       </Badge>
                     </div>
@@ -989,14 +1052,7 @@ export default function StaffPage() {
                             variant="secondary"
                             size="sm"
                             className="min-h-[44px] touch-action-safe"
-                            onClick={() => {
-                              setCareRequests((prev) =>
-                                prev.map((r) =>
-                                  r.RequestId === req.RequestId ? { ...r, Status: 'IN_PROGRESS' } : r
-                                )
-                              );
-                              toast.success(`Đã tiếp nhận yêu cầu ô ${req.PlotCode}!`, 'Tiếp Nhận');
-                            }}
+                            onClick={() => handleAcceptCareRequest(req)}
                             leftIcon={<ArrowRight className="w-3.5 h-3.5" />}
                           >
                             Tiếp Nhận
@@ -1025,7 +1081,7 @@ export default function StaffPage() {
           </div>
         )}
 
-        {/* TAB 3: HARVEST RECORDING */}
+        {/* TAB 3: HARVEST RECORDING (Task 2) */}
         {activeTab === 'harvest' && (
           <div className="space-y-4 animate-fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1053,6 +1109,12 @@ export default function StaffPage() {
                         <span className="text-slate-500">Dự kiến sản lượng:</span>
                         <span className="font-bold text-emerald-500">{item.EstimatedYieldKg} kg</span>
                       </div>
+                      {item.ActualYieldKg !== undefined && (
+                        <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                          <span>Sản lượng thực tế:</span>
+                          <span>{item.ActualYieldKg} kg ({item.QualityGrade === 'GRADE_A' ? 'Loại 1' : 'Tiêu chuẩn'})</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-slate-500">Ngày thu hoạch:</span>
                         <span>{item.ExpectedHarvestDate}</span>
@@ -1066,16 +1128,17 @@ export default function StaffPage() {
                         onClick={() => {
                           setSelectedHarvestItem(item);
                           setHarvestActualYieldStr(String(item.EstimatedYieldKg));
+                          setHarvestQualityGrade('GRADE_A');
                           setHarvestNotes('');
                           setHarvestModalOpen(true);
                         }}
                         leftIcon={<Package className="w-4 h-4" />}
                       >
-                        Ghi Nhận Thu Hoạch Thực Tế
+                        Ghi Nhận Thu Hoạch Thực Tế (Modal)
                       </Button>
                     ) : (
                       <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold text-center mt-4 border border-emerald-500/20">
-                        ✓ Đã ghi nhận & chuyển sang đóng gói giao hàng
+                        ✓ Đã nghiệm thu & kích hoạt thông báo giao hàng
                       </div>
                     )}
                   </CardContent>
@@ -1131,7 +1194,7 @@ export default function StaffPage() {
                 <div className="space-y-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 block">Kỹ thuật viên: Nguyễn Văn Đức</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 block">Kỹ thuật viên: Phan Minh Tuấn</span>
                       <span className="text-slate-500">Phụ trách: Khu A (Đất Phù Sa) & Khu B</span>
                     </div>
                     <Badge variant="success">Ca Sáng (07:00 - 11:30)</Badge>
@@ -1273,36 +1336,118 @@ export default function StaffPage() {
 
     </main>
 
-      {/* MODAL 1: CULTIVATION LOG SUBMISSION */}
+      {/* MODAL 1: CULTIVATION LOG SUBMISSION / EMERGENCY ALERT (Task 3) */}
       <Modal
         isOpen={isLogModalOpen}
         onClose={() => setLogModalOpen(false)}
-        title={`Đăng Nhật Ký Thực Địa - Ô ${selectedPlotForLog?.PlotCode}`}
+        title={`Đăng Nhật Ký / Cảnh Báo Khẩn Cấp - Ô ${selectedPlotForLog?.PlotCode}`}
       >
         <form onSubmit={handleSubmitLog} className="space-y-4">
+          {/* Emergency Alert Mode Toggle (Task 3) */}
+          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className={`w-5 h-5 ${isEmergencyAlert ? 'text-rose-500 animate-pulse' : 'text-amber-500'}`} />
+              <div>
+                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                  Chế Độ Cảnh Báo Khẩn Cấp (Emergency Alert)
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  Gửi thông báo ưu tiên trực tiếp tới điện thoại chủ ô đất
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEmergencyAlert(!isEmergencyAlert)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                isEmergencyAlert
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              {isEmergencyAlert ? '🚨 Đang Bật' : 'Bật Cảnh Báo'}
+            </button>
+          </div>
+
+          {isEmergencyAlert && (
+            <div className="space-y-3 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 animate-fade-in">
+              <label className="text-xs font-bold text-rose-700 dark:text-rose-300 block">
+                Loại Sự Cố Khẩn Cấp (*)
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setEmergencyType('SÂU BỆNH')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    emergencyType === 'SÂU BỆNH'
+                      ? 'border-rose-500 bg-rose-600 text-white shadow-md'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <Bug className="w-4 h-4" /> 🐛 Sâu Bệnh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmergencyType('ÚNG NGẬP')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    emergencyType === 'ÚNG NGẬP'
+                      ? 'border-blue-500 bg-blue-600 text-white shadow-md'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <CloudRain className="w-4 h-4" /> 🌧️ Úng Ngập
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmergencyType('THỜI TIẾT XẤU')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    emergencyType === 'THỜI TIẾT XẤU'
+                      ? 'border-amber-500 bg-amber-600 text-white shadow-md'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <Flame className="w-4 h-4" /> ⚡ Thời Tiết Xấu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEmergencyType('CẦN XỬ LÝ KHẨN')}
+                  className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    emergencyType === 'CẦN XỬ LÝ KHẨN'
+                      ? 'border-purple-500 bg-purple-600 text-white shadow-md'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4" /> ⚠️ Cần Xử Lý Khẩn
+                </button>
+              </div>
+            </div>
+          )}
+
           <Input
-            label="Tiêu Đề Nhật Ký Công Việc"
-            placeholder="Ví dụ: Tưới vi sinh & kiểm tra bắt sâu..."
+            label="Tiêu Đề Nhật Ký / Cảnh Báo"
+            placeholder={isEmergencyAlert ? "Ví dụ: Phát hiện sâu cuốn lá mật độ cao..." : "Ví dụ: Tưới vi sinh & kiểm tra bắt sâu..."}
             value={logTitle}
             onChange={(e) => setLogTitle(e.target.value)}
           />
 
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-              Loại Hoạt Động Kỹ Thuật
-            </label>
-            <select
-              className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
-              value={logActivityType}
-              onChange={(e) => setLogActivityType(e.target.value)}
-            >
-              <option value="TƯỚI NƯỚC">Tưới nước & vi sinh</option>
-              <option value="BÓN PHÂN">Bón phân trùn quế/hữu cơ</option>
-              <option value="LÀM CỎ">Làm cỏ & xới đất</option>
-              <option value="BẮT SÂU">Bắt sâu & tỉa lá gốc</option>
-              <option value="KIỂM TRA CẢM BIẾN">Kiểm tra cảm biến & camera</option>
-            </select>
-          </div>
+          {!isEmergencyAlert && (
+            <div>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
+                Loại Hoạt Động Kỹ Thuật
+              </label>
+              <select
+                className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[44px]"
+                value={logActivityType}
+                onChange={(e) => setLogActivityType(e.target.value)}
+              >
+                <option value="TƯỚI NƯỚC">Tưới nước & vi sinh</option>
+                <option value="BÓN PHÂN">Bón phân trùn quế/hữu cơ</option>
+                <option value="LÀM CỎ">Làm cỏ & xới đất</option>
+                <option value="BẮT SÂU">Bắt sâu & tỉa lá gốc</option>
+                <option value="KIỂM TRA CẢM BIẾN">Kiểm tra cảm biến & camera</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
@@ -1361,7 +1506,6 @@ export default function StaffPage() {
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
               📸 Hình Ảnh Chứng Thực Tại Vườn
             </label>
-            {/* Hidden file inputs */}
             <input
               ref={logCameraRef}
               type="file"
@@ -1414,67 +1558,17 @@ export default function StaffPage() {
                     Chọn Từ Thư Viện
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400 text-center mt-2.5">Bấm để bật camera sau hoặc chọn ảnh có sẵn</p>
               </div>
             )}
           </div>
 
-          {/* Supply Materials Quick-Select - Vật tư nông nghiệp đã sử dụng */}
-          <div>
-            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
-              🧪 Vật Tư Nông Nghiệp Đã Sử Dụng
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {SUPPLY_OPTIONS.map((supply) => (
-                <button
-                  key={supply.id}
-                  type="button"
-                  onClick={() => toggleSupply(supply.id)}
-                  className={`supply-chip flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold min-h-[44px] touch-action-safe ${
-                    logSuppliesUsed.includes(supply.id)
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-sm shadow-emerald-500/10'
-                      : 'border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700'
-                  }`}
-                >
-                  <span className={`flex-shrink-0 ${
-                    logSuppliesUsed.includes(supply.id) ? 'text-emerald-500' : 'text-slate-400'
-                  }`}>
-                    {supply.icon}
-                  </span>
-                  <span className="flex-1 text-left">{supply.label}</span>
-                  {logSuppliesUsed.includes(supply.id) && (
-                    <Check className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Water amount input */}
-            <div className="mt-2.5 flex items-center gap-2.5">
-              <div className="flex items-center gap-2 flex-1">
-                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
-                  <Droplet className="w-4 h-4" />
-                </div>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="Lượng nước tưới (lít)"
-                  value={logWaterAmount}
-                  onChange={(e) => setLogWaterAmount(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[40px]"
-                />
-              </div>
-              <span className="text-xs font-bold text-slate-400">lít</span>
-            </div>
-          </div>
-
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-              Ghi Chú Chi Tiết Đặt Vườn
+              Ghi Chú Chi Tiết Đặt Vườn / Khắc Phục
             </label>
             <textarea
               className="w-full px-3.5 py-2.5 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[70px]"
-              placeholder="Ghi chú thêm về diễn biến cây trồng..."
+              placeholder={isEmergencyAlert ? "Chi tiết tình trạng và hướng xử lý khẩn cấp..." : "Ghi chú thêm về diễn biến cây trồng..."}
               value={logNotes}
               onChange={(e) => setLogNotes(e.target.value)}
             />
@@ -1484,14 +1578,20 @@ export default function StaffPage() {
             <Button variant="ghost" className="min-h-[44px] touch-action-safe" onClick={() => setLogModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmittingLog} leftIcon={<Send className="w-4 h-4" />} className="min-h-[44px] touch-action-safe">
-              Đăng Nhật Ký Ngay
+            <Button
+              variant={isEmergencyAlert ? 'danger' : 'primary'}
+              type="submit"
+              isLoading={isSubmittingLog}
+              leftIcon={isEmergencyAlert ? <AlertTriangle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+              className="min-h-[44px] touch-action-safe font-bold"
+            >
+              {isEmergencyAlert ? '🚨 Gửi Cảnh Báo Ưu Tiên' : 'Đăng Nhật Ký Ngay'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* MODAL 2: CARE REQUEST RESOLUTION */}
+      {/* MODAL 2: CARE REQUEST RESOLUTION (Task 1) */}
       <Modal
         isOpen={isRequestModalOpen}
         onClose={() => setRequestModalOpen(false)}
@@ -1550,9 +1650,6 @@ export default function StaffPage() {
                 >
                   <X className="w-4 h-4" />
                 </button>
-                <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-emerald-600/90 text-white text-[10px] font-bold flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" /> Đã chụp
-                </div>
               </div>
             ) : (
               <div className="camera-capture-zone p-4">
@@ -1582,14 +1679,14 @@ export default function StaffPage() {
             <Button variant="ghost" className="min-h-[44px] touch-action-safe" onClick={() => setRequestModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmittingRequest} leftIcon={<CheckCircle className="w-4 h-4" />} className="min-h-[44px] touch-action-safe">
+            <Button variant="primary" type="submit" isLoading={isSubmittingRequest} leftIcon={<CheckCircle className="w-4 h-4" />} className="min-h-[44px] touch-action-safe font-bold">
               Hoàn Thành Xử Lý
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* MODAL 3: HARVEST RECORDING */}
+      {/* MODAL 3: HARVEST RECORDING (Task 2) */}
       <Modal
         isOpen={isHarvestModalOpen}
         onClose={() => setHarvestModalOpen(false)}
@@ -1598,13 +1695,13 @@ export default function StaffPage() {
         <form onSubmit={handleSubmitHarvest} className="space-y-4 text-xs">
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300">
             <p className="font-bold">Cây trồng: {selectedHarvestItem?.SeedName}</p>
-            <p>Khách hàng: {selectedHarvestItem?.CustomerName}</p>
+            <p>Khách hàng sở hữu: {selectedHarvestItem?.CustomerName}</p>
             <p className="mt-1 text-[11px] opacity-75">Sản lượng dự kiến: {selectedHarvestItem?.EstimatedYieldKg} kg</p>
           </div>
 
           <div>
             <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase mb-1.5 block">
-              Sản Lượng Thực Tế Thu Được (Kg) (*)
+              Sản Lượng Thu Hoạch Thực Tế (Kg) (*)
             </label>
             <div className="relative">
               <input
@@ -1613,7 +1710,6 @@ export default function StaffPage() {
                 value={harvestActualYieldStr}
                 onChange={(e) => {
                   const val = e.target.value;
-                  // Allow digits, single dot, and empty string for clearing
                   if (val === '' || /^\d*\.?\d*$/.test(val)) {
                     setHarvestActualYieldStr(val);
                   }
@@ -1630,13 +1726,55 @@ export default function StaffPage() {
             )}
           </div>
 
+          {/* Quality Grade Selection (Task 2) */}
+          <div>
+            <label className="text-xs font-semibold tracking-wider text-slate-700 dark:text-slate-300 uppercase mb-1.5 block">
+              Phân Loại Chất Lượng Nông Sản (*)
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setHarvestQualityGrade('GRADE_A')}
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
+                  harvestQualityGrade === 'GRADE_A'
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-500'
+                }`}
+              >
+                🏅 Loại 1 (VietGAP Hữu Cơ)
+              </button>
+              <button
+                type="button"
+                onClick={() => setHarvestQualityGrade('GRADE_B')}
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
+                  harvestQualityGrade === 'GRADE_B'
+                    ? 'border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-500'
+                }`}
+              >
+                🥈 Loại 2 (Tiêu Chuẩn)
+              </button>
+              <button
+                type="button"
+                onClick={() => setHarvestQualityGrade('PREMIUM')}
+                className={`p-2.5 rounded-xl border text-xs font-bold transition-all min-h-[44px] touch-action-safe ${
+                  harvestQualityGrade === 'PREMIUM'
+                    ? 'border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                    : 'border-slate-200 dark:border-slate-800 text-slate-500'
+                }`}
+              >
+                ⭐ Hạng Xuất Sắc (Premium)
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="font-semibold text-slate-700 dark:text-slate-300 mb-1 block">
-              Ghi Chú Thu Hoạch & Đóng Gói
+              Ghi Chú Nghiệm Thu & Đóng Gói
             </label>
             <textarea
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[70px]"
-              placeholder="Ghi chú chất lượng nông sản..."
+              placeholder="Nhập ghi chú chi tiết về chất lượng nông sản..."
               value={harvestNotes}
               onChange={(e) => setHarvestNotes(e.target.value)}
             />
@@ -1646,8 +1784,8 @@ export default function StaffPage() {
             <Button variant="ghost" className="min-h-[44px] touch-action-safe" onClick={() => setHarvestModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" type="submit" isLoading={isSubmittingHarvest} leftIcon={<Package className="w-4 h-4" />} className="min-h-[44px] touch-action-safe">
-              Lưu Kết Quả Thu Hoạch
+            <Button variant="primary" type="submit" isLoading={isSubmittingHarvest} leftIcon={<Package className="w-4 h-4" />} className="min-h-[44px] touch-action-safe font-bold">
+              Lưu Kết Quả & Kích Hoạt Giao Hàng
             </Button>
           </div>
         </form>
