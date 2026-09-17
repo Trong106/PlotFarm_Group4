@@ -46,6 +46,13 @@ router.get('/my-plots', requireStaffOrAdmin, staffController.getMyAssignedPlots)
 router.get('/care-requests', requireStaffOrAdmin, staffController.getMyCareRequests);
 
 /**
+ * @route   PATCH /api/staff/care-requests/:id/accept
+ * @desc    Tiếp nhận yêu cầu chăm sóc (chuyển PENDING -> IN_PROGRESS)
+ * @access  Staff, Admin
+ */
+router.patch('/care-requests/:id/accept', requireStaffOrAdmin, staffController.acceptCareRequest);
+
+/**
  * @route   POST /api/staff/care-requests/:id/complete
  * @desc    Nhận và hoàn thành yêu cầu chăm sóc kèm ảnh bằng chứng thực địa
  * @access  Staff, Admin
@@ -63,12 +70,29 @@ router.post('/care-requests/:id/complete', requireStaffOrAdmin, staffController.
 router.get('/harvest-orders', requireStaffOrAdmin, staffController.getMyHarvestOrders);
 
 /**
+ * @route   POST /api/staff/harvest-orders/:id/result
+ * @desc    Ghi nhận sản lượng thu hoạch thực tế (kg), phân loại chất lượng & tự động kích hoạt thông báo giao hàng
+ * @access  Staff, Admin
+ * @body    { actualYieldKg: number, qualityGrade?: string, inspectionNote?: string, productImageUrl?: string }
+ */
+router.post('/harvest-orders/:id/result', requireStaffOrAdmin, staffController.recordHarvestResult);
+
+/**
  * @route   PATCH /api/staff/harvest-orders/:id/progress
  * @desc    Cập nhật tiến độ đơn thu hoạch & lưu mã vận đơn GHTK xe lạnh
  * @access  Staff, Admin
  * @body    { harvestStatus?, trackingCode?, carrierName?, deliveryStatus?, staffNote?, proofImageUrl? }
  */
 router.patch('/harvest-orders/:id/progress', requireStaffOrAdmin, staffController.updateHarvestProgress);
+
+// ─── Nhật Ký & Cảnh Báo Khẩn Cấp ────────────────────────────────────────────
+/**
+ * @route   POST /api/staff/emergency-alert
+ * @desc    Đăng bài nhật ký khẩn cấp (sâu bệnh, úng ngập, thời tiết xấu) & tự động gửi thông báo ưu tiên tới chủ ô đất
+ * @access  Staff, Admin
+ * @body    { cultivationId: number, emergencyType: string, title?: string, notes?: string, imageUrl?: string }
+ */
+router.post('/emergency-alert', requireStaffOrAdmin, staffController.createEmergencyAlert);
 
 // ─── Lịch trình chăm sóc ─────────────────────────────────────────────────────
 /**
@@ -88,3 +112,4 @@ router.get('/schedules', requireStaffOrAdmin, staffController.getMySchedules);
 router.patch('/schedules/:id/complete', requireStaffOrAdmin, staffController.completeSchedule);
 
 module.exports = router;
+
