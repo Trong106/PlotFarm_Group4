@@ -251,6 +251,114 @@ const getMyHarvestOrders = async (req, res, next) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/staff/care-requests/:id/accept
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Tiếp nhận yêu cầu chăm sóc từ khách hàng (PENDING -> IN_PROGRESS)
+ */
+const acceptCareRequest = async (req, res, next) => {
+  try {
+    const staffId = req.user?.userId;
+    if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
+
+    const requestId = parseInt(req.params.id, 10);
+    if (isNaN(requestId) || requestId <= 0) {
+      return errorResponse(res, 'RequestId không hợp lệ', 400);
+    }
+
+    const result = await staffService.acceptCareRequest(staffId, requestId);
+    return successResponse(
+      res,
+      result,
+      `Đã tiếp nhận xử lý yêu cầu chăm sóc #${requestId}`
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/staff/harvest-orders/:id/result
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Ghi nhận thu hoạch thực tế (kg), phân loại chất lượng & gửi thông báo cho khách
+ * Body: { actualYieldKg, qualityGrade?, inspectionNote?, productImageUrl?, trackingCode?, carrierName? }
+ */
+const recordHarvestResult = async (req, res, next) => {
+  try {
+    const staffId = req.user?.userId;
+    if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
+
+    const harvestRequestId = parseInt(req.params.id, 10);
+    if (isNaN(harvestRequestId) || harvestRequestId <= 0) {
+      return errorResponse(res, 'HarvestRequestId không hợp lệ', 400);
+    }
+
+    const { actualYieldKg, qualityGrade, inspectionNote, productImageUrl, trackingCode, carrierName } = req.body;
+    const yieldNum = parseFloat(actualYieldKg);
+    if (isNaN(yieldNum) || yieldNum <= 0) {
+      return errorResponse(res, 'Sản lượng thu hoạch phải lớn hơn 0 kg', 400);
+    }
+
+    const result = await staffService.recordHarvestResult(staffId, harvestRequestId, {
+      actualYieldKg: yieldNum,
+      qualityGrade: qualityGrade || 'GRADE_A',
+      inspectionNote: inspectionNote || '',
+      productImageUrl: productImageUrl || null,
+      trackingCode: trackingCode || null,
+      carrierName: carrierName || null,
+    });
+
+    return successResponse(
+      res,
+      result,
+      `Đã ghi nhận thành công thu hoạch ${yieldNum} kg cho đơn #${harvestRequestId}. Thông báo đã được gửi đến khách hàng!`
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/staff/emergency-alert
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Đăng bài nhật ký khẩn cấp (Sâu bệnh, Úng ngập, Thời tiết xấu) & gửi Notification ưu tiên cho khách
+ * Body: { cultivationId, emergencyType, title?, notes?, imageUrl? }
+ */
+const createEmergencyAlert = async (req, res, next) => {
+  try {
+    const staffId = req.user?.userId;
+    if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
+
+    const { cultivationId, emergencyType, title, notes, imageUrl } = req.body;
+    const cultId = parseInt(cultivationId, 10);
+    if (isNaN(cultId) || cultId <= 0) {
+      return errorResponse(res, 'CultivationId không hợp lệ', 400);
+    }
+    if (!emergencyType) {
+      return errorResponse(res, 'Vui lòng chọn loại cảnh báo khẩn cấp', 400);
+    }
+
+    const result = await staffService.createEmergencyAlert(staffId, cultId, {
+      emergencyType,
+      title: title || '',
+      notes: notes || '',
+      imageUrl: imageUrl || null,
+    });
+
+    return successResponse(
+      res,
+      result,
+      `Đã gửi cảnh báo khẩn cấp "${emergencyType}" và thông báo ưu tiên tới chủ sở hữu ô đất!`,
+      201
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMyAssignedPlots,
   completeCareRequest,
@@ -259,4 +367,7 @@ module.exports = {
   completeSchedule,
   getMyCareRequests,
   getMyHarvestOrders,
+  acceptCareRequest,
+  recordHarvestResult,
+  createEmergencyAlert,
 };

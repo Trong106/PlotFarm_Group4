@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
 import {
+  useRouter, useSearchParams } from 'next/navigation';
+import {
+  Copy,
   ShieldCheck,
   ArrowLeft,
   CheckCircle2,
@@ -26,9 +28,12 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useAddressStore } from '@/store/useAddressStore';
+import { toast } from '@/store/useToastStore';
 
 interface PlotData {
   PlotId: number;
@@ -71,6 +76,58 @@ function CheckoutContent() {
   const [cycles, setCycles] = useState<number>(1);
   const [paymentMethod, setPaymentMethod] = useState<'MOMO' | 'VNPAY' | 'QR_BANK' | 'ATM'>('MOMO');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  // Address Book Synchronization
+  const { addresses, fetchAddresses } = useAddressStore();
+  const defaultAddress = addresses.find((a) => a.isDefault) || addresses[0] || null;
+
+  // VietQR Dynamic Modal & 15-Minute Reservation Timer
+  const [isQRModalOpen, setIsQRModalOpen] = useState<boolean>(false);
+  const [countdownSeconds, setCountdownSeconds] = useState<number>(15 * 60); // 15 mins (900s)
+  const [isVerifyingTransfer, setIsVerifyingTransfer] = useState<boolean>(false);
+
+  useEffect(() => {
+    fetchAddresses();
+  }, [fetchAddresses]);
+
+  // 15-Minute Countdown Timer
+  useEffect(() => {
+    if (!isQRModalOpen) return;
+    const timer = setInterval(() => {
+      setCountdownSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isQRModalOpen]);
+
+  const formatCountdown = (totalSec: number) => {
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const handleCopyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`Đã sao chép ${label} vào clipboard!`, 'Sao chép thành công');
+  };
+
+  const handleConfirmTransferComplete = () => {
+    setIsVerifyingTransfer(true);
+    setTimeout(() => {
+      setIsVerifyingTransfer(false);
+      setIsQRModalOpen(false);
+      toast.success(
+        `Thanh toán thành công! Ô đất ${plot?.PlotCode || 'PLOT_A01'} đã được kích hoạt canh tác.`,
+        'Xác Nhận Thành Công'
+      );
+      router.push('/my-farm');
+    }, 2500);
+  };
+
   const [paymentSuccess, setPaymentSuccess] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -628,7 +685,148 @@ function CheckoutContent() {
             </div>
           </div>
         )}
-      </main>
+      
+      {/* VIETQR DYNAMIC PAYMENT MODAL WITH 15-MINUTE RESERVATION COUNTDOWN */}
+      <Modal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        title="Thanh Toán Tự Động Qua Mã VietQR"
+        maxWidth="lg"
+        footer={
+          <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span>Thời gian giữ ô đất còn: <strong className="font-mono text-amber-600 dark:text-amber-400 font-bold">{formatCountdown(countdownSeconds)}</strong></span>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsQRModalOpen(false)}
+                disabled={isVerifyingTransfer}
+              >
+                Đóng
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConfirmTransferComplete}
+                disabled={isVerifyingTransfer}
+                leftIcon={isVerifyingTransfer ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                className="font-black shadow-lg shadow-emerald-500/25 px-5"
+              >
+                {isVerifyingTransfer ? 'Đang Khớp Lệnh Ngân Hàng...' : 'Tôi Đã Chuyển Khoản'}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4 text-left">
+          {/* Reservation Countdown Alert */}
+          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-3 text-xs text-amber-800 dark:text-amber-300">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+              <span>
+                Ô đất <strong className="font-bold text-amber-900 dark:text-amber-200">{plot?.PlotCode || 'PLOT_A01'}</strong> đang được khóa giữ chỗ độc quyền trong:
+              </span>
+            </div>
+            <span className="font-mono font-black text-sm px-2 py-0.5 rounded-lg bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-100">
+              {formatCountdown(countdownSeconds)}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+            {/* Left: Dynamic QR Box */}
+            <div className="md:col-span-5 flex flex-col items-center justify-center p-4 rounded-3xl bg-white dark:bg-slate-900 border-2 border-emerald-500/40 shadow-inner">
+              <div className="relative p-2 bg-white rounded-2xl shadow-md border border-slate-100">
+                {/* Simulated High-Res VietQR Code */}
+                <div className="w-44 h-44 bg-slate-50 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-emerald-400 p-2 text-center relative overflow-hidden">
+                  <QrCode className="w-24 h-24 text-emerald-700" />
+                  <div className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-100/90 py-0.5">
+                    <span>VIETQR • NAPAS 247</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400 text-center mt-2">
+                Mở App Ngân Hàng hoặc Ví Điện Tử quét mã để thanh toán tức thì
+              </p>
+            </div>
+
+            {/* Right: Transfer Details */}
+            <div className="md:col-span-7 space-y-2.5 text-xs">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Ngân hàng thụ hưởng:</span>
+                  <span className="font-extrabold text-slate-800 dark:text-slate-100">Vietcombank (CN TP.HCM)</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Chủ tài khoản:</span>
+                  <span className="font-extrabold text-slate-800 dark:text-slate-100 uppercase">PLOTFARM AGRI TECH</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Số tài khoản:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">999888666888</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText('999888666888', 'Số tài khoản')}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-600 transition-colors"
+                      title="Sao chép"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-500">Số tiền chính xác:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">
+                      {formatVND(finalTotal)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(String(finalTotal), 'Số tiền')}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-600 transition-colors"
+                      title="Sao chép"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-500">Nội dung chuyển tiền:</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+                      PLOTFARM {plot?.PlotCode || 'PF88'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(`PLOTFARM ${plot?.PlotCode || 'PF88'}`, 'Nội dung chuyển tiền')}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-600 transition-colors"
+                      title="Sao chép"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 text-[11px] leading-relaxed">
+                <AlertCircle className="w-4 h-4 shrink-0 text-blue-500 mt-0.5" />
+                <span>
+                  Hệ thống ngân hàng tự động đối soát trong 1-3 giây. Sau khi chuyển tiền xong, bạn bấm <strong>&quot;Tôi Đã Chuyển Khoản&quot;</strong> để kích hoạt hợp đồng ngay!
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+    </main>
     </div>
   );
 }
