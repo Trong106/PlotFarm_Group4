@@ -43,7 +43,8 @@ import {
   Droplet,
   Leaf,
   Bug,
-  FlaskConical
+  FlaskConical,
+  History
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/Button';
@@ -127,6 +128,119 @@ export default function StaffPage() {
   const [logHealthStatus, setLogHealthStatus] = useState<'EXCELLENT' | 'GOOD' | 'NORMAL' | 'ATTENTION_NEEDED'>('EXCELLENT');
   const [logImageUrl, setLogImageUrl] = useState('/assets/farm/cultivated-plot.jpg');
   const [isSubmittingLog, setIsSubmittingLog] = useState(false);
+  // Staff Log History Viewer & Expired Contract Cleanup State
+  const [selectedPlotForHistory, setSelectedPlotForHistory] = useState<any | null>(null);
+  const [isLogHistoryModalOpen, setIsLogHistoryModalOpen] = useState(false);
+  const [plotLogs, setPlotLogs] = useState<Record<string, Array<{
+    logId: number;
+    logDate: string;
+    activityType: string;
+    title: string;
+    notes: string;
+    staffName: string;
+    plantHealthStatus: string;
+    waterLiters?: number;
+    fertilizerGram?: number;
+  }>>>({
+    PLOT_A01: [
+      {
+        logId: 101,
+        logDate: '16/09/2026 09:30',
+        activityType: 'Tưới nước & Cảm biến ẩm',
+        title: 'Tưới tự động phun sương buổi sáng',
+        notes: 'Độ ẩm đất đạt 78%, cây phát triển xanh mướt, lá xà lách dày và đều.',
+        staffName: 'Kỹ Thuật Viên Mẫu',
+        plantHealthStatus: 'EXCELLENT',
+        waterLiters: 15,
+      },
+      {
+        logId: 102,
+        logDate: '13/09/2026 15:45',
+        activityType: 'Bón phân hữu cơ',
+        title: 'Bổ sung dịch trùn quế đợt 2',
+        notes: 'Bón dặm phân vi sinh gốc, kiểm tra rễ không có dấu hiệu nấm bệnh.',
+        staffName: 'Kỹ Thuật Viên Mẫu',
+        plantHealthStatus: 'EXCELLENT',
+        fertilizerGram: 300,
+      },
+      {
+        logId: 103,
+        logDate: '09/09/2026 08:15',
+        activityType: 'Tỉa lá & Bắt sâu',
+        title: 'Vệ sinh luống và nhổ cỏ gốc',
+        notes: 'Tỉa bớt lá già sát mặt đất để luống thông thoáng.',
+        staffName: 'Kỹ Thuật Viên Mẫu',
+        plantHealthStatus: 'GOOD',
+      },
+    ],
+    PLOT_A05: [
+      {
+        logId: 104,
+        logDate: '15/09/2026 11:20',
+        activityType: 'Phun thảo mộc xua côn trùng',
+        title: 'Phun dung dịch tỏi ớt gừng phòng rệp muội',
+        notes: 'Lá cải thìa có vài vết chích nhẹ, đã xử lý sinh học không dùng hóa chất.',
+        staffName: 'Kỹ Thuật Viên Mẫu',
+        plantHealthStatus: 'GOOD',
+      },
+      {
+        logId: 105,
+        logDate: '11/09/2026 10:00',
+        activityType: 'Tưới nước',
+        title: 'Tưới định kỳ sáng sớm',
+        notes: 'Đất duy trì pH 6.5 chuẩn chỉ.',
+        staffName: 'Kỹ Thuật Viên Mẫu',
+        plantHealthStatus: 'EXCELLENT',
+      },
+    ],
+    PLOT_B08: [
+      {
+        logId: 106,
+        logDate: '16/09/2026 14:00',
+        activityType: 'Bón phân theo yêu cầu khách',
+        title: 'Bón phân hữu cơ vi sinh theo phiếu hẹn',
+        notes: 'Đã hoàn thành phiếu chăm sóc yêu cầu của khách hàng.',
+        staffName: 'Kỹ Thuật Viên Mẫu',
+        plantHealthStatus: 'EXCELLENT',
+      },
+    ],
+  });
+
+  const handleOpenLogHistory = (plot: any) => {
+    setSelectedPlotForHistory(plot);
+    setIsLogHistoryModalOpen(true);
+  };
+
+  // Automatic Cleanup of expired/completed plot logs
+  const handleCleanupExpiredLogs = (plotId: number, plotCode: string) => {
+    setPlotLogs((prev) => {
+      const next = { ...prev };
+      delete next[plotCode];
+      return next;
+    });
+
+    setPlots((prev) =>
+      prev.map((p) =>
+        p.PlotId === plotId
+          ? {
+              ...p,
+              CurrentCrop: 'Chưa gieo trồng',
+              CustomerName: 'Chưa có',
+              LastLogDate: 'Chưa có nhật ký chu kỳ mới',
+              HealthStatus: 'EXCELLENT',
+              Status: 'Sẵn sàng thuê',
+            }
+          : p
+      )
+    );
+
+    toast.success(
+      `Đã dọn dẹp và xóa sạch toàn bộ nhật ký chu kỳ cũ của ô đất ${plotCode}! Ô đất đã được làm sạch và sẵn sàng bàn giao cho hợp đồng canh tác mới.`,
+      'Dọn Dẹp Thành Công'
+    );
+    setIsLogHistoryModalOpen(false);
+  };
+
 
   // Camera capture states for Log Modal
   const logCameraRef = useRef<HTMLInputElement>(null);
@@ -1034,7 +1148,130 @@ export default function StaffPage() {
             </Card>
           </div>
         )}
-      </main>
+      
+      {/* STAFF LOG VIEWER MODAL WITH EXPIRED CONTRACT CLEANUP */}
+      <Modal
+        isOpen={isLogHistoryModalOpen}
+        onClose={() => setIsLogHistoryModalOpen(false)}
+        title={`Lịch Sử Nhật Ký Thực Địa - Ô Đất ${selectedPlotForHistory?.PlotCode || ''}`}
+        maxWidth="xl"
+        footer={
+          <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-3">
+            <div className="text-xs text-slate-500">
+              Tổng số bài nhật ký chu kỳ này: <strong className="font-bold text-emerald-600">{(selectedPlotForHistory && plotLogs[selectedPlotForHistory.PlotCode])?.length || 0} bài</strong>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsLogHistoryModalOpen(false)}
+              >
+                Đóng
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-xs font-bold"
+                onClick={() => {
+                  if (selectedPlotForHistory) {
+                    handleCleanupExpiredLogs(selectedPlotForHistory.PlotId, selectedPlotForHistory.PlotCode);
+                  }
+                }}
+                leftIcon={<Trash2 className="w-3.5 h-3.5" />}
+              >
+                Xóa & Dọn Dẹp Sau Kết Thúc Hợp Đồng
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4 text-left">
+          {/* Plot Quick Overview Banner */}
+          {selectedPlotForHistory && (
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Cây trồng hiện tại:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedPlotForHistory.CurrentCrop}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Chủ sở hữu:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedPlotForHistory.CustomerName}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Trạng thái:</span>
+                <Badge variant={selectedPlotForHistory.Status === 'Sẵn sàng thuê' ? 'success' : 'warning'} size="sm">
+                  {selectedPlotForHistory.Status}
+                </Badge>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Sức khỏe cây:</span>
+                <Badge variant={selectedPlotForHistory.HealthStatus === 'EXCELLENT' ? 'success' : 'info'} size="sm">
+                  {selectedPlotForHistory.HealthStatus}
+                </Badge>
+              </div>
+            </div>
+          )}
+
+          {/* Timeline of Logs */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <History className="w-4 h-4 text-emerald-600" />
+              Dòng Thời Gian Chăm Sóc Thực Địa:
+            </h4>
+
+            {selectedPlotForHistory && plotLogs[selectedPlotForHistory.PlotCode]?.length > 0 ? (
+              <div className="relative border-l-2 border-emerald-500/30 ml-3.5 space-y-4 py-1">
+                {plotLogs[selectedPlotForHistory.PlotCode].map((log, index) => (
+                  <div key={log.logId || index} className="relative pl-6">
+                    {/* Timeline Node */}
+                    <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white dark:border-slate-900 shadow-sm" />
+
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold">
+                            {log.activityType}
+                          </span>
+                          <h5 className="font-extrabold text-sm text-slate-900 dark:text-white">{log.title}</h5>
+                        </div>
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" /> {log.logDate}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                        {log.notes}
+                      </p>
+
+                      <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+                        <span>Kỹ thuật viên: <strong className="text-slate-700 dark:text-slate-300">{log.staffName}</strong></span>
+                        {log.waterLiters && (
+                          <span className="text-blue-600 dark:text-blue-400 font-semibold">Tưới {log.waterLiters} lít</span>
+                        )}
+                        {log.fertilizerGram && (
+                          <span className="text-amber-600 dark:text-amber-400 font-semibold">Bón {log.fertilizerGram}g hữu cơ</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-8 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 space-y-2">
+                <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  Chưa có bài nhật ký nào cho ô đất này trong chu kỳ hiện tại.
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Nhật ký sẽ xuất hiện sau khi Kỹ thuật viên đăng tải cập nhật thực địa đầu tiên.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+    </main>
 
       {/* MODAL 1: CULTIVATION LOG SUBMISSION */}
       <Modal

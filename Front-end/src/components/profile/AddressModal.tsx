@@ -1,20 +1,27 @@
 'use client';
 
-import React, { useState } from 'react';
-import { User, Phone, MapPin, Building, Home, CheckCircle2, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Phone, MapPin, Building, Home, CheckCircle2, Loader2, Edit3, PlusCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { useAddressStore, AddressInput } from '@/store/useAddressStore';
+import { useAddressStore, AddressInput, UserAddress } from '@/store/useAddressStore';
 
 interface AddressModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialData?: UserAddress | null;
 }
 
-export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const { createAddress, isSubmitting } = useAddressStore();
+export const AddressModal: React.FC<AddressModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialData,
+}) => {
+  const { createAddress, updateAddress, isSubmitting } = useAddressStore();
+  const isEditMode = Boolean(initialData);
 
   const [formData, setFormData] = useState<AddressInput>({
     recipientName: '',
@@ -28,6 +35,31 @@ export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onS
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    if (initialData && isOpen) {
+      setFormData({
+        recipientName: initialData.recipientName || '',
+        phoneNumber: initialData.phoneNumber || '',
+        province: initialData.province || 'TP. Hồ Chí Minh',
+        district: initialData.district || '',
+        ward: initialData.ward || '',
+        addressLine: initialData.addressLine || '',
+        isDefault: Boolean(initialData.isDefault),
+      });
+    } else if (!initialData && isOpen) {
+      setFormData({
+        recipientName: '',
+        phoneNumber: '',
+        province: 'TP. Hồ Chí Minh',
+        district: '',
+        ward: '',
+        addressLine: '',
+        isDefault: false,
+      });
+    }
+    setErrors({});
+  }, [initialData, isOpen]);
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -37,11 +69,11 @@ export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onS
       newErrors.recipientName = 'Họ tên không được vượt quá 100 ký tự';
     }
 
-    const phoneClean = formData.phoneNumber.trim();
+    const phoneClean = formData.phoneNumber.trim().replace(/[\s.-]/g, '');
     if (!phoneClean) {
       newErrors.phoneNumber = 'Vui lòng nhập số điện thoại người nhận';
-    } else if (!/^\+?[0-9]{9,15}$/.test(phoneClean)) {
-      newErrors.phoneNumber = 'Số điện thoại không hợp lệ (gồm 9-15 chữ số)';
+    } else if (!/^(03|05|07|08|09)[0-9]{8}$/.test(phoneClean)) {
+      newErrors.phoneNumber = 'Số điện thoại không hợp lệ (phải gồm 10 số, đầu số 03, 05, 07, 08, 09)';
     }
 
     if (!formData.addressLine.trim()) {
@@ -66,17 +98,14 @@ export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onS
     e.preventDefault();
     if (!validate()) return;
 
-    const ok = await createAddress(formData);
+    let ok = false;
+    if (isEditMode && initialData) {
+      ok = await updateAddress(initialData.addressId, formData);
+    } else {
+      ok = await createAddress(formData);
+    }
+
     if (ok) {
-      setFormData({
-        recipientName: '',
-        phoneNumber: '',
-        province: 'TP. Hồ Chí Minh',
-        district: '',
-        ward: '',
-        addressLine: '',
-        isDefault: false,
-      });
       setErrors({});
       onClose();
       if (onSuccess) onSuccess();
@@ -87,7 +116,7 @@ export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onS
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Thêm Địa Chỉ Nhận Nông Sản Mới"
+      title={isEditMode ? 'Chỉnh Sửa Địa Chỉ Nhận Nông Sản' : 'Thêm Địa Chỉ Nhận Nông Sản Mới'}
       maxWidth="lg"
       footer={
         <>
@@ -99,9 +128,17 @@ export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onS
             size="sm"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            leftIcon={isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+            leftIcon={
+              isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isEditMode ? (
+                <Edit3 className="w-4 h-4" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )
+            }
           >
-            {isSubmitting ? 'Đang Lưu...' : 'Lưu Địa Chỉ'}
+            {isSubmitting ? 'Đang Lưu...' : isEditMode ? 'Cập Nhật Địa Chỉ' : 'Lưu Địa Chỉ'}
           </Button>
         </>
       }
@@ -124,7 +161,7 @@ export const AddressModal: React.FC<AddressModalProps> = ({ isOpen, onClose, onS
           />
 
           <Input
-            label="Số Điện Thoại *"
+            label="Số Điện Thoại (10 số) *"
             placeholder="Ví dụ: 0901234567"
             leftIcon={<Phone className="w-4 h-4" />}
             value={formData.phoneNumber}
