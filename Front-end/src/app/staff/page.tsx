@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -78,6 +78,8 @@ interface CareRequest {
   Note: string;
   CreatedAt: string;
   Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  Priority?: 'NORMAL' | 'URGENT';
+  PreferredTime?: string;
   ResolvedNote?: string;
   ResolvedImage?: string;
 }
@@ -237,9 +239,10 @@ export default function StaffPage() {
       CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
       CustomerPhone: '0901234567',
       RequestType: 'BÓN PHÂN HỮU CƠ BỔ SUNG',
-      Note: 'Nhờ kỹ thuật viên bón thêm dinh dưỡng vi sinh và tỉa lá vàng đợt này giúp em nhé.',
+      Note: '🔴 [KHẨN CẤP] - Nhờ kỹ thuật viên bón thêm dinh dưỡng vi sinh và tỉa lá vàng đợt này giúp em nhé.',
       CreatedAt: 'Hôm nay (11:57)',
       Status: 'PENDING',
+      Priority: 'URGENT',
     },
     {
       RequestId: 1,
@@ -250,6 +253,7 @@ export default function StaffPage() {
       Note: 'Nhờ kỹ thuật viên tưới thêm nước bón vi sinh giúp lá xà lách hơi héo.',
       CreatedAt: '15/09/2026 08:15',
       Status: 'PENDING',
+      Priority: 'NORMAL',
     },
     {
       RequestId: 2,
@@ -260,6 +264,7 @@ export default function StaffPage() {
       Note: 'Nhờ chú Đức chụp lại ảnh lá cải bẹ xanh góc trái giùm anh nhé.',
       CreatedAt: '14/09/2026 16:45',
       Status: 'IN_PROGRESS',
+      Priority: 'NORMAL',
       ResolvedNote: 'Đã tỉa các lá vàng sẫm và phun vi sinh thảo mộc phòng sâu.',
     },
   ]);
@@ -294,6 +299,60 @@ export default function StaffPage() {
       Status: 'READY_TO_HARVEST',
     },
   ]);
+
+  // Fetch real care requests from backend with graceful fallback
+  const fetchStaffCareRequests = useCallback(async () => {
+    try {
+      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!authToken) return;
+
+      const res = await fetch('http://localhost:5000/api/staff/care-requests', {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const mapped: CareRequest[] = data.data.map((r: any) => {
+            const rawNote = r.CustomerNote || '';
+            const isUrgent = rawNote.includes('KHẨN CẤP') || rawNote.toUpperCase().includes('URGENT');
+            return {
+              RequestId: r.RequestId,
+              PlotCode: r.PlotCode || `PLOT_${r.CultivationId}`,
+              CustomerName: r.CustomerName || 'Khách Hàng',
+              CustomerPhone: r.CustomerPhone || 'Chưa cập nhật',
+              RequestType: r.ServiceType || 'Yêu cầu chăm sóc',
+              Note: rawNote,
+              CreatedAt: r.RequestedAt ? new Date(r.RequestedAt).toLocaleString('vi-VN') : 'Hôm nay',
+              Status: r.Status || 'PENDING',
+              Priority: isUrgent ? 'URGENT' : 'NORMAL',
+              ResolvedNote: r.ResultNote || undefined,
+              ResolvedImage: r.ResultImageUrl || undefined,
+            };
+          });
+
+          // Sắp xếp: URGENT lên đầu, sau đó PENDING, sau đó theo ID DESC
+          mapped.sort((a, b) => {
+            if (a.Priority === 'URGENT' && b.Priority !== 'URGENT') return -1;
+            if (a.Priority !== 'URGENT' && b.Priority === 'URGENT') return 1;
+            if (a.Status === 'PENDING' && b.Status !== 'PENDING') return -1;
+            if (a.Status !== 'PENDING' && b.Status === 'PENDING') return 1;
+            return b.RequestId - a.RequestId;
+          });
+
+          setCareRequests(mapped);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend staff care requests not reachable, using local state:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchStaffCareRequests();
+  }, [fetchStaffCareRequests]);
 
   // Filtered assigned plots
   const filteredPlots = useMemo(() => {
@@ -415,6 +474,22 @@ export default function StaffPage() {
     }
 
     setIsSubmittingRequest(true);
+
+    const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+    if (authToken && selectedRequest?.RequestId) {
+      fetch(`http://localhost:5000/api/staff/care-requests/${selectedRequest.RequestId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          resultNote: requestResolveNotes,
+          resultImageUrl: requestResolveImagePreview || '/assets/farm/cultivated-plot.jpg',
+        }),
+      }).catch((err) => console.warn('Backend complete care request failed:', err));
+    }
+
     setTimeout(() => {
       setIsSubmittingRequest(false);
       setRequestModalOpen(false);
@@ -437,7 +512,7 @@ export default function StaffPage() {
         `Đã duyệt & hoàn thành yêu cầu cho ô đất ${selectedRequest?.PlotCode}!`,
         'Xử Lý Yêu Cầu'
       );
-    }, 800);
+    }, 600);
   };
 
   // Submit Harvest Result
@@ -498,7 +573,8 @@ export default function StaffPage() {
                 size="sm"
                 className="w-full sm:w-auto shadow-lg"
                 onClick={() => {
-                  toast.info('Đang đồng bộ dữ liệu cảm biến thực địa...', 'Realtime Sync');
+                  fetchStaffCareRequests();
+                  toast.info('Đang đồng bộ dữ liệu cảm biến & yêu cầu thực địa mới nhất...', 'Đồng Bộ Realtime');
                 }}
                 leftIcon={<RefreshCw className="w-4 h-4" />}
               >
@@ -825,11 +901,16 @@ export default function StaffPage() {
                 <Card key={req.RequestId} variant="glass" className="shadow-sm">
                   <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-sm">
                           Ô {req.PlotCode}
                         </span>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{req.RequestType}</h4>
+                        {req.Priority === 'URGENT' && (
+                          <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs animate-pulse">
+                            🚨 KHẨN CẤP
+                          </span>
+                        )}
                       </div>
                       <Badge
                         variant={
