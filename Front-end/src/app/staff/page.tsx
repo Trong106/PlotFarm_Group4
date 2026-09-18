@@ -83,7 +83,7 @@ interface CareRequest {
   RequestType: string;
   Note: string;
   CreatedAt: string;
-  Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
   Priority?: 'NORMAL' | 'URGENT';
   PreferredTime?: string;
   ResolvedNote?: string;
@@ -290,197 +290,118 @@ export default function StaffPage() {
   const [harvestNotes, setHarvestNotes] = useState('');
   const [isSubmittingHarvest, setIsSubmittingHarvest] = useState(false);
 
-  // Initial Mock State for Assigned Plots
-  const [plots, setPlots] = useState<AssignedPlot[]>([
-    {
-      PlotId: 28,
-      PlotCode: 'PLOT_B08',
-      AreaName: 'Khu Củ Quả & Dâu Tây B',
-      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
-      SeedName: 'Cải thìa baby thủy canh',
-      GrowthDays: 15,
-      ProgressPercent: 45,
-      HealthStatus: 'EXCELLENT',
-      LastLogDate: 'Hôm nay (Vừa tưới vi sinh)',
-      Humidity: 70,
-      SoilPH: 6.4,
-    },
-    {
-      PlotId: 101,
-      PlotCode: 'PLOT_A01',
-      AreaName: 'Khu Rau Ăn Lá Hữu Cơ A',
-      CustomerName: 'Hoàng Anh Tuấn',
-      SeedName: 'Cải Bẹ Xanh',
-      GrowthDays: 24,
-      ProgressPercent: 70,
-      HealthStatus: 'EXCELLENT',
-      LastLogDate: '14/09/2026 15:30',
-      Humidity: 72,
-      SoilPH: 6.5,
-    },
-    {
-      PlotId: 102,
-      PlotCode: 'A-02',
-      AreaName: 'Khu A (Đất Thịt Phù Sa)',
-      CustomerName: 'Phạm Thị Trà My',
-      SeedName: 'Rau Muống Hạt',
-      GrowthDays: 18,
-      ProgressPercent: 55,
-      HealthStatus: 'GOOD',
-      LastLogDate: '13/09/2026 09:00',
-      Humidity: 68,
-      SoilPH: 6.8,
-    },
-    {
-      PlotId: 105,
-      PlotCode: 'A-05',
-      AreaName: 'Khu A (Đất Thịt Phù Sa)',
-      CustomerName: 'Trần Văn Bình',
-      SeedName: 'Xà Lách Lô Tô',
-      GrowthDays: 32,
-      ProgressPercent: 95,
-      HealthStatus: 'ATTENTION_NEEDED',
-      LastLogDate: '12/09/2026 14:15',
-      Humidity: 60,
-      SoilPH: 5.9,
-    },
-    {
-      PlotId: 201,
-      PlotCode: 'B-01',
-      AreaName: 'Khu B (Đất Cát Pha)',
-      CustomerName: 'Lê Ngọc Lan',
-      SeedName: 'Cà Tomato Cherry',
-      GrowthDays: 45,
-      ProgressPercent: 80,
-      HealthStatus: 'EXCELLENT',
-      LastLogDate: '14/09/2026 08:30',
-      Humidity: 75,
-      SoilPH: 6.7,
-    },
-  ]);
+  // Data states from Real Database
+  const [plots, setPlots] = useState<AssignedPlot[]>([]);
+  const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
+  const [harvestList, setHarvestList] = useState<HarvestItem[]>([]);
 
-  // Initial Mock State for Care Requests
-  const [careRequests, setCareRequests] = useState<CareRequest[]>([
-    {
-      RequestId: 4,
-      PlotCode: 'PLOT_B08',
-      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
-      CustomerPhone: '0901234567',
-      RequestType: 'BÓN PHÂN HỮU CƠ BỔ SUNG',
-      Note: '🔴 [KHẨN CẤP] - Nhờ kỹ thuật viên bón thêm dinh dưỡng vi sinh và tỉa lá vàng đợt này giúp em nhé.',
-      CreatedAt: 'Hôm nay (11:57)',
-      Status: 'PENDING',
-      Priority: 'URGENT',
-    },
-    {
-      RequestId: 1,
-      PlotCode: 'PLOT_A05',
-      CustomerName: 'Trần Văn Bình',
-      CustomerPhone: '0903000001',
-      RequestType: 'Tưới nước bổ sung',
-      Note: 'Nhờ kỹ thuật viên tưới thêm nước bón vi sinh giúp lá xà lách hơi héo.',
-      CreatedAt: '15/09/2026 08:15',
-      Status: 'PENDING',
-      Priority: 'NORMAL',
-    },
-    {
-      RequestId: 2,
-      PlotCode: 'A-01',
-      CustomerName: 'Hoàng Anh Tuấn',
-      CustomerPhone: '0978901234',
-      RequestType: 'Kiểm tra sâu đốm lá',
-      Note: 'Nhờ chú Đức chụp lại ảnh lá cải bẹ xanh góc trái giùm anh nhé.',
-      CreatedAt: '14/09/2026 16:45',
-      Status: 'IN_PROGRESS',
-      Priority: 'NORMAL',
-      ResolvedNote: 'Đã tỉa các lá vàng sẫm và phun vi sinh thảo mộc phòng sâu.',
-    },
-  ]);
-
-  // Initial Mock State for Harvest Items
-  const [harvestList, setHarvestList] = useState<HarvestItem[]>([
-    {
-      CultivationId: 4,
-      PlotCode: 'PLOT_B08',
-      CustomerName: 'Khách Hàng Mẫu (customer@plotfarm.vn)',
-      SeedName: 'Cải thìa baby thủy canh',
-      ExpectedHarvestDate: '15/10/2026',
-      EstimatedYieldKg: 20.0,
-      Status: 'READY_TO_HARVEST',
-    },
-    {
-      CultivationId: 301,
-      PlotCode: 'PLOT_A05',
-      CustomerName: 'Trần Văn Bình',
-      SeedName: 'Xà Lách Lô Tô',
-      ExpectedHarvestDate: '16/09/2026',
-      EstimatedYieldKg: 18.0,
-      Status: 'READY_TO_HARVEST',
-    },
-    {
-      CultivationId: 302,
-      PlotCode: 'B-03',
-      CustomerName: 'Nguyễn Thị Hoa',
-      SeedName: 'Rau Muống Hạt',
-      ExpectedHarvestDate: '18/09/2026',
-      EstimatedYieldKg: 25.0,
-      Status: 'READY_TO_HARVEST',
-    },
-  ]);
-
-  // Fetch real care requests from backend with graceful fallback
-  const fetchStaffCareRequests = useCallback(async () => {
+  // Fetch Plots from Backend API
+  const fetchStaffPlots = useCallback(async () => {
     try {
-      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
-      if (!authToken) return;
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!savedToken) return;
 
-      const res = await fetch('http://localhost:5000/api/staff/care-requests', {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+      const res = await fetch('http://localhost:5000/api/staff/my-plots', {
+        headers: { Authorization: `Bearer ${savedToken}` },
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
-          const mapped: CareRequest[] = data.data.map((r: any) => {
-            const rawNote = r.CustomerNote || '';
-            const isUrgent = rawNote.includes('KHẨN CẤP') || rawNote.toUpperCase().includes('URGENT');
-            return {
-              RequestId: r.RequestId,
-              PlotCode: r.PlotCode || `PLOT_${r.CultivationId}`,
-              CustomerName: r.CustomerName || 'Khách Hàng',
-              CustomerPhone: r.CustomerPhone || 'Chưa cập nhật',
-              RequestType: r.ServiceType || 'Yêu cầu chăm sóc',
-              Note: rawNote,
-              CreatedAt: r.RequestedAt ? new Date(r.RequestedAt).toLocaleString('vi-VN') : 'Hôm nay',
-              Status: r.Status || 'PENDING',
-              Priority: isUrgent ? 'URGENT' : 'NORMAL',
-              ResolvedNote: r.ResultNote || undefined,
-              ResolvedImage: r.ResultImageUrl || undefined,
-            };
-          });
-
-          // Sắp xếp: URGENT lên đầu, sau đó PENDING, sau đó theo ID DESC
-          mapped.sort((a, b) => {
-            if (a.Priority === 'URGENT' && b.Priority !== 'URGENT') return -1;
-            if (a.Priority !== 'URGENT' && b.Priority === 'URGENT') return 1;
-            if (a.Status === 'PENDING' && b.Status !== 'PENDING') return -1;
-            if (a.Status !== 'PENDING' && b.Status === 'PENDING') return 1;
-            return b.RequestId - a.RequestId;
-          });
-
-          setCareRequests(mapped);
-        }
+      const data = await res.json();
+      if (data.success && data.data && data.data.length > 0) {
+        const mapped: AssignedPlot[] = data.data.map((item: any) => ({
+          PlotId: item.PlotId,
+          CultivationId: item.CultivationId,
+          PlotCode: item.PlotCode || `Ô-${item.PlotId}`,
+          AreaName: item.AreaName || 'Khu Nông Trại Kỹ Thuật',
+          CustomerName: item.CustomerName || 'Chưa gán khách',
+          SeedName: item.SeedName || 'Cây trồng hữu cơ VietGAP',
+          GrowthDays: item.StartDate ? Math.max(1, Math.floor((Date.now() - new Date(item.StartDate).getTime()) / (1000 * 60 * 60 * 24))) : 20,
+          ProgressPercent: item.ProgressPercent ? Number(item.ProgressPercent) : 50,
+          HealthStatus: item.CultivationStatus === 'FAILED' ? 'ATTENTION_NEEDED' : 'EXCELLENT',
+          LastLogDate: 'Vừa đồng bộ CSDL',
+          Humidity: item.StandardHumidity || 72,
+          SoilPH: item.SoilPH || 6.5,
+        }));
+        setPlots(mapped);
       }
     } catch (err) {
-      console.warn('Backend staff care requests not reachable, using local state:', err);
+      console.error('Error fetching staff plots:', err);
     }
   }, [token]);
 
+  // Fetch Care Requests from Backend API (Task 1)
+  const fetchStaffCareRequests = useCallback(async () => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!savedToken) return;
+
+      const res = await fetch('http://localhost:5000/api/staff/care-requests', {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const mapped: CareRequest[] = data.data.map((item: any) => ({
+          RequestId: item.RequestId,
+          CultivationId: item.CultivationId,
+          PlotCode: item.PlotCode || `Ô-${item.CultivationId}`,
+          CustomerName: item.CustomerName || 'Khách Hàng PlotFarm',
+          CustomerPhone: item.CustomerPhone || '0901234567',
+          RequestType: item.ServiceType || 'Yêu cầu bón phân & tưới vi sinh',
+          Note: item.CustomerNote || 'Kỹ thuật viên vui lòng kiểm tra ô đất giúp em.',
+          CreatedAt: item.RequestedAt ? new Date(item.RequestedAt).toLocaleString('vi-VN') : 'Hôm nay',
+          Status: item.Status || 'PENDING',
+          ResolvedNote: item.ResultNote,
+          ResolvedImage: item.ResultImageUrl,
+        }));
+        setCareRequests(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching care requests:', err);
+    }
+  }, [token]);
+
+  // Fetch Harvest Orders from Backend API (Task 2)
+  const fetchStaffHarvestOrders = useCallback(async () => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      if (!savedToken) return;
+
+      const res = await fetch('http://localhost:5000/api/staff/harvest-orders', {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        const mapped: HarvestItem[] = data.data.map((item: any) => ({
+          HarvestRequestId: item.HarvestRequestId,
+          CultivationId: item.CultivationId,
+          PlotCode: item.PlotCode || `Ô-${item.CultivationId}`,
+          CustomerName: item.CustomerName || 'Khách Hàng PlotFarm',
+          SeedName: item.SeedName || 'Nông sản VietGAP',
+          ExpectedHarvestDate: item.RequestDate ? new Date(item.RequestDate).toLocaleDateString('vi-VN') : '15/10/2026',
+          EstimatedYieldKg: (Number(item.ExpectedYieldKgPerM2) || 3) * (Number(item.SizeM2) || 5),
+          ActualYieldKg: item.ActualYieldKg ? Number(item.ActualYieldKg) : undefined,
+          QualityGrade: item.QualityGrade || 'GRADE_A',
+          Status: item.HarvestStatus === 'HARVESTED' || item.HarvestStatus === 'DELIVERED' ? 'HARVESTED' : 'READY_TO_HARVEST',
+        }));
+        setHarvestList(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching harvest orders:', err);
+    }
+  }, [token]);
+
+  // Load all real data on mount
   useEffect(() => {
-    fetchStaffCareRequests();
-  }, [fetchStaffCareRequests]);
+    setIsLoading(true);
+    Promise.all([fetchStaffPlots(), fetchStaffCareRequests(), fetchStaffHarvestOrders()])
+      .finally(() => setIsLoading(false));
+  }, [fetchStaffPlots, fetchStaffCareRequests, fetchStaffHarvestOrders]);
+
+  // Extract Unique Area Names for Dynamic Filtering (Task 3)
+  const uniqueAreas = useMemo(() => {
+    const areas = Array.from(new Set(plots.map((p) => p.AreaName).filter(Boolean)));
+    return areas.length > 0 ? ['ALL', ...areas] : ['ALL', 'Khu A', 'Khu B'];
+  }, [plots]);
+
+
 
   // Filtered assigned plots
   const filteredPlots = useMemo(() => {
@@ -661,25 +582,7 @@ export default function StaffPage() {
     }
 
     setIsSubmittingRequest(true);
-
-    const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
-    if (authToken && selectedRequest?.RequestId) {
-      fetch(`http://localhost:5000/api/staff/care-requests/${selectedRequest.RequestId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          resultNote: requestResolveNotes,
-          resultImageUrl: requestResolveImagePreview || '/assets/farm/cultivated-plot.jpg',
-        }),
-      }).catch((err) => console.warn('Backend complete care request failed:', err));
-    }
-
-    setTimeout(() => {
-      setIsSubmittingRequest(false);
-      setRequestModalOpen(false);
+    const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
 
     try {
       if (selectedRequest) {
@@ -708,12 +611,11 @@ export default function StaffPage() {
           toast.error(data.message || 'Lỗi xử lý yêu cầu');
         }
       }
-
-      toast.success(
-        `Đã duyệt & hoàn thành yêu cầu cho ô đất ${selectedRequest?.PlotCode}!`,
-        'Xử Lý Yêu Cầu'
-      );
-    }, 600);
+    } catch (err) {
+      toast.error('Lỗi kết nối máy chủ');
+    } finally {
+      setIsSubmittingRequest(false);
+    }
   };
 
   // Task 2: Submit Actual Harvest Result & Quality Grade with Customer Delivery Notification
@@ -791,8 +693,10 @@ export default function StaffPage() {
                 size="sm"
                 className="w-full sm:w-auto shadow-lg"
                 onClick={() => {
-                  fetchStaffCareRequests();
                   toast.info('Đang đồng bộ dữ liệu cảm biến & yêu cầu thực địa mới nhất...', 'Đồng Bộ Realtime');
+                  fetchStaffPlots();
+                  fetchStaffCareRequests();
+                  fetchStaffHarvestOrders();
                 }}
                 leftIcon={<RefreshCw className="w-4 h-4" />}
               >
