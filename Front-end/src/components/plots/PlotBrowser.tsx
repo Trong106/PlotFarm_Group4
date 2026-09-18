@@ -3,7 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import { getPlotStatus } from '@/lib/plot-status';
 import { PlotStatusBadge, PlotStatusLegend, plotStatusStyles } from './PlotStatus';
-import { Check, CheckCircle2, Filter, LayoutGrid, ListFilter, MapPin, RotateCcw, Video } from 'lucide-react';
+import { Check, CheckCircle2, ChevronDown, X, Filter, LayoutGrid, ListFilter, MapPin, RotateCcw, Video } from 'lucide-react';
 import { filterPlots, PLOT_STATUS_LABELS, PlotSelection, PlotStatusFilter, SelectionArea, SelectionPlot, validatePriceRange } from '@/lib/plot-selection';
 
 interface BrowserPlot extends SelectionPlot {
@@ -33,11 +33,13 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
   const [priceError, setPriceError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filterId = useId();
-  const appliedFilters = [
-    selection.minPrice !== null || selection.maxPrice !== null ? `Giá: ${selection.minPrice === null ? '0 đ' : money(selection.minPrice)} – ${selection.maxPrice === null ? 'không giới hạn' : money(selection.maxPrice)}` : null,
-    selection.soil || null,
-    selection.status !== 'ALL' ? PLOT_STATUS_LABELS[selection.status] : null,
-  ].filter(Boolean);
+  const appliedFilters: { key: string; label: string; clear: Partial<PlotSelection> }[] = [];
+  if (selection.minPrice !== null || selection.maxPrice !== null) appliedFilters.push({
+    key: 'price', label: `Giá: ${selection.minPrice === null ? '0 đ' : money(selection.minPrice)} – ${selection.maxPrice === null ? 'không giới hạn' : money(selection.maxPrice)}`,
+    clear: { minPrice: null, maxPrice: null },
+  });
+  if (selection.soil) appliedFilters.push({ key: 'soil', label: selection.soil, clear: { soil: '' } });
+  if (selection.status !== 'ALL') appliedFilters.push({ key: 'status', label: PLOT_STATUS_LABELS[selection.status], clear: { status: 'ALL' } });
   useEffect(() => {
     setMinDraft(selection.minPrice === null ? '' : String(selection.minPrice));
     setMaxDraft(selection.maxPrice === null ? '' : String(selection.maxPrice));
@@ -68,9 +70,14 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"><Filter aria-hidden="true" className="h-4 w-4 text-emerald-600" /> Lọc ô đất {appliedFilters.length > 0 && `(${appliedFilters.length})`}</h3>
-          <button type="button" aria-expanded={filtersOpen} aria-controls={filterId} onClick={() => setFiltersOpen((open) => !open)} className="rounded-lg px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300 dark:hover:bg-slate-700">{filtersOpen ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}</button>
+          <button type="button" aria-expanded={filtersOpen} aria-controls={filterId} onClick={() => setFiltersOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300 dark:hover:bg-slate-700">{filtersOpen ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}<ChevronDown aria-hidden="true" className={`h-4 w-4 ${filtersOpen ? 'rotate-180' : ''}`} /></button>
         </div>
-        {appliedFilters.length > 0 && <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200"><p className="min-w-0 flex-1 break-words">Đang áp dụng: {appliedFilters.join(' · ')}</p><button type="button" onClick={reset} className="rounded-lg px-2 py-2 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">Xóa bộ lọc</button></div>}
+        {appliedFilters.length > 0 && <div aria-label="Bộ lọc đang áp dụng" className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+          {appliedFilters.map((filter) => <button key={filter.key} type="button" aria-label={`Xóa bộ lọc ${filter.label}`} onClick={() => onChange(filter.clear)} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-2 py-2 text-left hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-900 dark:bg-slate-900 dark:hover:bg-emerald-950">
+            <span className="min-w-0 break-words">{filter.label}</span><X aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+          </button>)}
+          <button type="button" onClick={reset} className="rounded-lg px-2 py-2 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600">Xóa bộ lọc</button>
+        </div>}
       <div id={filterId} hidden={!filtersOpen}>
       <form onSubmit={(event) => {
         event.preventDefault();
