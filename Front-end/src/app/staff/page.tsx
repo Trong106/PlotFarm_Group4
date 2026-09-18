@@ -84,6 +84,8 @@ interface CareRequest {
   Note: string;
   CreatedAt: string;
   Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  Priority?: 'NORMAL' | 'URGENT';
+  PreferredTime?: string;
   ResolvedNote?: string;
   ResolvedImage?: string;
 }
@@ -399,6 +401,8 @@ export default function StaffPage() {
     return areas.length > 0 ? ['ALL', ...areas] : ['ALL', 'Khu A', 'Khu B'];
   }, [plots]);
 
+
+
   // Filtered assigned plots
   const filteredPlots = useMemo(() => {
     if (filterArea === 'ALL') return plots;
@@ -689,7 +693,7 @@ export default function StaffPage() {
                 size="sm"
                 className="w-full sm:w-auto shadow-lg"
                 onClick={() => {
-                  toast.info('Đang đồng bộ dữ liệu cảm biến thực địa...', 'Realtime Sync');
+                  toast.info('Đang đồng bộ dữ liệu cảm biến & yêu cầu thực địa mới nhất...', 'Đồng Bộ Realtime');
                   fetchStaffPlots();
                   fetchStaffCareRequests();
                   fetchStaffHarvestOrders();
@@ -1002,11 +1006,16 @@ export default function StaffPage() {
                 <Card key={req.RequestId} variant="glass" className="shadow-sm">
                   <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-sm">
                           Ô {req.PlotCode}
                         </span>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{req.RequestType}</h4>
+                        {req.Priority === 'URGENT' && (
+                          <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs animate-pulse">
+                            🚨 KHẨN CẤP
+                          </span>
+                        )}
                       </div>
                       <Badge
                         variant={
