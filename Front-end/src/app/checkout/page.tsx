@@ -16,6 +16,7 @@ import {
   Wallet,
   Clock,
   MapPin,
+  PlusCircle,
   Sprout,
   Package,
   Calendar,
@@ -34,6 +35,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAddressStore } from '@/store/useAddressStore';
 import { toast } from '@/store/useToastStore';
+import { AddressModal } from '@/components/profile/AddressModal';
 
 interface PlotData {
   PlotId: number;
@@ -76,9 +78,10 @@ function CheckoutContent() {
   const [cycles, setCycles] = useState<number>(1);
   const [paymentMethod, setPaymentMethod] = useState<'MOMO' | 'VNPAY' | 'QR_BANK' | 'ATM'>('MOMO');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  // Address Book Synchronization
+  // Address Book Synchronization & In-Checkout Address Management
   const { addresses, fetchAddresses } = useAddressStore();
   const defaultAddress = addresses.find((a) => a.isDefault) || addresses[0] || null;
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState<boolean>(false);
 
   // VietQR Dynamic Modal & 15-Minute Reservation Timer
   const [isQRModalOpen, setIsQRModalOpen] = useState<boolean>(false);
@@ -115,17 +118,41 @@ function CheckoutContent() {
     toast.success(`Đã sao chép ${label} vào clipboard!`, 'Sao chép thành công');
   };
 
-  const handleConfirmTransferComplete = () => {
+  const handleConfirmTransferComplete = async () => {
     setIsVerifyingTransfer(true);
-    setTimeout(() => {
-      setIsVerifyingTransfer(false);
-      setIsQRModalOpen(false);
-      toast.success(
-        `Thanh toán thành công! Ô đất ${plot?.PlotCode || 'PLOT_A01'} đã được kích hoạt canh tác.`,
-        'Xác Nhận Thành Công'
-      );
-      router.push('/my-farm');
-    }, 2500);
+    try {
+      const res = await fetch('http://localhost:5000/api/orders/mock-checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token || localStorage.getItem('plotfarm_token')}`,
+        },
+        body: JSON.stringify({
+          plotId: plot?.PlotId,
+          seedId: seed?.SeedId || 1,
+          carePackageId: carePackage?.PackageId || 1,
+          cycles: cycles,
+          rentalDays: totalRentalDays,
+          paymentMethod: 'QR_BANK',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.removeItem('pending_rental');
+      }
+    } catch (err) {
+      console.warn('Backend order placement via VietQR failed:', err);
+    } finally {
+      setTimeout(() => {
+        setIsVerifyingTransfer(false);
+        setIsQRModalOpen(false);
+        toast.success(
+          `Thanh toán VietQR thành công! Ô đất ${plot?.PlotCode || 'PLOT_A01'} đã được kích hoạt canh tác.`,
+          'Xác Nhận Thành Công'
+        );
+        router.push('/my-farm');
+      }, 1800);
+    }
   };
 
   const [paymentSuccess, setPaymentSuccess] = useState<any>(null);
@@ -241,6 +268,13 @@ function CheckoutContent() {
 
     if (!plot) {
       setErrorMessage('Không tìm thấy thông tin ô đất. Vui lòng chọn lại trên Bản đồ thuê đất!');
+      return;
+    }
+
+    // VietQR Flow: Trigger dynamic QR code modal with 15-minute reservation timer
+    if (paymentMethod === 'QR_BANK') {
+      setCountdownSeconds(15 * 60);
+      setIsQRModalOpen(true);
       return;
     }
 
@@ -477,7 +511,62 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              {/* 2. Phương thức thanh toán Sandbox */}
+              {/* 2. Địa chỉ nhận nông sản khi thu hoạch (Việc làm 3) */}
+              <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-emerald-500" /> Địa Chỉ Nhận Nông Sản Thu Hoạch
+                  </h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setIsAddressModalOpen(true)}
+                    leftIcon={<PlusCircle className="w-3.5 h-3.5" />}
+                  >
+                    {defaultAddress ? 'Đổi / Thêm Địa Chỉ' : 'Thêm Địa Chỉ'}
+                  </Button>
+                </div>
+
+                {defaultAddress ? (
+                  <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 flex items-start justify-between gap-3">
+                    <div className="space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white text-sm">
+                          {defaultAddress.recipientName}
+                        </span>
+                        <span className="font-mono text-slate-500">
+                          ({defaultAddress.phoneNumber})
+                        </span>
+                        {defaultAddress.isDefault && (
+                          <Badge variant="success" size="sm">Mặc định</Badge>
+                        )}
+                      </div>
+                      <p className="text-slate-600 dark:text-slate-300">
+                        {defaultAddress.addressLine}, {defaultAddress.ward}, {defaultAddress.district}, {defaultAddress.province}
+                      </p>
+                    </div>
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="text-xs text-amber-800 dark:text-amber-300 text-center sm:text-left">
+                      <p className="font-bold">Bạn chưa có địa chỉ giao nhận nông sản mặc định!</p>
+                      <p className="opacity-80 mt-0.5">Vui lòng thêm địa chỉ để PlotFarm đóng gói gửi rau tươi tận nhà khi đến kỳ thu hoạch.</p>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="text-xs shrink-0"
+                      onClick={() => setIsAddressModalOpen(true)}
+                    >
+                      + Thêm Địa Chỉ Ngay
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Phương thức thanh toán Sandbox */}
               <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
@@ -686,6 +775,17 @@ function CheckoutContent() {
           </div>
         )}
       
+      {/* Address creation modal right in checkout */}
+      <AddressModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        onSuccess={() => {
+          fetchAddresses();
+          setIsAddressModalOpen(false);
+          toast.success('Đã lưu địa chỉ nhận nông sản thành công!', 'Sổ Địa Chỉ');
+        }}
+      />
+
       {/* VIETQR DYNAMIC PAYMENT MODAL WITH 15-MINUTE RESERVATION COUNTDOWN */}
       <Modal
         isOpen={isQRModalOpen}

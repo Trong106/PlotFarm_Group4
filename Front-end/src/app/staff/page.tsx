@@ -913,15 +913,27 @@ export default function StaffPage() {
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{plot.AreaName}</p>
                       </div>
 
+                    <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs px-2.5 hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-300"
+                        onClick={() => handleOpenLogHistory(plot)}
+                        leftIcon={<History className="w-3.5 h-3.5 text-blue-500" />}
+                        title="Xem lại lịch sử nhật ký chăm sóc & dọn dẹp khi hết hạn hợp đồng"
+                      >
+                        Lịch Sử
+                      </Button>
                       <Button
                         variant="primary"
                         size="sm"
-                        className="shadow-sm"
+                        className="shadow-sm text-xs px-3"
                         onClick={() => handleOpenLogModal(plot)}
                         leftIcon={<Camera className="w-3.5 h-3.5" />}
                       >
                         Đăng Nhật Ký / Cảnh Báo
                       </Button>
+                    </div>
                     </div>
 
                     <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs">
