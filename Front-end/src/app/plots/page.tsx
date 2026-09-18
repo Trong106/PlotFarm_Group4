@@ -26,9 +26,11 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import api from '@/lib/axios';
 import { PLOT_STATUS_LABELS, PlotStatusFilter } from '@/lib/plot-selection';
+import { PlotStatusBadge } from '@/components/plots/PlotStatus';
 import { usePlotSelection } from '@/components/plots/usePlotSelection';
 import { PlotBrowser } from '@/components/plots/PlotBrowser';
 import { ShareSelection } from '@/components/plots/ShareSelection';
+import { MobileBookingBar } from '@/components/plots/MobileBookingBar';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 
@@ -58,6 +60,7 @@ interface Plot {
   CameraCode?: string;
   CameraName?: string;
   CameraStatus?: string;
+  HasActiveCultivation?: boolean | number;
 }
 
 interface Seed {
@@ -103,6 +106,7 @@ export default function PlotsPage() {
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [isAllSeedsModalOpen, setIsAllSeedsModalOpen] = useState(false);
   const [seedModalCategory, setSeedModalCategory] = useState<string>('ALL');
+  const [seedFiltersOpen, setSeedFiltersOpen] = useState(false);
 
   const selectionData = useMemo(() => ({ areas, plots, seeds, packages: carePackages }), [areas, plots, seeds, carePackages]);
   const { selection, updateSelection, hydrated } = usePlotSelection(selectionData, !isLoading && !error);
@@ -220,6 +224,15 @@ export default function PlotsPage() {
     };
   }, [selectedPlot, selectedSeed, selectedPackage]);
 
+  const hasCompletePricing = hydrated && !isLoading && !error && !packageError && !!selectedPlot && !!selectedSeed && !!selectedPackage;
+  const canCheckout = !!hasCompletePricing && selectedPlot?.Status === 'AVAILABLE';
+  const bookingMessage = error ? 'Không thể tải thông tin đặt thuê.'
+    : isLoading || !hydrated ? 'Đang tải thông tin đặt thuê…'
+    : packageError ? 'Chưa tải được gói chăm sóc để tính đủ chi phí đặt thuê.'
+    : !selectedPlot ? 'Chọn ô đất để xem chi phí đặt thuê.'
+    : !hasCompletePricing ? 'Chọn đủ giống cây và gói chăm sóc để tính chi phí.'
+    : selectedPlot.Status !== 'AVAILABLE' ? 'Ô đất này chưa sẵn sàng thuê. Vui lòng chọn ô khác.' : '';
+
   // Format Currency
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
@@ -248,6 +261,7 @@ export default function PlotsPage() {
   };
 
   const handleProceedToCheckout = () => {
+    if (!canCheckout) return;
     if (selectedPlot?.Status !== 'AVAILABLE') {
       alert('Ô đất này hiện chưa sẵn sàng cho thuê. Vui lòng chọn ô đất khác.');
       return;
@@ -398,9 +412,7 @@ export default function PlotsPage() {
                       <span className="px-2.5 py-0.5 rounded-full bg-emerald-700/90 text-white font-bold backdrop-blur-sm text-[11px]">
                         {currentAreaInfo?.AreaName || 'Phân khu chưa cập nhật'}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white/20 text-white font-bold backdrop-blur-sm text-[10px]">
-                        {PLOT_STATUS_LABELS[selectedPlot.Status as PlotStatusFilter] || selectedPlot.Status}
-                      </span>
+                      <PlotStatusBadge plot={selectedPlot} />
                     </div>
 
                     {/* Plot details overlay */}
@@ -601,7 +613,7 @@ export default function PlotsPage() {
                       className="w-full !h-auto !whitespace-normal justify-center shadow-xl shadow-emerald-500/25 !px-3 py-3.5 font-black text-sm"
                       rightIcon={<ArrowRight className="w-4 h-4" />}
                       onClick={handleProceedToCheckout}
-                      disabled={selectedPlot.Status !== 'AVAILABLE' || !selectedSeed || !selectedPackage}
+                      disabled={!canCheckout}
                     >
                       Tiếp Tục Đặt Thuê ({pricingSummary.growthDays} ngày)
                     </Button>
@@ -626,6 +638,16 @@ export default function PlotsPage() {
           </div>
         )}
       </main>
+
+      <MobileBookingBar
+        hidden={isAllSeedsModalOpen || isCompareModalOpen}
+        plotCode={selectedPlot?.PlotCode}
+        growthDays={selectedSeed ? pricingSummary.growthDays : 0}
+        total={hasCompletePricing ? formatVND(pricingSummary.total) : null}
+        canCheckout={canCheckout}
+        message={bookingMessage}
+        onCheckout={handleProceedToCheckout}
+      />
 
       {/* ========================================================================= */}
       {/* 12 SEEDS CATALOG MODAL (XEM TẤT CẢ 12 GIỐNG CÂY TRỒNG VỚI ẢNH LỚN) */}
@@ -653,6 +675,11 @@ export default function PlotsPage() {
             </div>
 
             {/* Category Filter */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="font-semibold text-slate-600 dark:text-slate-300">Loại cây: {seedModalCategory === 'ALL' ? 'Tất cả' : seedModalCategory}</span>
+              <button type="button" aria-expanded={seedFiltersOpen} aria-controls="seed-category-filters" onClick={() => setSeedFiltersOpen((open) => !open)} className="rounded-lg px-3 py-2 font-bold text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">{seedFiltersOpen ? 'Ẩn bộ lọc giống' : 'Hiện bộ lọc giống'}</button>
+            </div>
+            <div id="seed-category-filters" hidden={!seedFiltersOpen}>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {seedCategories.map((cat) => (
                 <button
@@ -667,6 +694,8 @@ export default function PlotsPage() {
                   {cat === 'ALL' ? `Tất cả ${seeds.length} giống` : cat}
                 </button>
               ))}
+            </div>
+
             </div>
 
             {/* Seeds Grid (3 columns with big photos) */}
