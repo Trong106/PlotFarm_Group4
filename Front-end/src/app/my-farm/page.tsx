@@ -1129,13 +1129,17 @@ export default function MyFarmPage() {
 
                     {/* Live Sensor Telemetry OSD Overlay (Góc trái trên màn hình) */}
                     <div className="absolute top-12 left-3 flex flex-wrap items-center gap-1.5 z-10 pointer-events-auto">
-                      <div className="osd-overlay-badge" title="Nhiệt độ không khí & đất">
+                      <div className="osd-overlay-badge" title="Nhiệt độ không khí & luống rau">
                         <Thermometer className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{temperature}°C</span>
+                        <span>Nhiệt độ: {temperature}°C</span>
                       </div>
                       <div className="osd-overlay-badge" title="Độ ẩm không khí">
                         <Droplets className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>{humidity}%</span>
+                        <span>Độ ẩm KK: {humidity}%</span>
+                      </div>
+                      <div className="osd-overlay-badge" title="Độ ẩm đất">
+                        <Sprout className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Độ ẩm đất: {selectedItem.StandardHumidity || 68}%</span>
                       </div>
                       <div className="osd-overlay-badge" title="Cường độ ánh sáng quang hợp">
                         <Sun className="w-3.5 h-3.5 text-amber-300" />
@@ -1170,7 +1174,7 @@ export default function MyFarmPage() {
                           ) : (
                             <Camera className="w-3.5 h-3.5" />
                           )}
-                          <span>Chụp Ảnh Nhanh</span>
+                          <span>Chụp ảnh nhanh từ Camera</span>
                         </button>
                         <button
                           onClick={() => {
@@ -1801,10 +1805,10 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                 </label>
                 <div className="grid grid-cols-1 gap-2">
                   {[
-                    { id: 'BÓN PHÂN HỮU CƠ BỔ SUNG', title: '🌿 Bón Thêm Phân Trùn Quế & Vi Sinh', desc: 'Tăng cường chất dinh dưỡng kích thích ra rễ' },
-                    { id: 'TƯỚI NƯỚC BỔ SUNG', title: '💧 Tưới Phun Sương Tăng Cường', desc: 'Bổ sung độ ẩm luống đất khi thời tiết hanh khô' },
-                    { id: 'NHỔ CỎ BẮT SÂU THỦ CÔNG', title: '🐛 Nhổ Cỏ Dại & Bắt Sâu Bọ Thủ Công', desc: 'Đảm bảo 100% không dùng thuốc trừ sâu hóa học' },
-                    { id: 'CHỤP ẢNH CẬN CẢNH', title: '📸 Chụp Ảnh Cận Cảnh Gốc Rau & Tán Lá', desc: 'Kỹ thuật viên chụp gửi ảnh chất lượng cao' },
+                    { id: 'TƯỚI NƯỚC BỔ SUNG', title: '💧 Tưới Thêm Nước', desc: 'Tưới phun sương bổ sung độ ẩm luống đất khi thời tiết hanh khô' },
+                    { id: 'TỈA CÀNH BỔ SUNG', title: '✂️ Tỉa Cành & Nhặt Lá Vàng', desc: 'Tỉa nhánh cành già, cành sâu bệnh, làm sạch luống rau thông thoáng' },
+                    { id: 'BÓN PHÂN HỮU CƠ BỔ SUNG', title: '🌿 Bón Phân Hữu Cơ Vi Sinh', desc: 'Bổ sung phân trùn quế & chế phẩm vi sinh dinh dưỡng kích thích rễ' },
+                    { id: 'CHỤP ẢNH CẬN CẢNH', title: '📸 Nhờ Chụp Ảnh Kiểm Tra Lá', desc: 'Kỹ thuật viên chụp ảnh hiện trường chất lượng cao gửi cho bạn' },
                   ].map((srv) => (
                     <div
                       key={srv.id}
