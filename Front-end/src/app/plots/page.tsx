@@ -18,6 +18,7 @@ import {
   Users,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   X
 } from 'lucide-react';
 import Header from '@/components/Header';
@@ -592,7 +593,7 @@ export default function PlotsPage() {
                   </div>
 
                   {/* 5. PRICING & CTA BUTTON */}
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div id="booking-summary" className="scroll-mt-24 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
                     {(!selectedSeed || !selectedPackage) && <p className="text-xs text-amber-800 dark:text-amber-200">Chưa đủ thông tin giống cây và gói chăm sóc để tính tổng chi phí đầy đủ.</p>}
                     <div className="flex flex-col min-[440px]:flex-row min-[440px]:items-baseline justify-between gap-1">
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
@@ -677,7 +678,7 @@ export default function PlotsPage() {
             {/* Category Filter */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-slate-600 dark:text-slate-300">Loại cây: {seedModalCategory === 'ALL' ? 'Tất cả' : seedModalCategory}</span>
-              <button type="button" aria-expanded={seedFiltersOpen} aria-controls="seed-category-filters" onClick={() => setSeedFiltersOpen((open) => !open)} className="rounded-lg px-3 py-2 font-bold text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">{seedFiltersOpen ? 'Ẩn bộ lọc giống' : 'Hiện bộ lọc giống'}</button>
+              <button type="button" aria-expanded={seedFiltersOpen} aria-controls="seed-category-filters" onClick={() => setSeedFiltersOpen((open) => !open)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 font-bold text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">{seedFiltersOpen ? 'Ẩn bộ lọc giống' : 'Hiện bộ lọc giống'}<ChevronDown aria-hidden="true" className={`h-4 w-4 ${seedFiltersOpen ? 'rotate-180' : ''}`} /></button>
             </div>
             <div id="seed-category-filters" hidden={!seedFiltersOpen}>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">

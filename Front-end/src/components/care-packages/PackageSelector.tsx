@@ -71,6 +71,15 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
   onSelect: (pkg: T) => void;
   error?: string | null;
 }) {
+  const comparisonRef = useRef<HTMLDetailsElement>(null);
+  const comparisonSummaryRef = useRef<HTMLElement>(null);
+  const comparisonId = useId();
+  const showComparison = () => {
+    if (!comparisonRef.current) return;
+    comparisonRef.current.open = true;
+    comparisonSummaryRef.current?.focus({ preventScroll: true });
+    comparisonSummaryRef.current?.scrollIntoView({ block: 'nearest' });
+  };
   const benefitSets = packages.map((pkg) => ({ pkg, ...parsePackageServices(pkg.ServicesIncluded) }));
   const selectedBenefits = selectedPackage ? parsePackageServices(selectedPackage.ServicesIncluded) : null;
   const services = new Map<string, string>();
@@ -89,12 +98,12 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
         </p>
       ) : (
         <>
-          <div role="group" aria-label="Chọn gói chăm sóc" className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-3">
+          <div role="group" aria-label="Chọn gói chăm sóc" className="flex gap-2 overflow-x-auto p-1 sm:grid sm:grid-cols-3">
             {packages.map((pkg) => {
               const selected = selectedPackage?.PackageId === pkg.PackageId;
               return (
                 <button key={pkg.PackageId} type="button" aria-pressed={selected} onClick={() => onSelect(pkg)}
-                  className={`min-w-0 rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 ${selected
+                  className={`min-w-[7.5rem] flex-1 shrink-0 rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:min-w-0 ${selected
                     ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500 dark:bg-emerald-950/60'
                     : 'border-slate-200 bg-slate-50 hover:border-emerald-400 dark:border-slate-700 dark:bg-slate-800/60'}`}>
                   <span className="flex items-start justify-between gap-1 text-xs font-extrabold text-slate-800 dark:text-slate-100">
@@ -120,15 +129,15 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
                     <span className="min-w-0 break-words">{service}</span>
                   </li>)}
                 </ul>
-                {selectedBenefits.services.length > 3 && <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">+{selectedBenefits.services.length - 3} quyền lợi khác trong bảng so sánh.</p>}
+                {selectedBenefits.services.length > 3 && <button type="button" aria-controls={comparisonId} onClick={showComparison} className="mt-2 rounded px-1 py-2 text-left text-xs font-semibold text-emerald-800 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-200">+{selectedBenefits.services.length - 3} quyền lợi khác — xem chi tiết</button>}
               </>}
               {(!selectedBenefits.available || selectedBenefits.services.length === 0) && <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                 {selectedBenefits.available ? 'Gói này chưa có dịch vụ đính kèm được công bố.' : 'Chi tiết quyền lợi chưa được cập nhật đầy đủ. Vui lòng liên hệ nông trại để xác nhận.'}
               </p>}
             </> : <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">Chọn một gói để xem quyền lợi và thời gian phản hồi.</p>}
           </div>
-          <details className="group min-w-0 rounded-xl border border-slate-200 dark:border-slate-700">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl p-3 text-xs font-bold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-slate-100 dark:hover:bg-slate-800/60 [&::-webkit-details-marker]:hidden">
+          <details id={comparisonId} ref={comparisonRef} className="group min-w-0 rounded-xl border border-slate-200 dark:border-slate-700">
+            <summary ref={comparisonSummaryRef} className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl p-3 text-xs font-bold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-slate-100 dark:hover:bg-slate-800/60 [&::-webkit-details-marker]:hidden">
               <span>So sánh chi tiết các gói</span>
               <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-700 group-open:rotate-180 dark:text-emerald-400" />
             </summary>
@@ -142,8 +151,8 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
               <caption className="sr-only">Chi tiết dịch vụ đính kèm theo từng gói chăm sóc</caption>
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700">
-                  <th scope="col" className="w-[40%] bg-slate-50 p-3 text-left font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">Dịch vụ đính kèm</th>
-                  {packages.map((pkg) => <th key={pkg.PackageId} scope="col" className={`p-2 text-center font-bold ${selectedPackage?.PackageId === pkg.PackageId ? 'bg-emerald-100/70 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}>
+                  <th scope="col" className="sticky top-0 z-10 w-[40%] bg-slate-50 p-3 text-left font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">Dịch vụ đính kèm</th>
+                  {packages.map((pkg) => <th key={pkg.PackageId} scope="col" className={`sticky top-0 z-10 p-2 text-center font-bold ${selectedPackage?.PackageId === pkg.PackageId ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-200'}`}>
                     {getPackageName(pkg.PackageName)}
                     {selectedPackage?.PackageId === pkg.PackageId && <span className="mt-1 block text-[10px] font-semibold">Đang chọn</span>}
                   </th>)}
