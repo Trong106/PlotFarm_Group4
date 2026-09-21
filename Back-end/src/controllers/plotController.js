@@ -24,6 +24,19 @@ const reserve = async (req, res, next) => {
   }
 };
 
+const release = async (req, res, next) => {
+  try {
+    const { plotId } = req.body;
+    if (!plotId) {
+      return errorResponse(res, 'Mã ô đất (plotId) là bắt buộc', 400);
+    }
+    const result = await plotService.releasePlot(plotId, req.user?.userId);
+    return successResponse(res, result, 'Hủy giữ chỗ ô đất thành công', 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateStatus = async (req, res, next) => {
   try {
     const plotId = parseInt(req.params.plotId, 10);
@@ -51,5 +64,6 @@ module.exports = {
   getAreas,
   getGrid,
   reserve,
+  release,
   updateStatus,
 };

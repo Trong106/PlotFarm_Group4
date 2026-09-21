@@ -16,10 +16,15 @@ const createMockCheckout = async (userId, data) => {
     throw err;
   }
 
-  // 1. Lấy thông tin Plot
+    // 1. Lấy thông tin Plot và kiểm tra quyền giữ chỗ
   const plotRes = await pool.request()
     .input('PlotId', sql.Int, plotId)
-    .query(`SELECT * FROM Plots WHERE PlotId = @PlotId`);
+    .query(`
+      SELECT *,
+             CAST(CASE WHEN ReservedUntil IS NOT NULL AND ReservedUntil < SYSDATETIME() THEN 1 ELSE 0 END AS BIT) AS IsReservedExpired
+      FROM Plots
+      WHERE PlotId = @PlotId
+    `);
 
   if (plotRes.recordset.length === 0) {
     const err = new Error('Ô đất không tồn tại');
@@ -27,6 +32,20 @@ const createMockCheckout = async (userId, data) => {
     throw err;
   }
   const plot = plotRes.recordset[0];
+
+  // Kiểm tra trạng thái và quyền giữ chỗ độc quyền
+  const isReservedExpired = Boolean(plot.IsReservedExpired);
+  if (plot.Status === 'RESERVED' && !isReservedExpired && plot.ReservedByUserId && Number(plot.ReservedByUserId) !== Number(userId)) {
+    const err = new Error(`Ô đất ${plot.PlotCode || ''} đang được khách hàng khác giữ chỗ độc quyền trong 15 phút.`);
+    err.statusCode = 409;
+    throw err;
+  }
+  if (plot.Status === 'RENTED' || plot.Status === 'MAINTENANCE' || plot.Status === 'FALLOWING') {
+    const err = new Error(`Ô đất đang ở trạng thái ${plot.Status}, không thể hoàn tất đặt thuê.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
 
   // 2. Lấy thông tin Seed (Giống cây)
   const seedRes = await pool.request()
