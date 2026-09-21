@@ -29,16 +29,35 @@ interface AuthState {
   initAuth: () => void;
   rehydrate: () => void;
 }
-const resolveRole = (data?: Partial<UserProfile> | null): string => {
+const resolveRole = (data?: any): string => {
   if (!data) return 'Customer';
-  if (data.roleId === 1 || data.email === 'admin@plotfarm.vn' || data.role?.toLowerCase() === 'admin') {
+  const roleId = data.roleId ?? data.RoleId;
+  const roleName = data.role ?? data.roleName ?? data.RoleName ?? '';
+  const email = data.email ?? data.Email ?? '';
+
+  if (roleId === 1 || email.toLowerCase() === 'admin@plotfarm.vn' || roleName.toLowerCase() === 'admin') {
     return 'Admin';
   }
-  if (data.roleId === 2 || data.role?.toLowerCase() === 'staff') {
+  if (roleId === 2 || roleName.toLowerCase() === 'staff') {
     return 'Staff';
   }
-  return data.role || data.roleName || 'Customer';
+  return roleName || 'Customer';
 };
+
+const normalizeUser = (data: any): UserProfile | null => {
+  if (!data) return null;
+  const properRole = resolveRole(data);
+  return {
+    ...data,
+    userId: data.userId ?? data.UserId ?? 0,
+    fullName: data.fullName ?? data.FullName ?? data.email ?? data.Email ?? '',
+    email: data.email ?? data.Email ?? '',
+    role: properRole,
+    roleName: properRole,
+    roleId: data.roleId ?? data.RoleId ?? (properRole === 'Admin' ? 1 : properRole === 'Staff' ? 2 : 3),
+  };
+};
+
 let authErrorToastId: string | null = null;
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -63,12 +82,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         let user: UserProfile | null = null;
         if (storedUser) {
           try {
-            user = JSON.parse(storedUser);
-            if (user) {
-              const properRole = resolveRole(user);
-              user.role = properRole;
-              user.roleName = properRole;
-            }
+            const parsed = JSON.parse(storedUser);
+            user = normalizeUser(parsed);
           } catch {
             user = null;
           }
@@ -87,12 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user } = response.data.data || response.data;
-      const properRole = resolveRole(user);
-      const normalizedUser: UserProfile = {
-        ...user,
-        role: properRole,
-        roleName: properRole,
-      };
+      const normalizedUser = normalizeUser(user);
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(normalizedUser));
@@ -105,7 +115,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
       });
-      toast.success(`Chào mừng ${normalizedUser.fullName || normalizedUser.email}! Vai trò: ${normalizedUser.role}`, 'Đăng nhập thành công');
+      toast.success(`Chào mừng ${normalizedUser?.fullName || normalizedUser?.email}! Vai trò: ${normalizedUser?.role}`, 'Đăng nhập thành công');
       return true;
     } catch (err: any) {
       const isNetworkError = !err.response;
@@ -217,13 +227,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Ignore a response from a session that has since logged out or changed.
       if (get().token !== token) return;
       if (userData) {
-        const properRole = resolveRole(userData);
-        userData.role = properRole;
-        userData.roleName = properRole;
+        const normalizedUser = normalizeUser(userData);
         if (typeof window !== 'undefined') {
-          localStorage.setItem('user', JSON.stringify(userData));
+          localStorage.setItem('user', JSON.stringify(normalizedUser));
         }
-        set({ user: userData, isAuthenticated: true, isLoading: false });
+        set({ user: normalizedUser, isAuthenticated: true, isLoading: false });
       } else {
         set({ isLoading: false });
       }

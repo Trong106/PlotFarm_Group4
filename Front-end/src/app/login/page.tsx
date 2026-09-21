@@ -294,23 +294,23 @@ const userRole = (currentUser?.role || currentUser?.roleName || '').toLowerCase(
                     <div className="grid grid-cols-3 gap-2">
                       <button
                         type="button"
-onClick={() => selectQuickAccount('customer@plotfarm.vn', 'password123')}
+                        onClick={() => selectQuickAccount('binh.customer@plotfarm.vn', 'Customer@2026!')}
                         className="p-2 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-all text-center shadow-xs group"
                       >
                         <div className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-emerald-600">Khách Hàng</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">Thuê PLOT_B08</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">Lê Văn Bình</div>
                       </button>
                       <button
                         type="button"
-onClick={() => selectQuickAccount('staff@plotfarm.vn', 'password123')}
+                        onClick={() => selectQuickAccount('khoa.staff@plotfarm.vn', 'Staff@2026!')}
                         className="p-2 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 hover:border-teal-500 hover:bg-teal-50/40 dark:hover:bg-teal-950/20 transition-all text-center shadow-xs group"
                       >
                         <div className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-teal-600">Nhân Viên</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">Chăm sóc B08</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">Minh Khoa</div>
                       </button>
                       <button
                         type="button"
-onClick={() => selectQuickAccount('admin@plotfarm.vn', 'password123')}
+                        onClick={() => selectQuickAccount('admin@plotfarm.vn', 'Admin@2026!')}
                         className="p-2 rounded-xl bg-white dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 hover:border-rose-500 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 transition-all text-center shadow-xs group"
                       >
                         <div className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-rose-600">Quản Trị Viên</div>
