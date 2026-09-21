@@ -86,7 +86,7 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
   benefitSets.forEach((benefits) => benefits.services.forEach((service) => services.set(serviceKey(service), service)));
 
   return (
-    <section aria-label="Gói dịch vụ chăm sóc" className="min-w-0 space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+    <section aria-label="Gói dịch vụ chăm sóc" className="w-full min-w-0 space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
       <div className="flex items-center justify-between gap-2">
         <h4 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
           <Package aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-600" /> Gói Dịch Vụ Chăm Sóc
@@ -136,17 +136,17 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
               </p>}
             </> : <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">Chọn một gói để xem quyền lợi và thời gian phản hồi.</p>}
           </div>
-          <details id={comparisonId} ref={comparisonRef} className="group min-w-0 rounded-xl border border-slate-200 dark:border-slate-700">
+          <details id={comparisonId} ref={comparisonRef} className="group w-full min-w-0 rounded-xl border border-slate-200 dark:border-slate-700">
             <summary ref={comparisonSummaryRef} className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-xl p-3 text-xs font-bold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-slate-100 dark:hover:bg-slate-800/60 [&::-webkit-details-marker]:hidden">
               <span>So sánh chi tiết các gói</span>
               <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-emerald-700 group-open:rotate-180 dark:text-emerald-400" />
             </summary>
-            <div className="min-w-0 space-y-3 border-t border-slate-200 p-3 dark:border-slate-700">
+            <div className="w-full min-w-0 space-y-3 border-t border-slate-200 p-3 dark:border-slate-700">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">Cuộn bảng để xem đầy đủ quyền lợi.</p>
                 <ComparisonTooltip packages={packages} />
               </div>
-          <div tabIndex={0} role="region" aria-label="Bảng so sánh quyền lợi, cuộn để xem đầy đủ các gói và dịch vụ" className="max-h-80 max-w-full overflow-auto rounded-xl border border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700">
+          <div tabIndex={0} role="region" aria-label="Bảng so sánh quyền lợi, cuộn để xem đầy đủ các gói và dịch vụ" className="relative max-h-80 w-full min-w-0 overflow-x-auto overflow-y-auto rounded-xl border border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700">
             <table className="w-full min-w-[420px] border-collapse text-xs">
               <caption className="sr-only">Chi tiết dịch vụ đính kèm theo từng gói chăm sóc</caption>
               <thead>
@@ -163,7 +163,7 @@ export function PackageSelector<T extends CarePackageOption>({ packages, selecte
                   <th scope="row" className="break-words p-3 text-left font-medium leading-relaxed text-slate-700 dark:text-slate-200">{label}</th>
                   {benefitSets.map(({ pkg, services: includedServices, available }) => {
                     const included = includedServices.some((service) => serviceKey(service) === key);
-                    return <td key={pkg.PackageId} className={`p-2 text-center ${selectedPackage?.PackageId === pkg.PackageId ? 'bg-emerald-50/70 dark:bg-emerald-950/40' : ''}`}>
+                    return <td key={pkg.PackageId} className={`relative p-2 text-center ${selectedPackage?.PackageId === pkg.PackageId ? 'bg-emerald-50/70 dark:bg-emerald-950/40' : ''}`}>
                       {included ? <><Check aria-hidden="true" className="mx-auto h-4 w-4 text-emerald-600 dark:text-emerald-400" /><span className="sr-only">Đã bao gồm</span></> : available
                         ? <><Minus aria-hidden="true" className="mx-auto h-4 w-4 text-slate-400" /><span className="sr-only">Không bao gồm</span></>
                         : <span className="text-[10px] text-slate-500 dark:text-slate-400">Chưa rõ</span>}

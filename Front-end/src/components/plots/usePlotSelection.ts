@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { EMPTY_SELECTION, normalizePlotSelection, parsePlotQuery, PlotSelection, SelectionData, writePlotQuery } from '@/lib/plot-selection';
+import { adjacentSeedId, EMPTY_SELECTION, normalizePlotSelection, parsePlotQuery, PlotSelection, SelectionData, writePlotQuery } from '@/lib/plot-selection';
 
 export function usePlotSelection(data: SelectionData, ready: boolean) {
   const [selection, setSelection] = useState<PlotSelection>(EMPTY_SELECTION);
@@ -28,5 +28,9 @@ export function usePlotSelection(data: SelectionData, ready: boolean) {
     setSelection((current) => normalizePlotSelection({ ...current, ...change }, data));
   }, [data]);
 
-  return { selection, updateSelection, hydrated };
+  const moveSeed = useCallback((direction: -1 | 1) => {
+    setSelection((current) => ({ ...current, seedId: adjacentSeedId(data.seeds, current.seedId, direction) }));
+  }, [data.seeds]);
+
+  return { selection, updateSelection, moveSeed, hydrated };
 }

@@ -105,3 +105,23 @@ test('rapid area transitions always reconcile the summary to the chosen area', (
     assert.deepEqual(plain(normalizePlotSelection(current, data)), plain(current));
   }
 });
+
+test('seed arrows select adjacent IDs and wrap in both directions', () => {
+  const seeds = [{ SeedId: 3 }, { SeedId: 8 }, { SeedId: 21 }];
+  const { adjacentSeedId } = exportsObject;
+  assert.equal(adjacentSeedId(seeds, 3, 1), 8);
+  assert.equal(adjacentSeedId(seeds, 8, -1), 3);
+  assert.equal(adjacentSeedId(seeds, 21, 1), 3);
+  assert.equal(adjacentSeedId(seeds, 3, -1), 21);
+  let current = 3;
+  for (let i = 0; i < 5; i++) current = adjacentSeedId(seeds, current, 1);
+  assert.equal(current, 21);
+});
+
+test('seed navigation handles empty, single and stale selections', () => {
+  const { adjacentSeedId } = exportsObject;
+  assert.equal(adjacentSeedId([], null, 1), null);
+  assert.equal(adjacentSeedId([{ SeedId: 8 }], 8, -1), 8);
+  assert.equal(adjacentSeedId([{ SeedId: 3 }, { SeedId: 8 }], 99, 1), 3);
+  assert.equal(adjacentSeedId([{ SeedId: 3 }, { SeedId: 8 }], null, -1), 8);
+});

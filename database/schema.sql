@@ -543,6 +543,33 @@ BEGIN
 END
 GO
 
+-- 6.6b BẢNG dbo.CareSchedules (Lịch trình chăm sóc định kỳ)
+IF OBJECT_ID('dbo.CareSchedules', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.CareSchedules (
+        CareScheduleId INT IDENTITY(1,1) CONSTRAINT PK_CareSchedules PRIMARY KEY,
+        CultivationId INT NOT NULL,
+        PackageId INT NULL,
+        ActivityType NVARCHAR(50) NOT NULL,
+        ScheduledDate DATE NOT NULL,
+        Notes NVARCHAR(255) NULL,
+        Status NVARCHAR(30) NOT NULL CONSTRAINT DF_CareSchedules_Status DEFAULT 'PENDING',
+        AssignedStaffId INT NULL,
+        CompletedAt DATETIME2(0) NULL,
+        ResultNote NVARCHAR(500) NULL,
+        ResultImageUrl NVARCHAR(500) NULL,
+        CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_CareSchedules_CreatedAt DEFAULT SYSDATETIME(),
+        CONSTRAINT FK_CareSchedules_Cultivations FOREIGN KEY (CultivationId) REFERENCES dbo.Cultivations(CultivationId),
+        CONSTRAINT FK_CareSchedules_Staff FOREIGN KEY (AssignedStaffId) REFERENCES dbo.Users(UserId),
+        CONSTRAINT CK_CareSchedules_Status CHECK (Status IN ('PENDING','COMPLETED','SKIPPED')),
+        CONSTRAINT CK_CareSchedules_ActivityType CHECK (ActivityType IN ('WATERING','FERTILIZING','PRUNING','PEST_CONTROL','SOIL_TEST'))
+    );
+    CREATE INDEX IX_CareSchedules_Cultivation_Date ON dbo.CareSchedules(CultivationId, ScheduledDate);
+    CREATE INDEX IX_CareSchedules_Date_Status ON dbo.CareSchedules(ScheduledDate, Status);
+    PRINT N'[THÀNH CÔNG] Đã tạo bảng dbo.CareSchedules.';
+END
+GO
+
 -- 6.7 BẢNG dbo.StaffAssignments (Phân công nhân viên)
 IF OBJECT_ID('dbo.StaffAssignments', 'U') IS NULL
 BEGIN
