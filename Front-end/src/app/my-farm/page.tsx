@@ -42,6 +42,7 @@ import {
   CloudSun,
   Wind,
   Download,
+  Copy,
   Zap,
   Check,
   AlertTriangle
@@ -2108,6 +2109,195 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: MÃ QR TRUY XUẤT NGUỒN GỐC CHUẨN VIETGAP */}
+      {isQrModalOpen && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-emerald-200 dark:border-emerald-800/60 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white p-5 sm:p-6 relative">
+              <button
+                type="button"
+                onClick={() => setIsQrModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+                aria-label="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner">
+                  <ShieldCheck className="w-6 h-6 text-emerald-200" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-black tracking-tight">
+                      Mã QR Truy Xuất Nguồn Gốc VietGAP
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 uppercase">
+                      Chuẩn TCVN
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-100/90 mt-0.5">
+                    Hồ sơ canh tác số minh bạch • Chứng nhận TCVN 11892-1:2017
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              {/* Top Code & QR display */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+                {/* QR Code Container */}
+                <div className="sm:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border-2 border-emerald-500/30">
+                  <div className="relative p-2.5 bg-white rounded-2xl shadow-md border border-slate-200">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}/my-farm?plot=${selectedItem.PlotCode}&cert=VIETGAP-${selectedItem.PlotCode}-${selectedItem.CultivationId}`
+                          : `VIETGAP-PLOTFARM-${selectedItem.PlotCode}-${selectedItem.CultivationId}`
+                      )}`}
+                      alt="Mã QR VietGAP"
+                      className="w-40 h-40 object-contain rounded-lg"
+                    />
+                    <div className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-1 text-[9px] font-black text-emerald-800 bg-emerald-100/90 py-0.5 mx-2 rounded">
+                      <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                      <span>VIETGAP • PLOTFARM</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-2.5">
+                    Quét bằng Camera điện thoại hoặc Zalo để xem hồ sơ lô đất
+                  </p>
+                </div>
+
+                {/* Right Summary Info */}
+                <div className="sm:col-span-7 space-y-2.5 text-xs">
+                  <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Mã truy xuất VietGAP:</span>
+                      <span className="font-mono font-black text-emerald-700 dark:text-emerald-400 text-sm">
+                        VG-PF-{selectedItem.PlotCode}-{selectedItem.CultivationId}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Nông sản:</span>
+                      <strong className="text-slate-900 dark:text-white font-bold">{selectedItem.SeedName}</strong>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Ô đất canh tác:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {selectedItem.PlotCode} ({selectedItem.SizeM2} m²)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Vị trí trang trại:</span>
+                      <span className="text-slate-700 dark:text-slate-300">PlotFarm Đà Lạt (Lâm Đồng)</span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons: Copy code & Download QR */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-bold border-emerald-300 hover:bg-emerald-50 text-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950 flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        const code = `VG-PF-${selectedItem.PlotCode}-${selectedItem.CultivationId}`;
+                        navigator.clipboard.writeText(code);
+                        toast.success(`Đã sao chép mã ${code} vào bộ nhớ tạm!`, 'Sao chép thành công');
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      Sao Chép Mã
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-bold border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&data=${encodeURIComponent(
+                          `VIETGAP-PLOTFARM-${selectedItem.PlotCode}-${selectedItem.CultivationId}`
+                        )}`;
+                        window.open(qrUrl, '_blank');
+                        toast.success('Đang mở ảnh mã QR độ phân giải cao để tải về!', 'Tải mã QR');
+                      }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Tải Mã QR
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Traceability Details Table */}
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info className="w-4 h-4 text-emerald-500" />
+                  Hồ Sơ Canh Tác & Giám Sát Minh Bạch
+                </h4>
+
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 text-xs overflow-hidden">
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Tiêu chuẩn canh tác</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">VietGAP (TCVN 11892-1:2017)</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between items-center">
+                    <span className="text-slate-500">Ngày gieo trồng</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDate(selectedItem.StartDate)}</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Dự kiến thu hoạch</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDate(selectedItem.ExpectedHarvestDate)}</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between items-center">
+                    <span className="text-slate-500">Gói chăm sóc áp dụng</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{getPackageName(selectedItem.PackageName)}</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Nhật ký thực địa</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{logs.length} bài đăng kèm hình ảnh</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between items-center">
+                    <span className="text-slate-500">Độ pH đất & Cảm biến</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      pH {selectedItem.SoilPH || 6.5} • Nhiệt độ {temperature}°C • Độ ẩm {humidity}%
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Cam kết an toàn</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">100% Hữu cơ • Không hóa chất độc hại</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Footer Note */}
+              <div className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <p>
+                  Mã QR này được in trực tiếp lên tem nhãn bao bì rau củ khi thu hoạch, cho phép người tiêu dùng truy xuất trọn vẹn nhật ký sinh trưởng từ hạt mầm đến bàn ăn.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsQrModalOpen(false)}
+                  className="font-bold px-5"
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
