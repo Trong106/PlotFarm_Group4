@@ -236,9 +236,18 @@ export default function MyFarmPage() {
   const activePlotsCount = cultivations.length;
   const growingCyclesCount = cultivations.filter((c) => c.CultivationStatus === 'GROWING').length;
   const readyToHarvestCount = cultivations.filter((c) => Number(c.ProgressPercent) >= 90).length;
+  // Lọc yêu cầu chăm sóc và giao hàng theo ô đất đang được chọn
+  const filteredCareRequests = selectedItem
+    ? careRequests.filter((r) => r.CultivationId === selectedItem.CultivationId)
+    : careRequests;
+
+  const filteredDeliveries = selectedItem
+    ? deliveries.filter((d) => d.CultivationId === selectedItem.CultivationId)
+    : deliveries;
+
   const pendingRequestsCount =
-    careRequests.filter((r) => r.Status !== 'COMPLETED').length +
-    deliveries.filter((d) => d.DeliveryStatus !== 'DELIVERED').length;
+    filteredCareRequests.filter((r) => r.Status !== 'COMPLETED').length +
+    filteredDeliveries.filter((d) => d.DeliveryStatus !== 'DELIVERED').length;
 
   const getHarvestCountdown = (expectedHarvestDateStr: string) => {
     if (!expectedHarvestDateStr) return 'Đang cập nhật';
@@ -1372,7 +1381,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                   }`}
                 >
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  Yêu Cầu Chăm Sóc Đột Xuất ({careRequests.length})
+                  Yêu Cầu Chăm Sóc Đột Xuất ({filteredCareRequests.length})
                 </button>
 
                 <button
@@ -1384,7 +1393,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                   }`}
                 >
                   <Truck className="w-4 h-4 text-blue-500" />
-                  Theo Dõi Giao Hàng & Thu Hoạch ({deliveries.length})
+                  Theo Dõi Giao Hàng & Thu Hoạch ({filteredDeliveries.length})
                 </button>
               </div>
 
@@ -1556,7 +1565,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </Button>
                   </div>
 
-                  {careRequests.length === 0 ? (
+                  {filteredCareRequests.length === 0 ? (
                     <div className="py-12 text-center text-slate-500 space-y-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <Sparkles className="w-8 h-8 text-amber-500 mx-auto" />
                       <p className="text-sm font-bold">Bạn chưa có yêu cầu chăm sóc nào đang chờ xử lý</p>
@@ -1564,7 +1573,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {careRequests.map((req) => (
+                      {filteredCareRequests.map((req) => (
                         <div
                           key={req.RequestId}
                           className="bg-slate-50/80 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3"
@@ -1624,7 +1633,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </Button>
                   </div>
 
-                  {deliveries.length === 0 ? (
+                  {filteredDeliveries.length === 0 ? (
                     <div className="py-12 text-center text-slate-500 space-y-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <Truck className="w-8 h-8 text-blue-500 mx-auto" />
                       <p className="text-sm font-bold">Chưa có đơn vận chuyển thu hoạch nào</p>
@@ -1634,7 +1643,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {deliveries.map((del) => {
+                      {filteredDeliveries.map((del) => {
                         const stepIndex =
                           del.DeliveryStatus === 'DELIVERED'
                             ? 4
