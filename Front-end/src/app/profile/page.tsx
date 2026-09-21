@@ -646,13 +646,25 @@ export default function ProfilePage() {
                           </div>
                           <span className="text-xs text-slate-500 font-mono">{addr.phoneNumber}</span>
                         </div>
-                        <button
-                          onClick={() => handleDeleteAddress(addr.addressId)}
-                          className="text-slate-400 hover:text-rose-500 p-1 rounded-lg"
-                          title="Xóa địa chỉ"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingAddress(addr);
+                              setIsAddressModalOpen(true);
+                            }}
+                            className="text-slate-400 hover:text-emerald-600 p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Chỉnh sửa địa chỉ"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAddress(addr.addressId)}
+                            className="text-slate-400 hover:text-rose-500 p-1.5 rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                            title="Xóa địa chỉ"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl">
@@ -855,15 +867,22 @@ export default function ProfilePage() {
         )}
       </main>
 
-      {/* Address creation modal */}
+      {/* Address creation / edit modal */}
       <AddressModal
         isOpen={isAddressModalOpen}
-        onClose={() => setIsAddressModalOpen(false)}
+        onClose={() => {
+          setIsAddressModalOpen(false);
+          setEditingAddress(null);
+        }}
+        initialData={editingAddress}
         onSuccess={() => {
           setAddressFeedback({
             type: 'success',
-            message: 'Đã thêm địa chỉ giao nhận mới thành công!',
+            message: editingAddress
+              ? 'Đã cập nhật địa chỉ giao nhận thành công!'
+              : 'Đã thêm địa chỉ giao nhận mới thành công!',
           });
+          setEditingAddress(null);
           setTimeout(() => setAddressFeedback(null), 3000);
         }}
       />
