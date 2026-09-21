@@ -35,7 +35,7 @@ const getMyAssignedPlots = async (staffId) => {
     .query(`
       SELECT
         sa.AssignmentId,
-        sa.AssignedAt,
+        sa.AssignedDate AS AssignedAt,
         sa.Notes           AS AssignmentNotes,
         p.PlotId,
         p.PlotCode,
@@ -84,7 +84,7 @@ const getMyAssignedPlots = async (staffId) => {
             AND cs.Status = 'PENDING'
         ) AS TodayPendingSchedules
       FROM StaffAssignments sa
-      INNER JOIN Plots        p   ON (sa.AreaId = p.AreaId OR sa.PlotId = p.PlotId)
+      INNER JOIN Plots        p   ON sa.AreaId = p.AreaId
       LEFT  JOIN FarmAreas    fa  ON p.AreaId        = fa.AreaId
       LEFT  JOIN Cameras      cam ON p.CameraId      = cam.CameraId
       LEFT  JOIN Cultivations c   ON c.PlotId = p.PlotId
@@ -528,7 +528,7 @@ const getMySchedules = async (staffId, filters = {}) => {
     LEFT  JOIN Users        u ON ro.UserId         = u.UserId
     LEFT  JOIN CarePackages cp ON ro.CarePackageId = cp.PackageId
     -- Chỉ lấy lịch thuộc ô đất mà Staff đang phụ trách
-    INNER JOIN StaffAssignments sa ON (sa.AreaId = p.AreaId OR sa.PlotId = p.PlotId) AND sa.StaffId = @StaffId
+    INNER JOIN StaffAssignments sa ON sa.AreaId = p.AreaId AND sa.StaffId = @StaffId
     WHERE 1 = 1
   `;
 
@@ -586,7 +586,7 @@ const completeSchedule = async (staffId, scheduleId, { resultNote, resultImageUr
       FROM CareSchedules cs
       INNER JOIN Cultivations c ON cs.CultivationId = c.CultivationId
       INNER JOIN Plots p        ON c.PlotId = p.PlotId
-      LEFT  JOIN StaffAssignments sa ON (sa.AreaId = p.AreaId OR sa.PlotId = p.PlotId) AND sa.StaffId = @StaffId
+      LEFT  JOIN StaffAssignments sa ON sa.AreaId = p.AreaId AND sa.StaffId = @StaffId
       WHERE cs.CareScheduleId = @CareScheduleId
     `);
 
@@ -893,10 +893,10 @@ const getMyCareRequests = async (staffId, filters = {}) => {
     INNER JOIN Cultivations c ON cr.CultivationId = c.CultivationId
     INNER JOIN Plots p        ON c.PlotId = p.PlotId
     LEFT  JOIN FarmAreas fa   ON p.AreaId = fa.AreaId
-    INNER JOIN RentalOrders ro ON c.OrderId = ro.OrderId
+    LEFT  JOIN RentalOrders ro ON c.OrderId = ro.OrderId
     INNER JOIN Seeds s         ON c.SeedId = s.SeedId
-    LEFT  JOIN Users u         ON ro.UserId = u.UserId
-    LEFT  JOIN StaffAssignments sa ON (sa.AreaId = p.AreaId OR sa.PlotId = p.PlotId) AND sa.StaffId = @StaffId
+    LEFT  JOIN Users u         ON (cr.UserId = u.UserId OR ro.UserId = u.UserId)
+    LEFT  JOIN StaffAssignments sa ON sa.AreaId = p.AreaId AND sa.StaffId = @StaffId
     WHERE 1 = 1
   `;
 
@@ -970,7 +970,7 @@ const getMyHarvestOrders = async (staffId, filters = {}) => {
     LEFT  JOIN Users u         ON ro.UserId = u.UserId
     LEFT  JOIN Deliveries d    ON d.HarvestRequestId = hr.HarvestRequestId
     LEFT  JOIN HarvestResults hrres ON hrres.HarvestRequestId = hr.HarvestRequestId
-    LEFT  JOIN StaffAssignments sa ON (sa.AreaId = p.AreaId OR sa.PlotId = p.PlotId) AND sa.StaffId = @StaffId
+    LEFT  JOIN StaffAssignments sa ON sa.AreaId = p.AreaId AND sa.StaffId = @StaffId
     WHERE 1 = 1
   `;
 
