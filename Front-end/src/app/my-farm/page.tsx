@@ -153,6 +153,14 @@ export default function MyFarmPage() {
 
   const [cultivations, setCultivations] = useState<CultivationItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<CultivationItem | null>(null);
+  const canRequestHarvest = selectedItem?.CultivationStatus === 'READY_TO_HARVEST';
+  const requestsClosed = !selectedItem || ['HARVESTED', 'FAILED'].includes(selectedItem.CultivationStatus);
+  const requestsClosedMessage = 'Vụ mùa đã kết thúc. Không thể gửi thêm yêu cầu chăm sóc hoặc thu hoạch. Bạn vẫn có thể xem lịch sử và theo dõi giao hàng.';
+  const harvestBlockedMessage = selectedItem?.CultivationStatus === 'HARVESTED'
+    ? 'Vụ mùa này đã thu hoạch. Không thể gửi thêm yêu cầu.'
+    : selectedItem?.CultivationStatus === 'FAILED'
+      ? 'Vụ mùa đã kết thúc không thành công, không thể yêu cầu thu hoạch.'
+      : 'Vụ mùa chưa sẵn sàng thu hoạch. Vui lòng chờ kỹ thuật viên xác nhận; không thể thu hoạch khi đang gieo hạt hoặc sinh trưởng.';
   const [isLoading, setIsLoading] = useState(true);
 
   // Active Tab
@@ -389,6 +397,11 @@ export default function MyFarmPage() {
   const handleSubmitCareRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
+    if (requestsClosed) {
+      toast.error(requestsClosedMessage, 'Không thể gửi yêu cầu');
+      return;
+    }
+    if (isSubmittingCare) return;
 
     try {
       setIsSubmittingCare(true);
@@ -440,6 +453,11 @@ export default function MyFarmPage() {
   const handleSubmitHarvestRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
+    if (!canRequestHarvest) {
+      toast.error(harvestBlockedMessage, 'Chưa thể yêu cầu thu hoạch');
+      return;
+    }
+    if (isSubmittingHarvest) return;
 
     try {
       setIsSubmittingHarvest(true);
@@ -896,7 +914,11 @@ export default function MyFarmPage() {
                     variant="outline"
                     size="sm"
                     className="border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold"
-                    onClick={() => setIsCareModalOpen(true)}
+                    disabled={requestsClosed}
+
+                    title={requestsClosed ? requestsClosedMessage : undefined}
+
+                    onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                   >
                     <Sparkles className="w-4 h-4 mr-1.5 text-amber-500" />
                     Yêu Cầu Chăm Sóc Đột Xuất
@@ -905,11 +927,20 @@ export default function MyFarmPage() {
                   <Button
                     size="sm"
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
-                    onClick={() => setIsHarvestModalOpen(true)}
+                    disabled={!canRequestHarvest}
+                    aria-describedby={!canRequestHarvest ? 'harvest-eligibility-note' : undefined}
+                    onClick={() => {
+                      if (!canRequestHarvest) {
+                        toast.error(harvestBlockedMessage, 'Chưa thể yêu cầu thu hoạch');
+                        return;
+                      }
+                      setIsHarvestModalOpen(true);
+                    }}
                   >
                     <Package className="w-4 h-4 mr-1.5" />
                     Yêu Cầu Thu Hoạch & Giao Hàng
                   </Button>
+                  {!canRequestHarvest && <p id="harvest-eligibility-note" role="status" className="w-full text-xs leading-relaxed text-amber-800 dark:text-amber-200">{requestsClosed ? requestsClosedMessage : harvestBlockedMessage}</p>}
                 </div>
               </div>
 
@@ -1424,7 +1455,11 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                       <Button
                         size="sm"
                         variant="primary"
-                        onClick={() => setIsCareModalOpen(true)}
+                        disabled={requestsClosed}
+
+                        title={requestsClosed ? requestsClosedMessage : undefined}
+
+                        onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                         leftIcon={<Sparkles className="w-3.5 h-3.5 text-white" />}
                         className="font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
@@ -1451,7 +1486,11 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setIsCareModalOpen(true)}
+                          disabled={requestsClosed}
+
+                          title={requestsClosed ? requestsClosedMessage : undefined}
+
+                          onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                           leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-500" />}
                           className="text-xs font-bold"
                         >
@@ -1559,7 +1598,11 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     <Button
                       size="sm"
                       className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
-                      onClick={() => setIsCareModalOpen(true)}
+                      disabled={requestsClosed}
+
+                      title={requestsClosed ? requestsClosedMessage : undefined}
+
+                      onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                     >
                       <Sparkles className="w-4 h-4 mr-1.5" /> Gửi Yêu Cầu Chăm Sóc Mới
                     </Button>
@@ -1955,7 +1998,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isSubmittingCare}
+                  disabled={isSubmittingCare || requestsClosed}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
                 >
                   {isSubmittingCare ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xác Nhận Gửi Yêu Cầu'}
@@ -2111,7 +2154,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isSubmittingHarvest}
+                  disabled={isSubmittingHarvest || !canRequestHarvest}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                 >
                   {isSubmittingHarvest ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Tạo Đơn Thu Hoạch & Giao Hàng'}

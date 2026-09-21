@@ -14,6 +14,13 @@ export interface PlotSelection {
 
 export interface SelectionArea { AreaId: number; SoilType: string }
 export interface SelectionPlot { PlotId: number; AreaId: number; BasePricePerMonth: number; Status: string }
+
+export function adjacentSeedId(seeds: { SeedId: number }[], currentId: number | null, direction: -1 | 1): number | null {
+  if (!seeds.length) return null;
+  const index = seeds.findIndex((seed) => seed.SeedId === currentId);
+  if (index === -1) return seeds[direction === 1 ? 0 : seeds.length - 1].SeedId;
+  return seeds[(index + direction + seeds.length) % seeds.length].SeedId;
+}
 export interface SelectionData {
   areas: SelectionArea[];
   plots: SelectionPlot[];

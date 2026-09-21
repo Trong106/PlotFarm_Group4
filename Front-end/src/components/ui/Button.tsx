@@ -7,7 +7,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -48,7 +48,11 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         leftIcon && <span className="inline-flex shrink-0">{leftIcon}</span>
       )}
-      <span>{children}</span>
+      {typeof children === 'string' || typeof children === 'number' ? (
+        <span>{children}</span>
+      ) : (
+        children
+      )}
       {!isLoading && rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}
     </button>
   );

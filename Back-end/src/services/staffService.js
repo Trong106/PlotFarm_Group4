@@ -1,3 +1,4 @@
+const completeHarvest = require('./completeHarvest');
 /**
  * ============================================================================
  * PLOTFARM — STAFF SERVICE (Cổng Nhân Viên)
@@ -408,6 +409,7 @@ const updateHarvestProgress = async (staffId, harvestRequestId, {
 
     // C. Nếu thu hoạch hoàn tất → Ghi CultivationLog
     if (harvestStatus === 'DELIVERED' || harvestStatus === 'HARVESTED') {
+      await completeHarvest(transaction, hr.CultivationId);
       const logTitle = harvestStatus === 'DELIVERED'
         ? `[Thu hoạch] Đã giao đến khách hàng — ${hr.PlotCode}`
         : `[Thu hoạch] Thu hoạch thành công — ${hr.PlotCode} (${hr.SeedName})`;
@@ -745,6 +747,8 @@ const recordHarvestResult = async (staffId, harvestRequestId, { actualYieldKg, q
     await transaction.request()
       .input('HarvestRequestId', sql.Int, harvestRequestId)
       .query(`UPDATE HarvestRequests SET Status = 'HARVESTED' WHERE HarvestRequestId = @HarvestRequestId`);
+
+    await completeHarvest(transaction, hr.CultivationId);
 
     // C. Cập nhật Deliveries Status -> PACKING nếu là GIAO_TAN_NOI
     if (hr.HarvestType === 'GIAO_TAN_NOI') {

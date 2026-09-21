@@ -123,7 +123,7 @@ export default function PlotsPage() {
   const [seedFiltersOpen, setSeedFiltersOpen] = useState(false);
 
   const selectionData = useMemo(() => ({ areas, plots, seeds, packages: carePackages }), [areas, plots, seeds, carePackages]);
-  const { selection, updateSelection, hydrated } = usePlotSelection(selectionData, !isLoading && !error);
+  const { selection, updateSelection, moveSeed, hydrated } = usePlotSelection(selectionData, !isLoading && !error);
   const selectedAreaId = selection.areaId;
   const selectedPlot = plots.find((plot) => plot.PlotId === selection.plotId) || null;
   const selectedSeed = seeds.find((seed) => seed.SeedId === selection.seedId) || null;
@@ -252,13 +252,16 @@ export default function PlotsPage() {
     return new Intl.NumberFormat('vi-VN').format(amount) + ' đ';
   };
 
-  // Scroll Quick Seed strip
-  const scrollSeedStrip = (direction: 'left' | 'right') => {
-    if (seedScrollRef.current) {
-      const scrollAmount = direction === 'left' ? -240 : 240;
-      seedScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
+  // Keep the selected seed visible without scrolling the page vertically.
+  useEffect(() => {
+    const strip = seedScrollRef.current;
+    const active = strip?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!strip || !active) return;
+    const bounds = strip.getBoundingClientRect();
+    const item = active.getBoundingClientRect();
+    if (item.left < bounds.left) strip.scrollBy({ left: item.left - bounds.left - 4 });
+    else if (item.right > bounds.right) strip.scrollBy({ left: item.right - bounds.right + 4 });
+  }, [selection.seedId, selection.plotId]);
 
   // Handle Plot Status Update by Admin / Staff
   const handleUpdatePlotStatus = async (plotId: number, newStatus: string) => {
@@ -615,14 +618,20 @@ export default function PlotsPage() {
                             <span>CHỌN NHANH GIỐNG CÂY TRỒNG:</span>
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() => scrollSeedStrip('left')}
-                                className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600"
+                                type="button"
+                                aria-label="Chọn giống trước"
+                                disabled={seeds.length < 2}
+                                onClick={() => moveSeed(-1)}
+                                className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-600"
                               >
                                 <ChevronLeft className="w-3.5 h-3.5" />
                               </button>
                               <button
-                                onClick={() => scrollSeedStrip('right')}
-                                className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600"
+                                type="button"
+                                aria-label="Chọn giống tiếp theo"
+                                disabled={seeds.length < 2}
+                                onClick={() => moveSeed(1)}
+                                className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-600"
                               >
                                 <ChevronRight className="w-3.5 h-3.5" />
                               </button>
@@ -635,6 +644,8 @@ export default function PlotsPage() {
                               return (
                                 <button
                                   key={s.SeedId}
+                                  type="button"
+                                  aria-pressed={isSeedActive}
                                   onClick={() => setSelectedSeed(s)}
                                   className={`p-1.5 pr-3 rounded-xl border flex items-center gap-2 shrink-0 transition-all text-left ${
                                     isSeedActive
