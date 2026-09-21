@@ -373,7 +373,7 @@ export default function StaffPage() {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        if (data.success && Array.isArray(data.data)) {
           const mapped: CareRequest[] = data.data.map((r: any) => {
             const rawNote = r.CustomerNote || '';
             const isUrgent = rawNote.includes('KHẨN CẤP') || rawNote.toUpperCase().includes('URGENT');
