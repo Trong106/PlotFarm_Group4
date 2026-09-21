@@ -254,13 +254,13 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand / Logo */}
-        <Link href={isAdmin ? '/admin' : isStaff ? '/staff' : '/'} className="flex items-center gap-2 group shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <Sprout className="w-5 h-5 text-white" />
+        <Link href={isAdmin ? '/admin' : isStaff ? '/staff' : '/'} className="flex items-center gap-1.5 sm:gap-2 group shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+            <Sprout className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
           </div>
-          <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
+          <span className="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-800 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
             PlotFarm
           </span>
           
@@ -287,12 +287,13 @@ export default function Header() {
         </nav>
 
         {/* Right Actions: Theme Toggle + Notification Bell + Auth */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
           {/* Theme Switcher Button */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="Đổi giao diện sáng/tối"
+            aria-label="Đổi giao diện sáng/tối"
           >
             {theme === 'light' ? (
               <Moon className="w-4 h-4 text-slate-600" />
@@ -545,14 +546,28 @@ export default function Header() {
             </div>
           ) : (
             /* Unauthenticated Action Buttons */
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <Link href="/register">
-                <Button variant="outline" size="sm" leftIcon={<UserPlus className="w-3.5 h-3.5" />}>
-                  Đăng Ký
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="px-2 min-[370px]:px-3"
+                  leftIcon={<UserPlus className="w-3.5 h-3.5" />}
+                  aria-label="Đăng ký tài khoản"
+                  title="Đăng ký"
+                >
+                  <span className="hidden min-[370px]:inline">Đăng Ký</span>
                 </Button>
               </Link>
               <Link href="/login">
-                <Button variant="primary" size="sm" leftIcon={<LogIn className="w-3.5 h-3.5" />}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="px-2.5 min-[370px]:px-3"
+                  leftIcon={<LogIn className="w-3.5 h-3.5" />}
+                  aria-label="Đăng nhập hệ thống"
+                  title="Đăng nhập"
+                >
                   Đăng Nhập
                 </Button>
               </Link>
