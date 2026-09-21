@@ -326,6 +326,45 @@ export default function AdminDashboardPage() {
   const [isLoadingPlots, setIsLoadingPlots] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
+  // Admin Plot Management Control State
+  const [plotAreaFilter, setPlotAreaFilter] = useState<string>('ALL');
+  const [plotStatusFilterAdmin, setPlotStatusFilterAdmin] = useState<string>('ALL');
+  const [selectedAdminPlot, setSelectedAdminPlot] = useState<PlotItem | null>(null);
+  const [isAdminPlotModalOpen, setIsAdminPlotModalOpen] = useState(false);
+
+  const handleUpdatePlotStatus = async (plotId: number, newStatus: string) => {
+    try {
+      const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      const res = await fetch(`http://localhost:5000/api/plots/${plotId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${savedToken}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPlots((prev) => prev.map((p) => (p.PlotId === plotId ? { ...p, Status: newStatus } : p)));
+        toast.success(
+          `Đã chuyển trạng thái ô đất sang ${
+            newStatus === 'AVAILABLE'
+              ? 'CÒN TRỐNG (AVAILABLE)'
+              : newStatus === 'MAINTENANCE'
+              ? 'ĐANG BẢO TRÌ (MAINTENANCE)'
+              : newStatus
+          }!`,
+          'Quản Lý Ô Đất'
+        );
+        setIsAdminPlotModalOpen(false);
+      } else {
+        toast.error(data.message || 'Không thể cập nhật trạng thái ô đất');
+      }
+    } catch (e) {
+      toast.error('Lỗi khi cập nhật trạng thái ô đất');
+    }
+  };
+
   // Auth Guard
   useEffect(() => {
     initAuth();
@@ -1289,56 +1328,140 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* ================= TAB 5: QUẢN LÝ Ô ĐẤT ================= */}
+        {/* ================= TAB 5: BẢNG BẢO TRÌ & QUẢN LÝ Ô ĐẤT (ADMIN) ================= */}
         {activeTab === 'plots' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Layers className="w-5 h-5 text-rose-600" />
-                  Tổng Quan 100 Ô Đất (5 Phân Khu)
+                  Bảng Bán Trụ & Điều Hành 100 Ô Đất Canh Tác
                 </h2>
-                <p className="text-xs text-slate-500">Giám sát trạng thái ô đất, diện tích và chuyển trạng thái vận hành trên sơ đồ.</p>
+                <p className="text-xs text-slate-500">
+                  Quản lý đóng/mở ô đất, đặt trạng thái bảo trì, điều chỉnh đơn giá niêm yết và giám sát diện tích 5 phân khu.
+                </p>
               </div>
               <Link href="/plots">
                 <Button
                   variant="outline"
                   size="sm"
                   leftIcon={<MapPin className="w-4 h-4 text-emerald-600" />}
-                  className="font-bold text-xs"
+                  className="font-bold text-xs shadow-sm"
                 >
-                  Mở Sơ Đồ Tương Tác Chi Tiết (/plots)
+                  Mở Sơ Đồ Tương Tác Vận Hành (/plots)
                 </Button>
               </Link>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
-              {plots.map((plot) => (
-                <div
-                  key={plot.PlotId}
-                  className={`p-3.5 rounded-2xl border transition-all text-center space-y-1.5 ${
-                    plot.Status === 'RENTED'
-                      ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800/50'
-                      : plot.Status === 'MAINTENANCE'
-                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/50'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-                  }`}
+
+            {/* Quick Summary Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tổng số ô đất</span>
+                <strong className="text-2xl font-black text-slate-900 dark:text-white">{plots.length} ô</strong>
+              </div>
+              <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 text-center">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Sẵn sàng / Còn trống</span>
+                <strong className="text-2xl font-black text-emerald-600">{plots.filter(p => p.Status === 'AVAILABLE').length} ô</strong>
+              </div>
+              <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/50 text-center">
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Khách hàng đang thuê</span>
+                <strong className="text-2xl font-black text-rose-600">{plots.filter(p => p.Status === 'RENTED').length} ô</strong>
+              </div>
+              <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 text-center">
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Đang đóng / Bảo trì</span>
+                <strong className="text-2xl font-black text-amber-600">{plots.filter(p => p.Status === 'MAINTENANCE').length} ô</strong>
+              </div>
+            </div>
+
+            {/* Filter Toolbar */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <span className="font-bold text-slate-500">Lọc Phân Khu:</span>
+                {['ALL', 'Khu A', 'Khu B', 'Khu C', 'Khu D', 'Khu E'].map((area) => (
+                  <button
+                    key={area}
+                    onClick={() => setPlotAreaFilter(area)}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                      plotAreaFilter === area
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                  >
+                    {area === 'ALL' ? 'Tất Cả Khu' : area}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <span className="font-bold text-slate-500">Trạng Thái:</span>
+                <select
+                  value={plotStatusFilterAdmin}
+                  onChange={(e) => setPlotStatusFilterAdmin(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
                 >
-                  <p className="font-black text-sm text-slate-900 dark:text-white">{plot.PlotCode}</p>
-                  <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-md ${
-                    plot.Status === 'RENTED'
-                      ? 'bg-rose-600 text-white'
-                      : plot.Status === 'MAINTENANCE'
-                      ? 'bg-amber-600 text-white'
-                      : 'bg-emerald-600 text-white'
-                  }`}>
-                    {plot.Status === 'RENTED' ? 'ĐÃ THUÊ' : plot.Status === 'MAINTENANCE' ? 'BẢO TRÌ' : 'CÒN TRỐNG'}
-                  </span>
-                  <p className="text-[10px] text-slate-500">{plot.SizeM2} m²</p>
-                  <Link href="/plots" className="block text-[10px] font-bold text-rose-600 hover:underline pt-1">
-                    Xem trên bản đồ →
-                  </Link>
-                </div>
-              ))}
+                  <option value="ALL">Tất Cả Trạng Thái</option>
+                  <option value="AVAILABLE">CÒN TRỐNG (AVAILABLE)</option>
+                  <option value="RENTED">ĐÃ THUÊ (RENTED)</option>
+                  <option value="MAINTENANCE">ĐANG BẢO TRÌ (MAINTENANCE)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Interactive Grid of Admin Plot Controls */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3.5">
+              {plots
+                .filter((p) => (plotAreaFilter === 'ALL' || (p.AreaName || p.PlotCode).includes(plotAreaFilter)))
+                .filter((p) => (plotStatusFilterAdmin === 'ALL' || p.Status === plotStatusFilterAdmin))
+                .map((plot) => {
+                  const isRented = plot.Status === 'RENTED';
+                  const isMaint = plot.Status === 'MAINTENANCE';
+
+                  return (
+                    <div
+                      key={plot.PlotId}
+                      className={`p-4 rounded-2xl border transition-all space-y-2 flex flex-col justify-between ${
+                        isRented
+                          ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800/50'
+                          : isMaint
+                          ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/50'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-300'
+                      }`}
+                    >
+                      <div className="text-center space-y-1">
+                        <p className="font-black text-base text-slate-900 dark:text-white">{plot.PlotCode}</p>
+                        <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-md ${
+                          isRented ? 'bg-rose-600 text-white' : isMaint ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'
+                        }`}>
+                          {isRented ? 'ĐÃ THUÊ' : isMaint ? 'ĐANG BẢO TRÌ' : 'CÒN TRỐNG'}
+                        </span>
+                        <p className="text-[11px] text-slate-500 font-semibold">{plot.SizeM2} m² • {plot.BasePricePerMonth?.toLocaleString('vi-VN')}đ/tháng</p>
+                      </div>
+
+                      {/* Admin Quick Action Controls */}
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-center">
+                        {isMaint ? (
+                          <button
+                            onClick={() => handleUpdatePlotStatus(plot.PlotId, 'AVAILABLE')}
+                            className="w-full py-1.5 px-2 rounded-xl text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
+                          >
+                            🔓 Mở Khóa Đất
+                          </button>
+                        ) : !isRented ? (
+                          <button
+                            onClick={() => handleUpdatePlotStatus(plot.PlotId, 'MAINTENANCE')}
+                            className="w-full py-1.5 px-2 rounded-xl text-[10px] font-black bg-amber-600 hover:bg-amber-700 text-white transition-colors"
+                          >
+                            🛠️ Đóng Ô Bảo Trì
+                          </button>
+                        ) : (
+                          <span className="block text-[10px] text-rose-600 font-bold py-1">
+                            🔒 Đang Hợp Đồng Thuê
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}
