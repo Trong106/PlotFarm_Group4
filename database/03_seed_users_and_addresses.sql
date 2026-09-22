@@ -203,8 +203,28 @@ BEGIN TRY
         INSERT INTO dbo.UserAddresses (UserId, RecipientName, PhoneNumber, AddressLine, Ward, District, Province, IsDefault)
         VALUES (@Customer2Id, N'Phạm Ngọc Lan', '0903000002', N'88 Đường Lê Thánh Tôn', N'Phường Bến Thành', N'Quận 1', N'Thành phố Hồ Chí Minh', 1);
 
+    -- ────────────────────────────────────────────────────────────────────────
+    -- 3.5. PHÂN CÔNG KỸ THUẬT VIÊN PHỤ TRÁCH PHÂN KHU (STAFF ASSIGNMENTS)
+    -- ────────────────────────────────────────────────────────────────────────
+    DECLARE @DefaultArea1Id INT = (SELECT TOP 1 AreaId FROM dbo.FarmAreas ORDER BY AreaId ASC);
+    DECLARE @DefaultArea2Id INT = (SELECT TOP 1 AreaId FROM dbo.FarmAreas ORDER BY AreaId DESC);
+
+    IF @DefaultArea1Id IS NOT NULL AND @Staff1Id IS NOT NULL
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM dbo.StaffAssignments WHERE StaffId = @Staff1Id AND AreaId = @DefaultArea1Id)
+            INSERT INTO dbo.StaffAssignments (StaffId, AreaId, Shift, AssignedDate, Notes)
+            VALUES (@Staff1Id, @DefaultArea1Id, N'SÁNG', CAST(SYSDATETIME() AS DATE), N'Phụ trách kiểm tra độ ẩm và cảm biến ca sáng');
+    END;
+
+    IF @DefaultArea2Id IS NOT NULL AND @Staff2Id IS NOT NULL
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM dbo.StaffAssignments WHERE StaffId = @Staff2Id AND AreaId = @DefaultArea2Id)
+            INSERT INTO dbo.StaffAssignments (StaffId, AreaId, Shift, AssignedDate, Notes)
+            VALUES (@Staff2Id, @DefaultArea2Id, N'CHIỀU', CAST(SYSDATETIME() AS DATE), N'Phụ trách phân khu nông trại ca chiều');
+    END;
+
     COMMIT TRANSACTION;
-    PRINT N'[THÀNH CÔNG] Dữ liệu khởi tạo (1 Admin, 2 Staff, 2 Customer) đã được chèn thành công!';
+    PRINT N'[THÀNH CÔNG] Dữ liệu khởi tạo (1 Admin, 2 Staff, 2 Customer và Phân công nhân sự) đã được chèn thành công!';
 END TRY
 BEGIN CATCH
     IF @@TRANCOUNT > 0

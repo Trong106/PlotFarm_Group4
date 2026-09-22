@@ -169,7 +169,7 @@ export default function StaffPage() {
         activityType: 'Tưới nước & Cảm biến ẩm',
         title: 'Tưới tự động phun sương buổi sáng',
         notes: 'Độ ẩm đất đạt 78%, cây phát triển xanh mướt, lá xà lách dày và đều.',
-        staffName: 'Kỹ Thuật Viên Mẫu',
+        staffName: 'Trần Minh Tuấn',
         plantHealthStatus: 'EXCELLENT',
         waterLiters: 15,
       },
@@ -179,7 +179,7 @@ export default function StaffPage() {
         activityType: 'Bón phân hữu cơ',
         title: 'Bổ sung dịch trùn quế đợt 2',
         notes: 'Bón dặm phân vi sinh gốc, kiểm tra rễ không có dấu hiệu nấm bệnh.',
-        staffName: 'Kỹ Thuật Viên Mẫu',
+        staffName: 'Trần Minh Tuấn',
         plantHealthStatus: 'EXCELLENT',
         fertilizerGram: 300,
       },
@@ -189,7 +189,7 @@ export default function StaffPage() {
         activityType: 'Tỉa lá & Bắt sâu',
         title: 'Vệ sinh luống và nhổ cỏ gốc',
         notes: 'Tỉa bớt lá già sát mặt đất để luống thông thoáng.',
-        staffName: 'Kỹ Thuật Viên Mẫu',
+        staffName: 'Trần Minh Tuấn',
         plantHealthStatus: 'GOOD',
       },
     ],
@@ -200,7 +200,7 @@ export default function StaffPage() {
         activityType: 'Phun thảo mộc xua côn trùng',
         title: 'Phun dung dịch tỏi ớt gừng phòng rệp muội',
         notes: 'Lá cải thìa có vài vết chích nhẹ, đã xử lý sinh học không dùng hóa chất.',
-        staffName: 'Kỹ Thuật Viên Mẫu',
+        staffName: 'Trần Minh Tuấn',
         plantHealthStatus: 'GOOD',
       },
       {
@@ -209,7 +209,7 @@ export default function StaffPage() {
         activityType: 'Tưới nước',
         title: 'Tưới định kỳ sáng sớm',
         notes: 'Đất duy trì pH 6.5 chuẩn chỉ.',
-        staffName: 'Kỹ Thuật Viên Mẫu',
+        staffName: 'Trần Minh Tuấn',
         plantHealthStatus: 'EXCELLENT',
       },
     ],
@@ -220,7 +220,7 @@ export default function StaffPage() {
         activityType: 'Bón phân theo yêu cầu khách',
         title: 'Bón phân hữu cơ vi sinh theo phiếu hẹn',
         notes: 'Đã hoàn thành phiếu chăm sóc yêu cầu của khách hàng.',
-        staffName: 'Kỹ Thuật Viên Mẫu',
+        staffName: 'Trần Minh Tuấn',
         plantHealthStatus: 'EXCELLENT',
       },
     ],
@@ -815,7 +815,7 @@ export default function StaffPage() {
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Cổng Kỹ Thuật Viên Thực Địa (Staff Portal)
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Xin chào, {user?.fullName || 'Kỹ Thuật Viên Phan Minh Tuấn'}
+                Xin chào, {user?.fullName || 'Kỹ Thuật Viên Trần Minh Tuấn'}
               </h1>
               <p className="text-slate-300 text-xs sm:text-sm mt-1 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-emerald-400" /> Ca Sáng (07:00 - 11:30) • <MapPin className="w-4 h-4 text-amber-400" /> Phụ trách Khu A & Khu B
@@ -1485,15 +1485,15 @@ export default function StaffPage() {
                 <div className="space-y-3 text-xs">
                   <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 block">Kỹ thuật viên: Phan Minh Tuấn</span>
-                      <span className="text-slate-500">Phụ trách: Khu A (Đất Phù Sa) & Khu B</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 block">Kỹ thuật viên: {user?.fullName || 'Trần Minh Tuấn'}</span>
+                      <span className="text-slate-500">Phụ trách: Khu vườn kiểm thử UI (Khu A) & Khu Bazan</span>
                     </div>
                     <Badge variant="success">Ca Sáng (07:00 - 11:30)</Badge>
                   </div>
                   <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 block">Kỹ thuật viên: Lê Minh Nhật</span>
-                      <span className="text-slate-500">Phụ trách: Khu C & Vườn Ươm Hạt Giống</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 block">Kỹ thuật viên: Lê Thị Mai</span>
+                      <span className="text-slate-500">Phụ trách: Khu vườn kiểm thử UI (Khu A)</span>
                     </div>
                     <Badge variant="info">Ca Chiều (13:00 - 17:30)</Badge>
                   </div>

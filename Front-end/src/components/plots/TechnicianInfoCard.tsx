@@ -11,10 +11,10 @@ interface TechnicianInfoCardProps {
 }
 
 export const TechnicianInfoCard: React.FC<TechnicianInfoCardProps> = ({
-  staffName = 'Nguyễn Văn Đức',
+  staffName = 'Trần Minh Tuấn',
   plotCode,
   seedName,
-  phone = '0988 123 456'
+  phone = '0900000002'
 }) => {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 space-y-4 shadow-sm font-sans transition-all">
