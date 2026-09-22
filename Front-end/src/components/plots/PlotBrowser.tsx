@@ -4,7 +4,7 @@ import { useEffect, useId, useState } from 'react';
 import { getPlotStatus } from '@/lib/plot-status';
 import { PlotStatusBadge, PlotStatusLegend, plotStatusStyles } from './PlotStatus';
 import { Check, CheckCircle2, ChevronDown, X, Filter, LayoutGrid, ListFilter, MapPin, RotateCcw, Video } from 'lucide-react';
-import { filterPlots, PLOT_STATUS_LABELS, PlotSelection, PlotStatusFilter, SelectionArea, SelectionPlot, validatePriceRange } from '@/lib/plot-selection';
+import { filterPlots, PLOT_STATUS_LABELS, PlotSelection, PlotStatusFilter, SelectionArea, SelectionPlot, SOIL_TYPE_PRESETS, validatePriceRange, validatePHRange } from '@/lib/plot-selection';
 
 interface BrowserPlot extends SelectionPlot {
   PlotCode: string;
@@ -31,6 +31,9 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
   const [minDraft, setMinDraft] = useState('');
   const [maxDraft, setMaxDraft] = useState('');
   const [priceError, setPriceError] = useState<string | null>(null);
+  const [minPHDraft, setMinPHDraft] = useState('');
+  const [maxPHDraft, setMaxPHDraft] = useState('');
+  const [phError, setPHError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const filterId = useId();
   const appliedFilters: { key: string; label: string; clear: Partial<PlotSelection> }[] = [];
@@ -39,19 +42,26 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
     clear: { minPrice: null, maxPrice: null },
   });
   if (selection.soil) appliedFilters.push({ key: 'soil', label: selection.soil, clear: { soil: '' } });
+  if (selection.minPH !== null || selection.maxPH !== null) appliedFilters.push({ key: 'ph', label: `pH: ${selection.minPH ?? 0} – ${selection.maxPH ?? 14}`, clear: { minPH: null, maxPH: null } });
   if (selection.status !== 'ALL') appliedFilters.push({ key: 'status', label: PLOT_STATUS_LABELS[selection.status], clear: { status: 'ALL' } });
   useEffect(() => {
     setMinDraft(selection.minPrice === null ? '' : String(selection.minPrice));
     setMaxDraft(selection.maxPrice === null ? '' : String(selection.maxPrice));
     setPriceError(null);
   }, [selection.minPrice, selection.maxPrice]);
+  useEffect(() => {
+    setMinPHDraft(selection.minPH === null ? '' : String(selection.minPH));
+    setMaxPHDraft(selection.maxPH === null ? '' : String(selection.maxPH));
+    setPHError(null);
+  }, [selection.minPH, selection.maxPH]);
   const visible = filterPlots(plots, areas, selection);
   const currentArea = areas.find((area) => area.AreaId === selection.areaId);
   const areaPlots = plots.filter((plot) => plot.AreaId === selection.areaId);
-  const soils = Array.from(new Set(areas.map((area) => area.SoilType?.trim()).filter(Boolean)));
+  const soils = Array.from(new Set([...SOIL_TYPE_PRESETS, ...areas.map((area) => area.SoilType?.trim()).filter(Boolean)]));
   const reset = () => {
     setMinDraft(''); setMaxDraft(''); setPriceError(null);
-    onChange({ status: 'ALL', minPrice: null, maxPrice: null, soil: '' });
+    setMinPHDraft(''); setMaxPHDraft(''); setPHError(null);
+    onChange({ status: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '' });
   };
 
   return (
@@ -82,8 +92,10 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
       <form onSubmit={(event) => {
         event.preventDefault();
         const result = validatePriceRange(minDraft, maxDraft);
+        const phResult = validatePHRange(minPHDraft, maxPHDraft);
         setPriceError(result.error);
-        if (!result.error) onChange({ minPrice: result.minPrice, maxPrice: result.maxPrice });
+        setPHError(phResult.error);
+        if (!result.error && !phResult.error) onChange({ minPrice: result.minPrice, maxPrice: result.maxPrice, minPH: phResult.minPH, maxPH: phResult.maxPH });
       }} className="mt-3 space-y-3">
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200"><span>Giá tối thiểu (đ/tháng)</span>
@@ -92,11 +104,17 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
           <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200"><span>Giá tối đa (đ/tháng)</span>
             <input type="text" inputMode="decimal" value={maxDraft} onChange={(e) => setMaxDraft(e.target.value)} placeholder="Không giới hạn" aria-invalid={!!priceError} aria-describedby={priceError ? 'plot-price-error' : undefined} className={fieldClass} />
           </label>
+          <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200"><span>pH tối thiểu (0–14)</span>
+            <input type="text" inputMode="decimal" value={minPHDraft} onChange={(e) => setMinPHDraft(e.target.value)} placeholder="Ví dụ: 5,5" aria-invalid={!!phError} aria-describedby={phError ? 'plot-ph-error' : undefined} className={fieldClass} />
+          </label>
+          <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200"><span>pH tối đa (0–14)</span>
+            <input type="text" inputMode="decimal" value={maxPHDraft} onChange={(e) => setMaxPHDraft(e.target.value)} placeholder="Ví dụ: 7" aria-invalid={!!phError} aria-describedby={phError ? 'plot-ph-error' : undefined} className={fieldClass} />
+          </label>
           <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700 dark:text-slate-200"><span>Loại đất</span>
             <select value={selection.soil} className={fieldClass} onChange={(event) => {
               const soil = event.target.value;
               const matchingArea = areas.find((area) => area.SoilType?.trim() === soil);
-              onChange({ soil, ...(soil && currentArea?.SoilType?.trim() !== soil ? { areaId: matchingArea?.AreaId ?? null, plotId: null } : {}) });
+              onChange({ soil, ...(soil && matchingArea && currentArea?.SoilType?.trim() !== soil ? { areaId: matchingArea.AreaId, plotId: null } : {}) });
             }}>
               <option value="">Tất cả loại đất</option>
               {soils.map((soil) => <option key={soil} value={soil}>{soil}</option>)}
@@ -109,8 +127,9 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
           </label>
         </div>
         {priceError && <p id="plot-price-error" role="alert" className="text-xs text-red-700 dark:text-red-300">{priceError} Kết quả vẫn sử dụng khoảng giá đã áp dụng trước đó.</p>}
+        {phError && <p id="plot-ph-error" role="alert" className="text-xs text-red-700 dark:text-red-300">{phError} Bộ lọc đã áp dụng được giữ nguyên.</p>}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Áp dụng khoảng giá</button>
+          <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2">Áp dụng giá & pH</button>
           <button type="button" onClick={reset} className="flex items-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-slate-300 dark:hover:bg-slate-700"><RotateCcw aria-hidden="true" className="h-3.5 w-3.5" /> Xóa bộ lọc</button>
         </div>
         <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">Bộ lọc áp dụng trong phân khu đang xem. Chọn loại đất sẽ chuyển đến phân khu phù hợp.</p>
@@ -120,8 +139,10 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <p role="status" aria-live="polite" className="font-semibold text-slate-600 dark:text-slate-300">{visible.length}/{areaPlots.length} ô đất phù hợp</p>
-        {comparedIds.length > 0 && <button type="button" onClick={onOpenCompare} className="rounded-lg border border-emerald-300 px-3 py-2 font-bold text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">Đối chiếu ({comparedIds.length}/3)</button>}
+        <button type="button" disabled={comparedIds.length !== 2} onClick={onOpenCompare} aria-describedby="plot-compare-help" className="rounded-lg border border-emerald-300 px-3 py-2 font-bold text-emerald-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">So sánh ({comparedIds.length}/2)</button>
       </div>
+      <p id="plot-compare-help" role="status" className="text-xs text-slate-600 dark:text-slate-300">{comparedIds.length === 2 ? 'Đã chọn đủ 2 ô. Bỏ chọn một ô trước khi thêm ô khác; các ô đã chọn được giữ khi đổi phân khu hoặc bộ lọc.' : 'Chọn 2 ô để so sánh, kể cả ở các phân khu khác nhau.'}</p>
+      {comparedIds.length > 0 && <div aria-label="Ô đất đang so sánh" className="flex flex-wrap gap-2">{plots.filter((plot) => comparedIds.includes(plot.PlotId)).map((plot) => <button key={plot.PlotId} type="button" onClick={(event) => onCompare(plot.PlotId, event)} aria-label={`Bỏ so sánh ô ${plot.PlotCode}`} className="inline-flex max-w-full items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"><span className="min-w-0 break-words">{plot.PlotCode}</span><X aria-hidden="true" className="h-3.5 w-3.5 shrink-0" /></button>)}</div>}
 
       <PlotStatusLegend />
 
@@ -144,7 +165,7 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
                   <span className="break-words text-[11px] font-bold text-emerald-700 dark:text-emerald-300">{money(plot.BasePricePerMonth)}/th</span>
                   <span className="min-h-8 text-[11px] font-semibold">{status.label}</span>
                 </button>
-                <button type="button" aria-pressed={comparedIds.includes(plot.PlotId)} aria-label={`Đối chiếu ô ${plot.PlotCode}`} onClick={(event) => onCompare(plot.PlotId, event)} className="flex w-full items-center gap-1 rounded-b-2xl border-t border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700 dark:text-slate-300">
+                <button type="button" disabled={comparedIds.length === 2 && !comparedIds.includes(plot.PlotId)} aria-describedby="plot-compare-help" aria-pressed={comparedIds.includes(plot.PlotId)} aria-label={`Đối chiếu ô ${plot.PlotCode}`} onClick={(event) => onCompare(plot.PlotId, event)} className="flex w-full items-center gap-1 rounded-b-2xl border-t border-slate-200 px-3 py-2 text-[10px] font-semibold text-slate-600 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:border-slate-700 dark:text-slate-300">
                   <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border border-slate-400">{comparedIds.includes(plot.PlotId) && <Check aria-hidden="true" className="h-3 w-3 text-emerald-600" />}</span> Đối chiếu
                 </button>
               </li>;
@@ -165,7 +186,9 @@ export function PlotBrowser({ plots, areas, selection, onChange, comparedIds, on
                   <td className="p-3"><span className="flex items-center gap-1"><Video aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />{plot.CameraCode || 'Chưa cập nhật'}</span></td>
                   <td className="whitespace-nowrap p-3 font-bold text-emerald-700 dark:text-emerald-300">{money(plot.BasePricePerMonth)}</td>
                   <td className="p-3"><PlotStatusBadge plot={plot} /></td>
-                  <td className="p-3"><button type="button" aria-pressed={selection.plotId === plot.PlotId} onClick={() => onChange({ plotId: plot.PlotId })} className="whitespace-nowrap rounded-lg border border-emerald-400 px-3 py-2 font-bold text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950">{selection.plotId === plot.PlotId ? 'Đang chọn' : 'Xem ô đất'}</button></td>
+                  <td className="space-y-2 p-3"><button type="button" aria-pressed={selection.plotId === plot.PlotId} onClick={() => onChange({ plotId: plot.PlotId })} className="whitespace-nowrap rounded-lg border border-emerald-400 px-3 py-2 font-bold text-emerald-700 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950">{selection.plotId === plot.PlotId ? 'Đang chọn' : 'Xem ô đất'}</button>
+                    <button type="button" aria-pressed={comparedIds.includes(plot.PlotId)} aria-label={`Đối chiếu ô ${plot.PlotCode}`} aria-describedby="plot-compare-help" disabled={comparedIds.length === 2 && !comparedIds.includes(plot.PlotId)} onClick={(event) => onCompare(plot.PlotId, event)} className="block rounded-lg px-3 py-2 font-semibold text-emerald-700 underline disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-emerald-600 dark:text-emerald-300">{comparedIds.includes(plot.PlotId) ? 'Bỏ so sánh' : 'So sánh'}</button>
+                  </td>
                 </tr>)}
               </tbody>
             </table>

@@ -30,6 +30,7 @@ import { PLOT_STATUS_LABELS, PlotStatusFilter } from '@/lib/plot-selection';
 import { PlotStatusBadge } from '@/components/plots/PlotStatus';
 import { usePlotSelection } from '@/components/plots/usePlotSelection';
 import { PlotBrowser } from '@/components/plots/PlotBrowser';
+import { PlotComparison } from '@/components/plots/PlotComparison';
 import { ShareSelection } from '@/components/plots/ShareSelection';
 import { MobileBookingBar } from '@/components/plots/MobileBookingBar';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -130,7 +131,7 @@ export default function PlotsPage() {
   const selectedPackage = carePackages.find((pkg) => pkg.PackageId === selection.pkgId) || null;
   const setSelectedSeed = (seed: Seed) => updateSelection({ seedId: seed.SeedId });
   const setSelectedPackage = (pkg: CarePackage) => updateSelection({ pkgId: pkg.PackageId });
-  const setSelectedPlot = (plot: Plot) => updateSelection({ plotId: plot.PlotId, status: 'ALL', minPrice: null, maxPrice: null, soil: '' });
+  const setSelectedPlot = (plot: Plot) => updateSelection({ areaId: plot.AreaId, plotId: plot.PlotId, status: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '' });
   const currentAreaInfo = areas.find((area) => area.AreaId === selectedAreaId);
 
   // Fetch initial data
@@ -194,8 +195,7 @@ export default function PlotsPage() {
       if (prev.includes(plotId)) {
         return prev.filter((id) => id !== plotId);
       }
-      if (prev.length >= 3) {
-        alert('Bạn chỉ có thể đối chiếu tối đa 3 ô đất cùng một lúc');
+      if (prev.length >= 2) {
         return prev;
       }
       return [...prev, plotId];
@@ -205,6 +205,18 @@ export default function PlotsPage() {
   const comparedPlots = useMemo(() => {
     return plots.filter((p) => comparedPlotIds.includes(p.PlotId));
   }, [plots, comparedPlotIds]);
+
+  useEffect(() => {
+    if (isLoading || error) return;
+    setComparedPlotIds((ids) => {
+      const remaining = ids.filter((id) => plots.some((plot) => plot.PlotId === id));
+      return remaining.length === ids.length ? ids : remaining;
+    });
+  }, [plots, isLoading, error]);
+
+  useEffect(() => {
+    if (comparedPlotIds.length !== 2) setIsCompareModalOpen(false);
+  }, [comparedPlotIds]);
 
   // Yield & Basket Estimations
   const yieldEstimations = useMemo(() => {
@@ -858,101 +870,18 @@ export default function PlotsPage() {
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* QUICK PLOT COMPARE MODAL (ĐỐI CHIẾU 2-3 Ô ĐẤT) */}
-      {/* ========================================================================= */}
-      {isCompareModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-4xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                  <Scale className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Bảng Đối Chiếu Ô Đất Canh Tác</h3>
-                  <p className="text-xs text-slate-500">So sánh trực quan các thông số kỹ thuật và giá thuê</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsCompareModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {comparedPlots.map((p) => {
-                const isSelectedThis = selectedPlot?.PlotId === p.PlotId;
-                return (
-                  <div
-                    key={p.PlotId}
-                    className={`p-4 rounded-2xl border-2 space-y-3 ${
-                      isSelectedThis
-                        ? 'border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-black text-base text-slate-900 dark:text-white">{p.PlotCode}</h4>
-                      <Badge variant={p.Status === 'AVAILABLE' ? 'success' : 'neutral'} size="sm">
-                        {p.Status}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
-                        <span className="text-slate-500">Diện tích:</span>
-                        <strong className="font-bold text-slate-900 dark:text-white">{p.SizeM2} m²</strong>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
-                        <span className="text-slate-500">Độ pH đất:</span>
-                        <strong className="font-bold text-slate-900 dark:text-white">{p.SoilPH}</strong>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
-                        <span className="text-slate-500">Độ ẩm chuẩn:</span>
-                        <strong className="font-bold text-slate-900 dark:text-white">{p.StandardHumidity}%</strong>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-slate-200/60 dark:border-slate-700">
-                        <span className="text-slate-500">Camera:</span>
-                        <span className="font-bold text-emerald-600 flex items-center gap-1">
-                          <Video className="w-3 h-3" /> {p.CameraCode || 'CAM'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-1">
-                        <span className="text-slate-500">Giá thuê/tháng:</span>
-                        <strong className="font-black text-emerald-600">{formatVND(p.BasePricePerMonth)}</strong>
-                      </div>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant={isSelectedThis ? 'primary' : 'outline'}
-                      className="w-full justify-center"
-                      onClick={() => {
-                        setSelectedPlot(p);
-                        setIsCompareModalOpen(false);
-                      }}
-                    >
-                      {isSelectedThis ? 'Đang Chọn' : 'Xem Ô Này'}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <p className="text-xs text-slate-600 dark:text-slate-400">Chọn ô trong bảng đối chiếu sẽ xóa bộ lọc để hiển thị ô đó.</p>
-            <div className="flex flex-wrap justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <Button variant="outline" size="sm" onClick={() => setComparedPlotIds([])}>
-                Xóa Hết So Sánh
-              </Button>
-              <Button variant="primary" size="sm" onClick={() => setIsCompareModalOpen(false)}>
-                Đóng Bảng So Sánh
-              </Button>
-            </div>
-          </div>
-        </div>
+      {isCompareModalOpen && comparedPlots.length === 2 && (
+        <PlotComparison plots={comparedPlots} areas={areas}
+          onClose={() => setIsCompareModalOpen(false)}
+          onChoose={(id) => {
+            const plot = plots.find((candidate) => candidate.PlotId === id);
+            if (!plot || plot.Status !== 'AVAILABLE' || plot.HasActiveCultivation === true || plot.HasActiveCultivation === 1) return;
+            setSelectedPlot(plot);
+            setIsCompareModalOpen(false);
+          }}
+          onRemove={(id) => { setComparedPlotIds((ids) => ids.filter((value) => value !== id)); setIsCompareModalOpen(false); }}
+          onClear={() => { setComparedPlotIds([]); setIsCompareModalOpen(false); }}
+        />
       )}
     </div>
   );
