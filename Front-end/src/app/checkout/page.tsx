@@ -27,6 +27,7 @@ import {
   Scale,
   RefreshCw,
   Edit3,
+  Trash2,
   ExternalLink
 } from 'lucide-react';
 import Header from '@/components/Header';
@@ -99,7 +100,10 @@ function CheckoutContent() {
   }, [addresses, selectedAddressId]);
 
   // VietQR Dynamic Modal & 15-Minute Reservation Timer
-  const [isQRModalOpen, setIsQRModalOpen] = useState<boolean>(false);
+  const [paymentSuccess, setPaymentSuccess] = useState<any>(null);
+    const [isQRModalOpen, setIsQRModalOpen] = useState<boolean>(false);
+    const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState<boolean>(false);
+    const [isReleasingPlot, setIsReleasingPlot] = useState<boolean>(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number>(15 * 60); // 15 mins (900s)
   const [reservationStatus, setReservationStatus] = useState<'IDLE' | 'RESERVED' | 'CONFLICT' | 'EXPIRED'>('IDLE');
   const [reservationError, setReservationError] = useState<string | null>(null);
@@ -154,7 +158,43 @@ function CheckoutContent() {
 
   // Hủy giữ chỗ ô đất khi hết giờ hoặc hủy giao dịch
 
-  const handleReleasePlot = useCallback(async (targetPlotId: number) => {
+  // Gentle beforeunload warning when plot is reserved
+    useEffect(() => {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        if (reservationStatus === 'RESERVED' && !paymentSuccess) {
+          e.preventDefault();
+          e.returnValue = 'Bạn đang trong phiên giữ chỗ ô đất 15 phút. Nếu rời khỏi trang, ô đất có thể bị hủy giữ chỗ. Bạn có chắc chắn muốn rời đi?';
+          return e.returnValue;
+        }
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }, [reservationStatus, paymentSuccess]);
+
+    const handleConfirmReleaseAndExit = async () => {
+      if (!plot) return;
+      setIsReleasingPlot(true);
+      try {
+        await handleReleasePlot(plot.PlotId);
+        setIsQRModalOpen(false);
+        setIsCancelConfirmOpen(false);
+        toast.success(
+          `Đã hủy giữ chỗ ô đất ${plot.PlotCode} thành công. Ô đất đã mở lại cho người khác thuê!`,
+          'Đã Trả Ô Đất'
+        );
+        router.push('/plots');
+      } catch (err) {
+        console.error('Failed to release plot:', err);
+        toast.error('Có lỗi xảy ra khi trả ô đất. Vui lòng thử lại.');
+      } finally {
+        setIsReleasingPlot(false);
+      }
+    };
+
+    const handleReleasePlot = useCallback(async (targetPlotId: number) => {
     try {
       const authToken = token || localStorage.getItem('plotfarm_token');
       if (!authToken) return;
@@ -204,7 +244,6 @@ function CheckoutContent() {
     toast.success(`Đã sao chép ${label} vào clipboard!`, 'Sao chép thành công');
   };
 
-  const [paymentSuccess, setPaymentSuccess] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -460,11 +499,19 @@ function CheckoutContent() {
 
           <div className="flex items-center gap-2">
             {reservationStatus === 'RESERVED' && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
-                <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                Khóa độc quyền ô đất: <strong className="font-mono ml-1">{formatCountdown(countdownSeconds)}</strong>
-              </span>
-            )}
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                  <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
+                  Khóa độc quyền ô đất: <strong className="font-mono ml-1">{formatCountdown(countdownSeconds)}</strong>
+                  <button
+                    type="button"
+                    onClick={() => setIsCancelConfirmOpen(true)}
+                    className="ml-2 px-2.5 py-0.5 rounded-full bg-rose-100 hover:bg-rose-200 dark:bg-rose-950 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 text-[10px] font-bold transition-colors border border-rose-300 dark:border-rose-800"
+                    title="Hủy phiên giữ chỗ và mở lại ô đất cho người khác"
+                  >
+                    Hủy phiên & Trả ô đất
+                  </button>
+                </span>
+              )}
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Thanh Toán Theo Chu Kỳ Sinh Trưởng Thực Tế
             </span>
@@ -1086,6 +1133,14 @@ function CheckoutContent() {
                 Đóng
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCancelConfirmOpen(true)}
+                className="text-rose-600 border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 font-bold"
+              >
+                Hủy Phiên & Trả Đất
+              </Button>
+              <Button
                 variant="primary"
                 size="sm"
                 onClick={handleConfirmTransferComplete}
@@ -1101,24 +1156,33 @@ function CheckoutContent() {
       >
         <div className="space-y-4 text-left">
           {/* Reservation Countdown Alert */}
-          <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
+          <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs ${
             countdownSeconds < 180
               ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
               : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300'
           }`}>
             <div className="flex items-center gap-2">
-              <Clock className={`w-4 h-4 ${countdownSeconds < 180 ? 'text-rose-600' : 'text-amber-600'} animate-pulse`} />
+              <Clock className={`w-4 h-4 ${countdownSeconds < 180 ? 'text-rose-600' : 'text-amber-600'} animate-pulse shrink-0`} />
               <span>
                 Ô đất <strong className="font-bold text-slate-900 dark:text-white">{plot?.PlotCode || 'PLOT_A01'}</strong> đang được khóa giữ chỗ độc quyền trong:
               </span>
             </div>
-            <span className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
-              countdownSeconds < 180
-                ? 'bg-rose-200 text-rose-900 dark:bg-rose-900 dark:text-rose-100'
-                : 'bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-100'
-            }`}>
-              {formatCountdown(countdownSeconds)}
-            </span>
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+              <span className={`font-mono font-black text-sm px-2.5 py-0.5 rounded-lg ${
+                countdownSeconds < 180
+                  ? 'bg-rose-200 text-rose-900 dark:bg-rose-900 dark:text-rose-100'
+                  : 'bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-100'
+              }`}>
+                {formatCountdown(countdownSeconds)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsCancelConfirmOpen(true)}
+                className="px-2.5 py-1 text-[11px] font-bold text-rose-600 hover:text-rose-700 bg-white/90 dark:bg-slate-900 rounded-lg border border-rose-300 dark:border-rose-800 transition-colors shadow-sm"
+              >
+                Hủy phiên & Trả ô đất
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
@@ -1232,6 +1296,45 @@ function CheckoutContent() {
         </div>
       </Modal>
 
+      {/* CANCEL RESERVATION CONFIRMATION MODAL */}
+      <Modal
+        isOpen={isCancelConfirmOpen}
+        onClose={() => setIsCancelConfirmOpen(false)}
+        title="Xác Nhận Hủy Giữ Chỗ Ô Đất"
+        maxWidth="sm"
+        footer={
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCancelConfirmOpen(false)}
+              className="font-bold"
+            >
+              Tiếp Tục Giữ Chỗ
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleConfirmReleaseAndExit}
+              disabled={isReleasingPlot}
+              leftIcon={isReleasingPlot ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              className="font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/25"
+            >
+              {isReleasingPlot ? 'Đang Hủy...' : 'Xác Nhận Trả Ô Đất'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-xs text-slate-600 dark:text-slate-300">
+          <p>
+            Bạn có chắc chắn muốn hủy phiên thanh toán và trả lại ô đất{' '}
+            <strong className="text-slate-900 dark:text-white font-black">{plot?.PlotCode}</strong>?
+          </p>
+          <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-[11px] leading-relaxed">
+            ⚠️ <strong>Lưu ý:</strong> Ô đất sẽ được mở lại trạng thái <strong>SẴN SÀNG (AVAILABLE)</strong> ngay lập tức trên hệ thống để người khác có thể đăng ký thuê.
+          </div>
+        </div>
+      </Modal>
     </main>
     </div>
   );

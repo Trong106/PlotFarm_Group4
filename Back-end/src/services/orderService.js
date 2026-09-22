@@ -338,11 +338,18 @@ const getMyOrders = async (userId) => {
         ro.Status, ro.CreatedAt, ro.PaidAt,
         p.PlotCode, p.SizeM2,
         s.SeedName, s.ImageUrl as SeedImageUrl,
-        cp.PackageName
+        cp.PackageName,
+        pay.TransactionCode, pay.PaymentMethod, pay.PaymentDate
       FROM RentalOrders ro
       JOIN Plots p ON ro.PlotId = p.PlotId
       JOIN Seeds s ON ro.SeedId = s.SeedId
       LEFT JOIN CarePackages cp ON ro.CarePackageId = cp.PackageId
+      OUTER APPLY (
+        SELECT TOP 1 TransactionCode, PaymentMethod, PaymentDate
+        FROM Payments
+        WHERE OrderId = ro.OrderId
+        ORDER BY PaymentId DESC
+      ) pay
       WHERE ro.UserId = @UserId
       ORDER BY ro.CreatedAt DESC
     `);
