@@ -27,6 +27,7 @@ import {
   KeyRound,
   ExternalLink,
   Sprout,
+  FileText,
   Clock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +38,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useAddressStore, UserAddress } from '@/store/useAddressStore';
 import Header from '@/components/Header';
 import { AddressModal } from '@/components/profile/AddressModal';
+import { ElectronicInvoiceModal } from '@/components/profile/ElectronicInvoiceModal';
 import api from '@/lib/axios';
 
 interface MyOrder {
@@ -60,6 +62,11 @@ interface MyOrder {
   SeedName: string;
   SeedImageUrl?: string;
   PackageName: string;
+  DiscountAmount?: number;
+  PaidAt?: string;
+  TransactionCode?: string;
+  PaymentMethod?: string;
+  PaymentDate?: string;
 }
 
 export default function ProfilePage() {
@@ -86,6 +93,8 @@ export default function ProfilePage() {
 
   // Order History state
   const [orders, setOrders] = useState<MyOrder[]>([]);
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<MyOrder | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   // Change Password state
@@ -763,6 +772,26 @@ export default function ProfilePage() {
                         </Link>
                       </div>
                     </div>
+                    <div className="px-5 sm:px-6 py-3.5 bg-slate-50/80 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-500">Mã giao dịch:</span>
+                        <span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                          {order.TransactionCode || 'TXN_VIETQR_VERIFIED'}
+                        </span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedInvoiceOrder(order);
+                          setIsInvoiceModalOpen(true);
+                        }}
+                        leftIcon={<FileText className="w-3.5 h-3.5 text-emerald-600" />}
+                        className="text-xs font-bold border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                      >
+                        Xem Hóa Đơn Điện Tử
+                      </Button>
+                    </div>
                   </Card>
                 ))}
               </div>
@@ -885,6 +914,19 @@ export default function ProfilePage() {
           setEditingAddress(null);
           setTimeout(() => setAddressFeedback(null), 3000);
         }}
+      />
+
+      {/* Electronic Invoice Modal */}
+      <ElectronicInvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => {
+          setIsInvoiceModalOpen(false);
+          setSelectedInvoiceOrder(null);
+        }}
+        order={selectedInvoiceOrder}
+        customerName={fullName || user?.fullName}
+        customerPhone={phoneNumber || user?.phoneNumber}
+        customerEmail={user?.email}
       />
     </div>
   );

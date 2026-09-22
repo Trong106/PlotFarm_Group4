@@ -21,7 +21,7 @@ const updateProfileSchema = nonEmptyPatch(z.object({
 
 const createAddressSchema = z.object({
   recipientName: text('Tên người nhận', 100),
-  phoneNumber: z.string().trim().regex(/^\+?[0-9]{9,15}$/, 'Số điện thoại phải gồm 9–15 chữ số, có thể bắt đầu bằng +'),
+  phoneNumber: z.string({ error: 'Số điện thoại phải là chuỗi' }).trim().transform((value) => value.replace(/[\s.-]/g, '')).pipe(z.string().regex(/^(03|05|07|08|09)[0-9]{8}$/, 'Số điện thoại Việt Nam không hợp lệ (phải gồm 10 số, đầu số 03, 05, 07, 08, 09)')),
   addressLine: text('Địa chỉ chi tiết', 255),
   ward: text('Phường/xã', 100),
   district: text('Quận/huyện', 100).nullable().optional(),
