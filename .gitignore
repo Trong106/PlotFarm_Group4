@@ -19,6 +19,7 @@ uploads/*
 !uploads/.gitkeep
 
 # Logs
+db-rollback-backup/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

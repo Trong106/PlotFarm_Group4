@@ -57,42 +57,56 @@ const createCultivationLog = async ({ cultivationId, staffId = 2, activityType, 
  */
 const createCareRequest = async (userId, { cultivationId, serviceType, customerNote }) => {
   const pool = getPool();
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
 
-  // Validate cultivation exists & belongs to user
-  const cultCheck = await pool.request()
-    .input('CultivationId', sql.Int, cultivationId)
-    .input('UserId', sql.Int, userId)
-    .query(`
-      SELECT c.CultivationId, c.Status 
-      FROM Cultivations c
-      JOIN RentalOrders ro ON c.OrderId = ro.OrderId
-      WHERE c.CultivationId = @CultivationId AND ro.UserId = @UserId
-    `);
+    // Validate cultivation exists & belongs to user
+    const cultCheck = await transaction.request()
+      .input('CultivationId', sql.Int, cultivationId)
+      .input('UserId', sql.Int, userId)
+      .query(`
+        SELECT c.CultivationId, c.Status
+        FROM Cultivations c WITH (UPDLOCK, HOLDLOCK)
+        JOIN RentalOrders ro ON c.OrderId = ro.OrderId
+        WHERE c.CultivationId = @CultivationId AND ro.UserId = @UserId
+      `);
 
-  if (cultCheck.recordset.length === 0) {
-    const err = new Error('Không tìm thấy mùa vụ hoặc bạn không có quyền gửi yêu cầu');
-    err.statusCode = 404;
-    throw err;
+    if (cultCheck.recordset.length === 0) {
+      const err = new Error('Không tìm thấy mùa vụ hoặc bạn không có quyền gửi yêu cầu');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (['HARVESTED', 'FAILED'].includes(cultCheck.recordset[0].Status)) {
+      const err = new Error('Vụ mùa đã kết thúc. Không thể gửi thêm yêu cầu chăm sóc hoặc thu hoạch.');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const result = await transaction.request()
+      .input('CultivationId', sql.Int, cultivationId)
+      .input('UserId', sql.Int, userId)
+      .input('ServiceType', sql.NVarChar(100), serviceType)
+      .input('CustomerNote', sql.NVarChar(500), customerNote || '')
+      .query(`
+        INSERT INTO CareRequests (
+          CultivationId, UserId, ServiceType, CustomerNote,
+          AdditionalFee, IsFeeAccepted, PaymentStatus, Status, RequestedAt
+        )
+        OUTPUT INSERTED.*
+        VALUES (
+          @CultivationId, @UserId, @ServiceType, @CustomerNote,
+          0, 1, 'PAID', 'PENDING', GETDATE()
+        )
+      `);
+
+    await transaction.commit();
+    return result.recordset[0];
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
   }
-
-  const result = await pool.request()
-    .input('CultivationId', sql.Int, cultivationId)
-    .input('UserId', sql.Int, userId)
-    .input('ServiceType', sql.NVarChar(100), serviceType)
-    .input('CustomerNote', sql.NVarChar(500), customerNote || '')
-    .query(`
-      INSERT INTO CareRequests (
-        CultivationId, UserId, ServiceType, CustomerNote,
-        AdditionalFee, IsFeeAccepted, PaymentStatus, Status, RequestedAt
-      )
-      OUTPUT INSERTED.*
-      VALUES (
-        @CultivationId, @UserId, @ServiceType, @CustomerNote,
-        0, 1, 'PAID', 'PENDING', GETDATE()
-      )
-    `);
-
-  return result.recordset[0];
 };
 
 /**
@@ -123,32 +137,43 @@ const getMyCareRequests = async (userId) => {
  */
 const createHarvestRequest = async (userId, { cultivationId, harvestType = 'GIAO_TAN_NOI', recipientName, phoneNumber, deliveryAddress, customerNote }) => {
   const pool = getPool();
-
-  // Validate cultivation exists & belongs to user
-  const cultCheck = await pool.request()
-    .input('CultivationId', sql.Int, cultivationId)
-    .input('UserId', sql.Int, userId)
-    .query(`
-      SELECT c.CultivationId, c.Status, p.PlotCode, s.SeedName
-      FROM Cultivations c
-      JOIN RentalOrders ro ON c.OrderId = ro.OrderId
-      JOIN Plots p ON c.PlotId = p.PlotId
-      JOIN Seeds s ON c.SeedId = s.SeedId
-      WHERE c.CultivationId = @CultivationId AND ro.UserId = @UserId
-    `);
-
-  if (cultCheck.recordset.length === 0) {
-    const err = new Error('Không tìm thấy mùa vụ canh tác này');
-    err.statusCode = 404;
-    throw err;
-  }
-
-  const cult = cultCheck.recordset[0];
-
   const transaction = new sql.Transaction(pool);
   await transaction.begin();
 
   try {
+    // Validate cultivation exists & belongs to user
+    const cultCheck = await transaction.request()
+      .input('CultivationId', sql.Int, cultivationId)
+      .input('UserId', sql.Int, userId)
+      .query(`
+        SELECT c.CultivationId, c.Status, p.PlotCode, s.SeedName
+        FROM Cultivations c WITH (UPDLOCK, HOLDLOCK)
+        JOIN RentalOrders ro ON c.OrderId = ro.OrderId
+        JOIN Plots p ON c.PlotId = p.PlotId
+        JOIN Seeds s ON c.SeedId = s.SeedId
+        WHERE c.CultivationId = @CultivationId AND ro.UserId = @UserId
+      `);
+
+    if (cultCheck.recordset.length === 0) {
+      const err = new Error('Không tìm thấy mùa vụ canh tác này');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const cult = cultCheck.recordset[0];
+    if (cult.Status !== 'READY_TO_HARVEST') {
+      const err = new Error('Vụ mùa chưa đủ điều kiện thu hoạch hoặc đã kết thúc. Chỉ gửi yêu cầu khi kỹ thuật viên xác nhận sẵn sàng thu hoạch.');
+      err.statusCode = 409;
+      throw err;
+    }
+    const existing = await transaction.request()
+      .input('CultivationId', sql.Int, cultivationId)
+      .query(`SELECT HarvestRequestId FROM HarvestRequests WHERE CultivationId = @CultivationId AND Status <> 'CANCELLED'`);
+    if (existing.recordset.length) {
+      const err = new Error('Vụ mùa này đã có yêu cầu thu hoạch. Vui lòng theo dõi yêu cầu hiện tại.');
+      err.statusCode = 409;
+      throw err;
+    }
     // 1. Insert HarvestRequests with Status = 'REQUESTED' (valid per CK_HarvestRequests_Status)
     const hrInsert = await transaction.request()
       .input('CultivationId', sql.Int, cultivationId)
@@ -189,14 +214,7 @@ const createHarvestRequest = async (userId, { cultivationId, harvestType = 'GIAO
       delivery = delInsert.recordset[0];
     }
 
-    // 3. Update Cultivations status to 'HARVESTED' (valid per CK_Cultivations_Status)
-    await transaction.request()
-      .input('CultivationId', sql.Int, cultivationId)
-      .query(`
-        UPDATE Cultivations 
-        SET Status = 'HARVESTED', ActualHarvestDate = GETDATE(), ProgressPercent = 100 
-        WHERE CultivationId = @CultivationId
-      `);
+    // Requesting harvest does not mean harvesting has been completed.
 
     await transaction.commit();
 

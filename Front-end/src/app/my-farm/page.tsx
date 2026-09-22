@@ -42,6 +42,7 @@ import {
   CloudSun,
   Wind,
   Download,
+  Copy,
   Zap,
   Check,
   AlertTriangle
@@ -152,6 +153,14 @@ export default function MyFarmPage() {
 
   const [cultivations, setCultivations] = useState<CultivationItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<CultivationItem | null>(null);
+  const canRequestHarvest = selectedItem?.CultivationStatus === 'READY_TO_HARVEST';
+  const requestsClosed = !selectedItem || ['HARVESTED', 'FAILED'].includes(selectedItem.CultivationStatus);
+  const requestsClosedMessage = 'Vụ mùa đã kết thúc. Không thể gửi thêm yêu cầu chăm sóc hoặc thu hoạch. Bạn vẫn có thể xem lịch sử và theo dõi giao hàng.';
+  const harvestBlockedMessage = selectedItem?.CultivationStatus === 'HARVESTED'
+    ? 'Vụ mùa này đã thu hoạch. Không thể gửi thêm yêu cầu.'
+    : selectedItem?.CultivationStatus === 'FAILED'
+      ? 'Vụ mùa đã kết thúc không thành công, không thể yêu cầu thu hoạch.'
+      : 'Vụ mùa chưa sẵn sàng thu hoạch. Vui lòng chờ kỹ thuật viên xác nhận; không thể thu hoạch khi đang gieo hạt hoặc sinh trưởng.';
   const [isLoading, setIsLoading] = useState(true);
 
   // Active Tab
@@ -235,9 +244,18 @@ export default function MyFarmPage() {
   const activePlotsCount = cultivations.length;
   const growingCyclesCount = cultivations.filter((c) => c.CultivationStatus === 'GROWING').length;
   const readyToHarvestCount = cultivations.filter((c) => Number(c.ProgressPercent) >= 90).length;
+  // Lọc yêu cầu chăm sóc và giao hàng theo ô đất đang được chọn
+  const filteredCareRequests = selectedItem
+    ? careRequests.filter((r) => r.CultivationId === selectedItem.CultivationId)
+    : careRequests;
+
+  const filteredDeliveries = selectedItem
+    ? deliveries.filter((d) => d.CultivationId === selectedItem.CultivationId)
+    : deliveries;
+
   const pendingRequestsCount =
-    careRequests.filter((r) => r.Status !== 'COMPLETED').length +
-    deliveries.filter((d) => d.DeliveryStatus !== 'DELIVERED').length;
+    filteredCareRequests.filter((r) => r.Status !== 'COMPLETED').length +
+    filteredDeliveries.filter((d) => d.DeliveryStatus !== 'DELIVERED').length;
 
   const getHarvestCountdown = (expectedHarvestDateStr: string) => {
     if (!expectedHarvestDateStr) return 'Đang cập nhật';
@@ -379,6 +397,11 @@ export default function MyFarmPage() {
   const handleSubmitCareRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
+    if (requestsClosed) {
+      toast.error(requestsClosedMessage, 'Không thể gửi yêu cầu');
+      return;
+    }
+    if (isSubmittingCare) return;
 
     try {
       setIsSubmittingCare(true);
@@ -430,6 +453,11 @@ export default function MyFarmPage() {
   const handleSubmitHarvestRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
+    if (!canRequestHarvest) {
+      toast.error(harvestBlockedMessage, 'Chưa thể yêu cầu thu hoạch');
+      return;
+    }
+    if (isSubmittingHarvest) return;
 
     try {
       setIsSubmittingHarvest(true);
@@ -886,7 +914,11 @@ export default function MyFarmPage() {
                     variant="outline"
                     size="sm"
                     className="border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold"
-                    onClick={() => setIsCareModalOpen(true)}
+                    disabled={requestsClosed}
+
+                    title={requestsClosed ? requestsClosedMessage : undefined}
+
+                    onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                   >
                     <Sparkles className="w-4 h-4 mr-1.5 text-amber-500" />
                     Yêu Cầu Chăm Sóc Đột Xuất
@@ -895,11 +927,20 @@ export default function MyFarmPage() {
                   <Button
                     size="sm"
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
-                    onClick={() => setIsHarvestModalOpen(true)}
+                    disabled={!canRequestHarvest}
+                    aria-describedby={!canRequestHarvest ? 'harvest-eligibility-note' : undefined}
+                    onClick={() => {
+                      if (!canRequestHarvest) {
+                        toast.error(harvestBlockedMessage, 'Chưa thể yêu cầu thu hoạch');
+                        return;
+                      }
+                      setIsHarvestModalOpen(true);
+                    }}
                   >
                     <Package className="w-4 h-4 mr-1.5" />
                     Yêu Cầu Thu Hoạch & Giao Hàng
                   </Button>
+                  {!canRequestHarvest && <p id="harvest-eligibility-note" role="status" className="w-full text-xs leading-relaxed text-amber-800 dark:text-amber-200">{requestsClosed ? requestsClosedMessage : harvestBlockedMessage}</p>}
                 </div>
               </div>
 
@@ -1371,7 +1412,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                   }`}
                 >
                   <Sparkles className="w-4 h-4 text-amber-500" />
-                  Yêu Cầu Chăm Sóc Đột Xuất ({careRequests.length})
+                  Yêu Cầu Chăm Sóc Đột Xuất ({filteredCareRequests.length})
                 </button>
 
                 <button
@@ -1383,7 +1424,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                   }`}
                 >
                   <Truck className="w-4 h-4 text-blue-500" />
-                  Theo Dõi Giao Hàng & Thu Hoạch ({deliveries.length})
+                  Theo Dõi Giao Hàng & Thu Hoạch ({filteredDeliveries.length})
                 </button>
               </div>
 
@@ -1414,7 +1455,11 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                       <Button
                         size="sm"
                         variant="primary"
-                        onClick={() => setIsCareModalOpen(true)}
+                        disabled={requestsClosed}
+
+                        title={requestsClosed ? requestsClosedMessage : undefined}
+
+                        onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                         leftIcon={<Sparkles className="w-3.5 h-3.5 text-white" />}
                         className="font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                       >
@@ -1441,7 +1486,11 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setIsCareModalOpen(true)}
+                          disabled={requestsClosed}
+
+                          title={requestsClosed ? requestsClosedMessage : undefined}
+
+                          onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                           leftIcon={<Sparkles className="w-3.5 h-3.5 text-amber-500" />}
                           className="text-xs font-bold"
                         >
@@ -1549,13 +1598,17 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     <Button
                       size="sm"
                       className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
-                      onClick={() => setIsCareModalOpen(true)}
+                      disabled={requestsClosed}
+
+                      title={requestsClosed ? requestsClosedMessage : undefined}
+
+                      onClick={() => { if (!requestsClosed) setIsCareModalOpen(true); }}
                     >
                       <Sparkles className="w-4 h-4 mr-1.5" /> Gửi Yêu Cầu Chăm Sóc Mới
                     </Button>
                   </div>
 
-                  {careRequests.length === 0 ? (
+                  {filteredCareRequests.length === 0 ? (
                     <div className="py-12 text-center text-slate-500 space-y-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <Sparkles className="w-8 h-8 text-amber-500 mx-auto" />
                       <p className="text-sm font-bold">Bạn chưa có yêu cầu chăm sóc nào đang chờ xử lý</p>
@@ -1563,7 +1616,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {careRequests.map((req) => (
+                      {filteredCareRequests.map((req) => (
                         <div
                           key={req.RequestId}
                           className="bg-slate-50/80 dark:bg-slate-800/40 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3"
@@ -1623,7 +1676,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </Button>
                   </div>
 
-                  {deliveries.length === 0 ? (
+                  {filteredDeliveries.length === 0 ? (
                     <div className="py-12 text-center text-slate-500 space-y-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <Truck className="w-8 h-8 text-blue-500 mx-auto" />
                       <p className="text-sm font-bold">Chưa có đơn vận chuyển thu hoạch nào</p>
@@ -1633,7 +1686,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {deliveries.map((del) => {
+                      {filteredDeliveries.map((del) => {
                         const stepIndex =
                           del.DeliveryStatus === 'DELIVERED'
                             ? 4
@@ -1945,7 +1998,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isSubmittingCare}
+                  disabled={isSubmittingCare || requestsClosed}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20"
                 >
                   {isSubmittingCare ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Xác Nhận Gửi Yêu Cầu'}
@@ -2101,7 +2154,7 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={isSubmittingHarvest}
+                  disabled={isSubmittingHarvest || !canRequestHarvest}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                 >
                   {isSubmittingHarvest ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Tạo Đơn Thu Hoạch & Giao Hàng'}
@@ -2112,130 +2165,191 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
         </div>
       )}
 
-      {/* MODAL 3: TRUY XUẤT NGUỒN GỐC CHUẨN VIETGAP (MÃ QR HIGH CONTRAST) */}
-      {isQrModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-scale-in">
-            <button
-              onClick={() => setIsQrModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Đóng cửa sổ"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* MODAL 3: MÃ QR TRUY XUẤT NGUỒN GỐC CHUẨN VIETGAP */}
+      {isQrModalOpen && selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-emerald-200 dark:border-emerald-800/60 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white p-5 sm:p-6 relative">
+              <button
+                type="button"
+                onClick={() => setIsQrModalOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+                aria-label="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-            {/* Header */}
-            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
-                <QrCode className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white">
-                    Truy Xuất Nguồn Gốc VietGAP
-                  </h3>
-                  <Badge variant="success" size="sm">ĐÃ XÁC THỰC</Badge>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner">
+                  <ShieldCheck className="w-6 h-6 text-emerald-200" />
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Mã QR chứng nhận chuỗi cung ứng nông sản hữu cơ minh bạch
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg sm:text-xl font-black tracking-tight">
+                      Mã QR Truy Xuất Nguồn Gốc VietGAP
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-950 uppercase">
+                      Chuẩn TCVN
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-100/90 mt-0.5">
+                    Hồ sơ canh tác số minh bạch • Chứng nhận TCVN 11892-1:2017
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* High Contrast QR Code Container for Easy Mobile Scanning */}
-            <div className="flex flex-col items-center justify-center bg-emerald-50/50 dark:bg-slate-800/50 p-6 rounded-2xl border border-emerald-100 dark:border-slate-700 space-y-3">
-              <div className="p-4 bg-white rounded-2xl shadow-md border-2 border-emerald-500/30 flex flex-col items-center space-y-2">
-                {/* Clean, High-Contrast QR Code Visual */}
-                <div className="relative w-48 h-48 bg-white p-2 flex items-center justify-center">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                      `https://plotfarm.vn/verify/vietgap/${selectedItem?.PlotCode || 'PF-01'}?cert=VG-2026-DALAT-0892`
-                    )}`}
-                    alt="VietGAP Origin Traceability QR Code"
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-8 h-8 rounded-full bg-white border-2 border-emerald-600 p-0.5 shadow-sm flex items-center justify-center">
-                      <Sprout className="w-4 h-4 text-emerald-600" />
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+              {/* Top Code & QR display */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+                {/* QR Code Container */}
+                <div className="sm:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border-2 border-emerald-500/30">
+                  <div className="relative p-2.5 bg-white rounded-2xl shadow-md border border-slate-200">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}/my-farm?plot=${selectedItem.PlotCode}&cert=VIETGAP-${selectedItem.PlotCode}-${selectedItem.CultivationId}`
+                          : `VIETGAP-PLOTFARM-${selectedItem.PlotCode}-${selectedItem.CultivationId}`
+                      )}`}
+                      alt="Mã QR VietGAP"
+                      className="w-40 h-40 object-contain rounded-lg"
+                    />
+                    <div className="absolute inset-x-0 bottom-1 flex items-center justify-center gap-1 text-[9px] font-black text-emerald-800 bg-emerald-100/90 py-0.5 mx-2 rounded">
+                      <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                      <span>VIETGAP • PLOTFARM</span>
                     </div>
                   </div>
+
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-2.5">
+                    Quét bằng Camera điện thoại hoặc Zalo để xem hồ sơ lô đất
+                  </p>
                 </div>
 
-                <div className="text-center pt-1">
-                  <span className="text-[11px] font-mono font-black text-emerald-700 block tracking-wider uppercase">
-                    CHỨNG NHẬN VIETGAP #VG-2026-DALAT-0892
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-semibold block">
-                    Tiêu chuẩn Quốc gia TCVN 11892-1:2017
-                  </span>
+                {/* Right Summary Info */}
+                <div className="sm:col-span-7 space-y-2.5 text-xs">
+                  <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Mã truy xuất VietGAP:</span>
+                      <span className="font-mono font-black text-emerald-700 dark:text-emerald-400 text-sm">
+                        VG-PF-{selectedItem.PlotCode}-{selectedItem.CultivationId}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Nông sản:</span>
+                      <strong className="text-slate-900 dark:text-white font-bold">{selectedItem.SeedName}</strong>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Ô đất canh tác:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {selectedItem.PlotCode} ({selectedItem.SizeM2} m²)
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Vị trí trang trại:</span>
+                      <span className="text-slate-700 dark:text-slate-300">PlotFarm Đà Lạt (Lâm Đồng)</span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons: Copy code & Download QR */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-bold border-emerald-300 hover:bg-emerald-50 text-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950 flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        const code = `VG-PF-${selectedItem.PlotCode}-${selectedItem.CultivationId}`;
+                        navigator.clipboard.writeText(code);
+                        toast.success(`Đã sao chép mã ${code} vào bộ nhớ tạm!`, 'Sao chép thành công');
+                      }}
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      Sao Chép Mã
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs font-bold border-slate-300 hover:bg-slate-100 text-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=15&data=${encodeURIComponent(
+                          `VIETGAP-PLOTFARM-${selectedItem.PlotCode}-${selectedItem.CultivationId}`
+                        )}`;
+                        window.open(qrUrl, '_blank');
+                        toast.success('Đang mở ảnh mã QR độ phân giải cao để tải về!', 'Tải mã QR');
+                      }}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Tải Mã QR
+                    </Button>
+                  </div>
                 </div>
               </div>
 
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center flex items-center gap-1.5 font-medium">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                Mở camera điện thoại hoặc app Zalo để quét mã kiểm tra nhật ký sinh trưởng
-              </p>
-            </div>
+              {/* Traceability Details Table */}
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Info className="w-4 h-4 text-emerald-500" />
+                  Hồ Sơ Canh Tác & Giám Sát Minh Bạch
+                </h4>
 
-            {/* Traceability Metadata Details */}
-            <div className="space-y-2.5 text-xs">
-              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase text-[11px] tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" /> Hồ Sơ Canh Tác Nông Sản:
-              </h4>
-
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-bold">MÃ Ô ĐẤT CANH TÁC:</span>
-                  <span className="font-black text-slate-800 dark:text-slate-100">{selectedItem?.PlotCode}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-bold">GIỐNG CÂY TRỒNG:</span>
-                  <span className="font-black text-slate-800 dark:text-slate-100">{selectedItem?.SeedName}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-bold">VÙNG TRỒNG CHUẨN:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">Hợp Tác Xã Đà Lạt</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-bold">QUY TRÌNH CANH TÁC:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">100% Hữu Cơ Hóa</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-bold">KĨ THUẬT VIÊN TRỰC:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">KTV Nguyễn Văn Khoa</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] font-bold">KIỂM ĐỊNH KIM LOẠI NẶNG:</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">ĐẠT AN TOÀN (0.00 ppm)</span>
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 text-xs overflow-hidden">
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Tiêu chuẩn canh tác</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">VietGAP (TCVN 11892-1:2017)</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between items-center">
+                    <span className="text-slate-500">Ngày gieo trồng</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDate(selectedItem.StartDate)}</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Dự kiến thu hoạch</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDate(selectedItem.ExpectedHarvestDate)}</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between items-center">
+                    <span className="text-slate-500">Gói chăm sóc áp dụng</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{getPackageName(selectedItem.PackageName)}</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Nhật ký thực địa</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{logs.length} bài đăng kèm hình ảnh</span>
+                  </div>
+                  <div className="p-2.5 flex justify-between items-center">
+                    <span className="text-slate-500">Độ pH đất & Cảm biến</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">
+                      pH {selectedItem.SoilPH || 6.5} • Nhiệt độ {temperature}°C • Độ ẩm {humidity}%
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-slate-50/60 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span className="text-slate-500">Cam kết an toàn</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">100% Hữu cơ • Không hóa chất độc hại</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  navigator.clipboard.writeText(`https://plotfarm.vn/verify/vietgap/${selectedItem?.PlotCode || 'PF-01'}`);
-                  toast.success('Đã sao chép liên kết truy xuất VietGAP vào khay nhớ tạm!', 'Đã Sao Chép');
-                }}
-                className="font-bold border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs"
-              >
-                Sao Chép Link Truy Xuất
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => {
-                  toast.info('Đã tải hình ảnh mã QR VietGAP về thiết bị của bạn.', 'Đã Tải QR');
-                }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-xs"
-              >
-                <Download className="w-3.5 h-3.5 mr-1" />
-                Tải Mã QR (.PNG)
-              </Button>
+              {/* Bottom Footer Note */}
+              <div className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 flex items-start gap-2.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <p>
+                  Mã QR này được in trực tiếp lên tem nhãn bao bì rau củ khi thu hoạch, cho phép người tiêu dùng truy xuất trọn vẹn nhật ký sinh trưởng từ hạt mầm đến bàn ăn.
+                </p>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsQrModalOpen(false)}
+                  className="font-bold px-5"
+                >
+                  Đóng
+                </Button>
+              </div>
+>>>>>>> origin/main
             </div>
           </div>
         </div>
