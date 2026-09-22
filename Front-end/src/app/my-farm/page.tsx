@@ -2349,7 +2349,6 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
                   Đóng
                 </Button>
               </div>
->>>>>>> origin/main
             </div>
           </div>
         </div>
