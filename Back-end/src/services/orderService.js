@@ -273,18 +273,49 @@ const getMyCultivations = async (userId) => {
       SELECT 
         c.CultivationId, c.OrderId, c.PlotId, c.SeedId, c.StartDate, c.ExpectedHarvestDate,
         c.ProgressPercent, c.Status as CultivationStatus, c.CreatedAt as CultivationCreatedAt,
-        p.PlotCode, p.SizeM2, p.SoilPH, p.StandardHumidity, p.BasePricePerMonth,
+        p.PlotCode, p.SizeM2, p.SoilPH, p.StandardHumidity, p.BasePricePerMonth, p.AreaId,
         s.SeedName, s.Category, s.GrowthDurationDays, s.ExpectedYieldKgPerM2, s.ImageUrl as SeedImageUrl,
         cp.PackageName, cp.MonthlyFee, cp.ServicesIncluded,
         ro.OrderCode, ro.TotalAmount, ro.PaidAt, ro.DurationMonths, ro.TotalRentalDays,
         ro.RentalFee, ro.CareFee, ro.SeedFee, ro.DiscountAmount,
-        cam.CameraCode, cam.CameraName, cam.StreamUrl, cam.Status as CameraStatus
+        cam.CameraCode, cam.CameraName, cam.StreamUrl, cam.Status as CameraStatus,
+        COALESCE(staff_info.StaffName, log_staff.StaffName, def_staff.FullName, N'Trần Minh Tuấn') AS StaffName,
+        COALESCE(staff_info.StaffPhone, log_staff.StaffPhone, def_staff.PhoneNumber, '0900000002') AS StaffPhone,
+        COALESCE(staff_info.StaffEmail, log_staff.StaffEmail, def_staff.Email, 'tuan@plotfarm.vn') AS StaffEmail,
+        COALESCE(staff_info.StaffShift, N'Sáng') AS StaffShift
       FROM Cultivations c
       JOIN RentalOrders ro ON c.OrderId = ro.OrderId
       JOIN Plots p ON c.PlotId = p.PlotId
       JOIN Seeds s ON c.SeedId = s.SeedId
       LEFT JOIN CarePackages cp ON ro.CarePackageId = cp.PackageId
       LEFT JOIN Cameras cam ON p.CameraId = cam.CameraId
+      OUTER APPLY (
+        SELECT TOP 1 
+          u_staff.FullName AS StaffName,
+          u_staff.PhoneNumber AS StaffPhone,
+          u_staff.Email AS StaffEmail,
+          sa.Shift AS StaffShift
+        FROM StaffAssignments sa
+        JOIN Users u_staff ON sa.StaffId = u_staff.UserId
+        WHERE sa.AreaId = p.AreaId AND (sa.PlotId IS NULL OR sa.PlotId = p.PlotId)
+        ORDER BY sa.AssignmentId ASC
+      ) staff_info
+      OUTER APPLY (
+        SELECT TOP 1 
+          u_log.FullName AS StaffName,
+          u_log.PhoneNumber AS StaffPhone,
+          u_log.Email AS StaffEmail
+        FROM CultivationLogs cl
+        JOIN Users u_log ON cl.StaffId = u_log.UserId
+        WHERE cl.CultivationId = c.CultivationId
+        ORDER BY cl.LogDate DESC, cl.CreatedAt DESC
+      ) log_staff
+      OUTER APPLY (
+        SELECT TOP 1 FullName, PhoneNumber, Email 
+        FROM Users 
+        WHERE RoleId = 2 
+        ORDER BY UserId ASC
+      ) def_staff
       WHERE ro.UserId = @UserId
       ORDER BY c.CreatedAt DESC
     `);

@@ -31,7 +31,7 @@ test('shared link restores selected plot, crop, package, filters and list mode',
   )), data);
   assert.deepEqual(plain(selection), {
     areaId: 19, plotId: 201, seedId: 21, pkgId: 15, view: 'LIST', status: 'AVAILABLE',
-    minPrice: 400000, maxPrice: 600000, soil: 'Đất cát',
+    minPrice: 400000, maxPrice: 600000, minPH: null, maxPH: null, soil: 'Đất cát',
   });
   const restored = parsePlotQuery(writePlotQuery(new URL('https://example.test/plots'), selection).searchParams);
   assert.deepEqual(plain(restored), plain(selection));
@@ -124,4 +124,57 @@ test('seed navigation handles empty, single and stale selections', () => {
   assert.equal(adjacentSeedId([{ SeedId: 8 }], 8, -1), 8);
   assert.equal(adjacentSeedId([{ SeedId: 3 }, { SeedId: 8 }], 99, 1), 3);
   assert.equal(adjacentSeedId([{ SeedId: 3 }, { SeedId: 8 }], null, -1), 8);
+});
+
+test('pH intervals accept inclusive chemical bounds and comma decimals', () => {
+  const { validatePHRange } = exportsObject;
+  assert.deepEqual(plain(validatePHRange('0', '14')), { minPH: 0, maxPH: 14, error: null });
+  assert.deepEqual(plain(validatePHRange(' 5,5 ', '6.8')), { minPH: 5.5, maxPH: 6.8, error: null });
+  assert.deepEqual(plain(validatePHRange('', '')), { minPH: null, maxPH: null, error: null });
+  assert.equal(validatePHRange('', '6').maxPH, 6);
+  for (const [min, max] of [['-1', '7'], ['6', '15'], ['7', '6'], ['NaN', ''], ['', 'Infinity'], ['0xA', ''], ['5,5,5', '']]) {
+    assert.ok(validatePHRange(min, max).error, `${min} .. ${max}`);
+  }
+});
+
+test('pH, soil and monthly price combine; unknown pH never matches an active pH filter', () => {
+  const plots = [
+    { ...data.plots[0], PlotId: 1, SoilPH: 5.5 },
+    { ...data.plots[0], PlotId: 2, SoilPH: 6.5 },
+    { ...data.plots[0], PlotId: 3, SoilPH: 7 },
+    { ...data.plots[0], PlotId: 4, SoilPH: null },
+    { ...data.plots[0], PlotId: 5 },
+    { ...data.plots[0], PlotId: 6, SoilPH: 6, BasePricePerMonth: 800000 },
+    { ...data.plots[0], PlotId: 7, SoilPH: 6, AreaId: 19 },
+  ];
+  const selection = { ...EMPTY_SELECTION, areaId: 7, soil: 'Đất thịt', minPrice: 300000, maxPrice: 500000, minPH: 5.5, maxPH: 6.5 };
+  assert.deepEqual(Array.from(filterPlots(plots, data.areas, selection), p => p.PlotId), [1, 2]);
+  assert.deepEqual(Array.from(filterPlots(plots, data.areas, { ...selection, minPH: null, maxPH: null }), p => p.PlotId), [1, 2, 3, 4, 5]);
+});
+
+test('pH survives URL sharing and is removed on reset', () => {
+  const selection = parsePlotQuery(new URLSearchParams('minPH=5%2C5&maxPH=7'));
+  assert.equal(selection.minPH, 5.5);
+  const url = writePlotQuery(new URL('https://example.test/plots?ref=friend#map'), selection);
+  assert.equal(parsePlotQuery(url.searchParams).maxPH, 7);
+  const cleared = writePlotQuery(url, EMPTY_SELECTION);
+  assert.equal(cleared.searchParams.has('minPH'), false);
+  assert.equal(cleared.searchParams.has('maxPH'), false);
+  assert.equal(cleared.searchParams.get('ref'), 'friend');
+  assert.equal(cleared.hash, '#map');
+  assert.equal(parsePlotQuery(new URLSearchParams('minPH=8&maxPH=2')).minPH, null);
+});
+
+test('requested soil types without database matches remain active with no fabricated results', () => {
+  for (const soil of exportsObject.SOIL_TYPE_PRESETS) {
+    const selection = normalizePlotSelection({ ...EMPTY_SELECTION, soil }, data);
+    assert.equal(selection.soil, soil);
+    assert.equal(selection.plotId, null);
+  }
+});
+
+test('pH excludes current plot and reconciles selection to an eligible plot', () => {
+  const phData = { ...data, plots: data.plots.map((p, i) => ({ ...p, SoilPH: i === 0 ? 8 : 6 })) };
+  const selection = normalizePlotSelection({ ...EMPTY_SELECTION, areaId: 7, plotId: 101, maxPH: 7 }, phData);
+  assert.equal(selection.plotId, 103);
 });
