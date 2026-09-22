@@ -76,6 +76,7 @@ router.get('/harvest-orders', requireStaffOrAdmin, staffController.getMyHarvestO
  * @body    { actualYieldKg: number, qualityGrade?: string, inspectionNote?: string, productImageUrl?: string }
  */
 router.post('/harvest-orders/:id/result', requireStaffOrAdmin, staffController.recordHarvestResult);
+router.post('/cultivations/:cultivationId/harvest-result', requireStaffOrAdmin, staffController.recordHarvestResult);
 
 /**
  * @route   PATCH /api/staff/harvest-orders/:id/progress

@@ -91,6 +91,10 @@ interface CultivationItem {
   CameraName?: string;
   StreamUrl?: string;
   CameraStatus?: string;
+  StaffName?: string;
+  StaffPhone?: string;
+  StaffEmail?: string;
+  StaffShift?: string;
 }
 
 interface CultivationLogItem {
@@ -1328,11 +1332,13 @@ export default function MyFarmPage() {
                       </div>
                       <div>
                         <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold block">Kỹ thuật viên phụ trách:</span>
-                        <span className="font-extrabold text-slate-900 dark:text-white">Kỹ Thuật Viên Mẫu (staff@plotfarm.vn)</span>
+                        <span className="font-extrabold text-slate-900 dark:text-white">
+                          {selectedItem.StaffName || logs[0]?.StaffName || 'Trần Minh Tuấn'} ({selectedItem.StaffEmail || 'tuan@plotfarm.vn'})
+                        </span>
                       </div>
                     </div>
                     <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 text-[10px] font-bold">
-                      Ca Sáng
+                      Ca {selectedItem.StaffShift || 'Sáng'}
                     </span>
                   </div>
 
@@ -1374,7 +1380,8 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
 
                 {/* Technician Info Card */}
                 <TechnicianInfoCard
-                  staffName={logs[0]?.StaffName || 'Nguyễn Văn Đức'}
+                  staffName={selectedItem.StaffName || logs[0]?.StaffName || 'Trần Minh Tuấn'}
+                  phone={selectedItem.StaffPhone || '0900000002'}
                   plotCode={selectedItem.PlotCode}
                   seedName={selectedItem.SeedName}
                 />

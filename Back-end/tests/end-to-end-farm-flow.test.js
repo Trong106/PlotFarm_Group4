@@ -27,7 +27,7 @@ before(async () => {
 
   // Generate test JWT tokens
   customerToken = generateToken({ userId: 4, role: 'Customer', fullName: 'Phạm Thị Trà My' });
-  staffToken = generateToken({ userId: 2, role: 'Staff', fullName: 'Nguyễn Văn Đức' });
+  staffToken = generateToken({ userId: 2, role: 'Staff', fullName: 'Trần Minh Tuấn' });
 });
 
 after(async () => {

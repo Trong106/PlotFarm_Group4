@@ -21,9 +21,10 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 const getMyAssignedPlots = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
-    const plots = await staffService.getMyAssignedPlots(staffId);
+    const plots = await staffService.getMyAssignedPlots(staffId, userRole);
     return successResponse(
       res,
       plots,
@@ -45,6 +46,7 @@ const getMyAssignedPlots = async (req, res, next) => {
 const completeCareRequest = async (req, res, next) => {
   try {
     const staffId   = req.user?.userId;
+    const userRole  = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const requestId = parseInt(req.params.id, 10);
@@ -70,7 +72,7 @@ const completeCareRequest = async (req, res, next) => {
       resultNote: resultNote.trim(),
       resultImageUrl: resultImageUrl || null,
       plantHealthStatus: plantHealthStatus || 'GOOD',
-    });
+    }, userRole);
 
     return successResponse(
       res,
@@ -94,6 +96,7 @@ const completeCareRequest = async (req, res, next) => {
 const updateHarvestProgress = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const harvestRequestId = parseInt(req.params.id, 10);
@@ -119,7 +122,7 @@ const updateHarvestProgress = async (req, res, next) => {
       deliveryStatus,
       staffNote,
       proofImageUrl,
-    });
+    }, userRole);
 
     return successResponse(
       res,
@@ -142,6 +145,7 @@ const updateHarvestProgress = async (req, res, next) => {
 const getMySchedules = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const { range, cultivationId, activityType, status } = req.query;
@@ -163,7 +167,7 @@ const getMySchedules = async (req, res, next) => {
       status:        status        || undefined,
     };
 
-    const schedules = await staffService.getMySchedules(staffId, filters);
+    const schedules = await staffService.getMySchedules(staffId, filters, userRole);
 
     const rangeLabel = { TODAY: 'hôm nay', WEEK: 'tuần này', MONTH: 'tháng này', ALL: 'toàn bộ' };
     return successResponse(
@@ -187,6 +191,7 @@ const getMySchedules = async (req, res, next) => {
 const completeSchedule = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const scheduleId = parseInt(req.params.id, 10);
@@ -199,7 +204,7 @@ const completeSchedule = async (req, res, next) => {
     const result = await staffService.completeSchedule(staffId, scheduleId, {
       resultNote:     resultNote     || null,
       resultImageUrl: resultImageUrl || null,
-    });
+    }, userRole);
 
     return successResponse(
       res,
@@ -221,10 +226,11 @@ const completeSchedule = async (req, res, next) => {
 const getMyCareRequests = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const { status } = req.query;
-    const requests = await staffService.getMyCareRequests(staffId, { status });
+    const requests = await staffService.getMyCareRequests(staffId, { status }, userRole);
     return successResponse(res, requests, `Danh sách ${requests.length} yêu cầu chăm sóc`);
   } catch (error) {
     next(error);
@@ -241,10 +247,11 @@ const getMyCareRequests = async (req, res, next) => {
 const getMyHarvestOrders = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const { status } = req.query;
-    const orders = await staffService.getMyHarvestOrders(staffId, { status });
+    const orders = await staffService.getMyHarvestOrders(staffId, { status }, userRole);
     return successResponse(res, orders, `Danh sách ${orders.length} đơn thu hoạch`);
   } catch (error) {
     next(error);
@@ -260,6 +267,7 @@ const getMyHarvestOrders = async (req, res, next) => {
 const acceptCareRequest = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const requestId = parseInt(req.params.id, 10);
@@ -267,7 +275,7 @@ const acceptCareRequest = async (req, res, next) => {
       return errorResponse(res, 'RequestId không hợp lệ', 400);
     }
 
-    const result = await staffService.acceptCareRequest(staffId, requestId);
+    const result = await staffService.acceptCareRequest(staffId, requestId, userRole);
     return successResponse(
       res,
       result,
@@ -288,27 +296,30 @@ const acceptCareRequest = async (req, res, next) => {
 const recordHarvestResult = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
-    const harvestRequestId = parseInt(req.params.id, 10);
-    if (isNaN(harvestRequestId) || harvestRequestId <= 0) {
+    const isDirectHarvest = req.params.cultivationId !== undefined;
+    const harvestRequestId = Number(req.params.cultivationId ?? req.params.id);
+    if (!Number.isSafeInteger(harvestRequestId) || harvestRequestId <= 0) {
       return errorResponse(res, 'HarvestRequestId không hợp lệ', 400);
     }
 
     const { actualYieldKg, qualityGrade, inspectionNote, productImageUrl, trackingCode, carrierName } = req.body;
-    const yieldNum = parseFloat(actualYieldKg);
-    if (isNaN(yieldNum) || yieldNum <= 0) {
+    const yieldNum = typeof actualYieldKg === 'number' ? actualYieldKg : NaN;
+    if (!Number.isFinite(yieldNum) || yieldNum <= 0 || yieldNum > 9999.99) {
       return errorResponse(res, 'Sản lượng thu hoạch phải lớn hơn 0 kg', 400);
     }
 
     const result = await staffService.recordHarvestResult(staffId, harvestRequestId, {
+      cultivationId: isDirectHarvest ? harvestRequestId : null,
       actualYieldKg: yieldNum,
       qualityGrade: qualityGrade || 'GRADE_A',
       inspectionNote: inspectionNote || '',
       productImageUrl: productImageUrl || null,
       trackingCode: trackingCode || null,
       carrierName: carrierName || null,
-    });
+    }, userRole);
 
     return successResponse(
       res,
@@ -330,6 +341,7 @@ const recordHarvestResult = async (req, res, next) => {
 const createEmergencyAlert = async (req, res, next) => {
   try {
     const staffId = req.user?.userId;
+    const userRole = req.user?.role || 'Staff';
     if (!staffId) return errorResponse(res, 'Vui lòng đăng nhập', 401);
 
     const { cultivationId, emergencyType, title, notes, imageUrl } = req.body;
@@ -346,7 +358,7 @@ const createEmergencyAlert = async (req, res, next) => {
       title: title || '',
       notes: notes || '',
       imageUrl: imageUrl || null,
-    });
+    }, userRole);
 
     return successResponse(
       res,

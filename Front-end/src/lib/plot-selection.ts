@@ -9,11 +9,15 @@ export interface PlotSelection {
   status: PlotStatusFilter;
   minPrice: number | null;
   maxPrice: number | null;
+  minPH: number | null;
+  maxPH: number | null;
   soil: string;
 }
 
 export interface SelectionArea { AreaId: number; SoilType: string }
-export interface SelectionPlot { PlotId: number; AreaId: number; BasePricePerMonth: number; Status: string }
+export interface SelectionPlot { PlotId: number; AreaId: number; BasePricePerMonth: number; Status: string; SoilPH?: number | null }
+
+export const SOIL_TYPE_PRESETS = ['Đất đỏ bazan', 'Đất thịt pha cát'];
 
 export function adjacentSeedId(seeds: { SeedId: number }[], currentId: number | null, direction: -1 | 1): number | null {
   if (!seeds.length) return null;
@@ -30,7 +34,7 @@ export interface SelectionData {
 
 export const EMPTY_SELECTION: PlotSelection = {
   areaId: null, plotId: null, seedId: null, pkgId: null,
-  view: 'GRID', status: 'ALL', minPrice: null, maxPrice: null, soil: '',
+  view: 'GRID', status: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '',
 };
 
 export const PLOT_STATUS_LABELS: Record<PlotStatusFilter, string> = {
@@ -51,6 +55,22 @@ export function validatePriceRange(min: string, max: string): { minPrice: number
   return { minPrice, maxPrice, error: null };
 }
 
+export function validatePHRange(min: string, max: string): { minPH: number | null; maxPH: number | null; error: string | null } {
+  const read = (raw: string) => {
+    const value = raw.trim().replace(',', '.');
+    return value === '' ? null : /^\d+(?:\.\d+)?$/.test(value) ? Number(value) : NaN;
+  };
+  const minPH = read(min);
+  const maxPH = read(max);
+  if ([minPH, maxPH].some((value) => value !== null && (!Number.isFinite(value) || value < 0 || value > 14))) {
+    return { minPH: null, maxPH: null, error: 'Độ pH phải là số từ 0 đến 14.' };
+  }
+  if (minPH !== null && maxPH !== null && minPH > maxPH) {
+    return { minPH: null, maxPH: null, error: 'pH tối thiểu không được lớn hơn pH tối đa.' };
+  }
+  return { minPH, maxPH, error: null };
+}
+
 export function parsePlotQuery(params: URLSearchParams): PlotSelection {
   const id = (key: string) => {
     const raw = params.get(key);
@@ -59,11 +79,13 @@ export function parsePlotQuery(params: URLSearchParams): PlotSelection {
   };
   const status = params.get('status')?.toUpperCase() || 'ALL';
   const prices = validatePriceRange(params.get('minPrice') || '', params.get('maxPrice') || '');
+  const ph = validatePHRange(params.get('minPH') || '', params.get('maxPH') || '');
   return {
     areaId: id('areaId'), plotId: id('plotId'), seedId: id('seedId'), pkgId: id('pkgId'),
     view: params.get('view')?.toUpperCase() === 'LIST' ? 'LIST' : 'GRID',
     status: Object.prototype.hasOwnProperty.call(PLOT_STATUS_LABELS, status) ? status as PlotStatusFilter : 'ALL',
     minPrice: prices.minPrice, maxPrice: prices.maxPrice, soil: params.get('soil')?.trim() || '',
+    minPH: ph.minPH, maxPH: ph.maxPH,
   };
 }
 
@@ -72,6 +94,12 @@ export function filterPlots<T extends SelectionPlot>(plots: T[], areas: Selectio
     && (selection.status === 'ALL' || plot.Status === selection.status)
     && (selection.minPrice === null || Number(plot.BasePricePerMonth) >= selection.minPrice)
     && (selection.maxPrice === null || Number(plot.BasePricePerMonth) <= selection.maxPrice)
+    && ((selection.minPH == null && selection.maxPH == null) || (
+      plot.SoilPH != null && Number.isFinite(Number(plot.SoilPH))
+      && Number(plot.SoilPH) >= 0 && Number(plot.SoilPH) <= 14
+      && (selection.minPH == null || Number(plot.SoilPH) >= selection.minPH)
+      && (selection.maxPH == null || Number(plot.SoilPH) <= selection.maxPH)
+    ))
     && (!selection.soil || areas.some((area) => area.AreaId === plot.AreaId && area.SoilType?.trim() === selection.soil)));
 }
 
@@ -79,7 +107,7 @@ export function filterPlots<T extends SelectionPlot>(plots: T[], areas: Selectio
 export function normalizePlotSelection(input: PlotSelection, data: SelectionData): PlotSelection {
   const next = { ...input };
   const validPlot = data.plots.find((plot) => plot.PlotId === next.plotId && data.areas.some((area) => area.AreaId === plot.AreaId));
-  next.soil = data.areas.some((area) => area.SoilType?.trim() === next.soil) ? next.soil : '';
+  next.soil = SOIL_TYPE_PRESETS.includes(next.soil) || data.areas.some((area) => area.SoilType?.trim() === next.soil) ? next.soil : '';
   next.areaId = validPlot?.AreaId ?? data.areas.find((area) => area.AreaId === next.areaId)?.AreaId
     ?? data.areas.find((area) => !next.soil || area.SoilType?.trim() === next.soil)?.AreaId ?? null;
   const visible = filterPlots(data.plots, data.areas, next);
@@ -97,6 +125,7 @@ export function writePlotQuery(url: URL, selection: PlotSelection): URL {
     areaId: selection.areaId, plotId: selection.plotId, seedId: selection.seedId, pkgId: selection.pkgId,
     view: selection.view.toLowerCase(), status: selection.status === 'ALL' ? null : selection.status,
     minPrice: selection.minPrice, maxPrice: selection.maxPrice, soil: selection.soil || null,
+    minPH: selection.minPH, maxPH: selection.maxPH,
   };
   for (const [key, value] of Object.entries(values)) {
     if (value === null) next.searchParams.delete(key);
