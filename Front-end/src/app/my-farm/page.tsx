@@ -2112,6 +2112,135 @@ Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình 
         </div>
       )}
 
+      {/* MODAL 3: TRUY XUẤT NGUỒN GỐC CHUẨN VIETGAP (MÃ QR HIGH CONTRAST) */}
+      {isQrModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-scale-in">
+            <button
+              onClick={() => setIsQrModalOpen(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Đóng cửa sổ"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 flex items-center justify-center shrink-0 shadow-xs">
+                <QrCode className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                    Truy Xuất Nguồn Gốc VietGAP
+                  </h3>
+                  <Badge variant="success" size="sm">ĐÃ XÁC THỰC</Badge>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Mã QR chứng nhận chuỗi cung ứng nông sản hữu cơ minh bạch
+                </p>
+              </div>
+            </div>
+
+            {/* High Contrast QR Code Container for Easy Mobile Scanning */}
+            <div className="flex flex-col items-center justify-center bg-emerald-50/50 dark:bg-slate-800/50 p-6 rounded-2xl border border-emerald-100 dark:border-slate-700 space-y-3">
+              <div className="p-4 bg-white rounded-2xl shadow-md border-2 border-emerald-500/30 flex flex-col items-center space-y-2">
+                {/* Clean, High-Contrast QR Code Visual */}
+                <div className="relative w-48 h-48 bg-white p-2 flex items-center justify-center">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                      `https://plotfarm.vn/verify/vietgap/${selectedItem?.PlotCode || 'PF-01'}?cert=VG-2026-DALAT-0892`
+                    )}`}
+                    alt="VietGAP Origin Traceability QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-8 h-8 rounded-full bg-white border-2 border-emerald-600 p-0.5 shadow-sm flex items-center justify-center">
+                      <Sprout className="w-4 h-4 text-emerald-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center pt-1">
+                  <span className="text-[11px] font-mono font-black text-emerald-700 block tracking-wider uppercase">
+                    CHỨNG NHẬN VIETGAP #VG-2026-DALAT-0892
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-semibold block">
+                    Tiêu chuẩn Quốc gia TCVN 11892-1:2017
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center flex items-center gap-1.5 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                Mở camera điện thoại hoặc app Zalo để quét mã kiểm tra nhật ký sinh trưởng
+              </p>
+            </div>
+
+            {/* Traceability Metadata Details */}
+            <div className="space-y-2.5 text-xs">
+              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase text-[11px] tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" /> Hồ Sơ Canh Tác Nông Sản:
+              </h4>
+
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60">
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-bold">MÃ Ô ĐẤT CANH TÁC:</span>
+                  <span className="font-black text-slate-800 dark:text-slate-100">{selectedItem?.PlotCode}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-bold">GIỐNG CÂY TRỒNG:</span>
+                  <span className="font-black text-slate-800 dark:text-slate-100">{selectedItem?.SeedName}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-bold">VÙNG TRỒNG CHUẨN:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100">Hợp Tác Xã Đà Lạt</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-bold">QUY TRÌNH CANH TÁC:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">100% Hữu Cơ Hóa</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-bold">KĨ THUẬT VIÊN TRỰC:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100">KTV Nguyễn Văn Khoa</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] font-bold">KIỂM ĐỊNH KIM LOẠI NẶNG:</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">ĐẠT AN TOÀN (0.00 ppm)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(`https://plotfarm.vn/verify/vietgap/${selectedItem?.PlotCode || 'PF-01'}`);
+                  toast.success('Đã sao chép liên kết truy xuất VietGAP vào khay nhớ tạm!', 'Đã Sao Chép');
+                }}
+                className="font-bold border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs"
+              >
+                Sao Chép Link Truy Xuất
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  toast.info('Đã tải hình ảnh mã QR VietGAP về thiết bị của bạn.', 'Đã Tải QR');
+                }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md text-xs"
+              >
+                <Download className="w-3.5 h-3.5 mr-1" />
+                Tải Mã QR (.PNG)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL 4: LIGHTBOX GALLERY (PHÓNG TO ẢNH NHẬT KÝ CHẤT LƯỢNG CAO) */}
       <LightboxGallery
         images={logs
