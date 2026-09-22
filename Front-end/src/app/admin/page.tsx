@@ -331,8 +331,16 @@ export default function AdminDashboardPage() {
   const [plotStatusFilterAdmin, setPlotStatusFilterAdmin] = useState<string>('ALL');
   const [selectedAdminPlot, setSelectedAdminPlot] = useState<PlotItem | null>(null);
   const [isAdminPlotModalOpen, setIsAdminPlotModalOpen] = useState(false);
+  const [updatingPlotId, setUpdatingPlotId] = useState<number | null>(null);
+  const [plotSearch, setPlotSearch] = useState<string>('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
-  const handleUpdatePlotStatus = async (plotId: number, newStatus: string) => {
+  const handleUpdatePlotStatus = async (plotId: number, newStatus: string, skipConfirm = false) => {
+    if (!skipConfirm) {
+      const label = newStatus === 'MAINTENANCE' ? '🛠️ Đặt ô đất vào chế độ BẢO TRÌ?' : '🔓 Mở khóa ô đất về AVAILABLE?';
+      if (!confirm(label + '\nThao tác này sẽ ngay lập tức cập nhật trạng thái trên hệ thống.')) return;
+    }
+    setUpdatingPlotId(plotId);
     try {
       const savedToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
       const res = await fetch(`http://localhost:5000/api/plots/${plotId}/status`, {
@@ -362,8 +370,35 @@ export default function AdminDashboardPage() {
       }
     } catch (e) {
       toast.error('Lỗi khi cập nhật trạng thái ô đất');
+    } finally {
+      setUpdatingPlotId(null);
     }
   };
+
+  const handleBulkMaintenance = async (targetStatus: 'MAINTENANCE' | 'AVAILABLE') => {
+    const eligiblePlots = plots.filter((p) =>
+      targetStatus === 'MAINTENANCE' ? p.Status === 'AVAILABLE' : p.Status === 'MAINTENANCE'
+    );
+    if (eligiblePlots.length === 0) {
+      toast.info('Không có ô đất nào phù hợp để thực hiện thao tác này.', 'Thông Báo');
+      return;
+    }
+    const label = targetStatus === 'MAINTENANCE'
+      ? `Bạn chắc chắn muốn đặt ${eligiblePlots.length} ô đất AVAILABLE sang chế độ BẢO TRÌ?`
+      : `Bạn chắc chắn muốn mở khóa ${eligiblePlots.length} ô đất BẢO TRÌ trở lại AVAILABLE?`;
+    if (!confirm(label)) return;
+    setIsBulkUpdating(true);
+    let successCount = 0;
+    for (const plot of eligiblePlots) {
+      try {
+        await handleUpdatePlotStatus(plot.PlotId, targetStatus, true);
+        successCount++;
+      } catch {/* continue */}
+    }
+    setIsBulkUpdating(false);
+    toast.success(`Đã cập nhật ${successCount}/${eligiblePlots.length} ô đất thành công!`, 'Cập Nhật Hàng Loạt');
+  };
+
 
   // Auth Guard
   useEffect(() => {
@@ -1335,7 +1370,7 @@ export default function AdminDashboardPage() {
               <div>
                 <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Layers className="w-5 h-5 text-rose-600" />
-                  Bảng Bán Trụ & Điều Hành 100 Ô Đất Canh Tác
+                  Bảng Điều Khiển & Quản Lý 100 Ô Đất Canh Tác
                 </h2>
                 <p className="text-xs text-slate-500">
                   Quản lý đóng/mở ô đất, đặt trạng thái bảo trì, điều chỉnh đơn giá niêm yết và giám sát diện tích 5 phân khu.
@@ -1353,116 +1388,213 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
 
-            {/* Quick Summary Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Quick Summary Stats Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tổng số ô đất</span>
                 <strong className="text-2xl font-black text-slate-900 dark:text-white">{plots.length} ô</strong>
+                <p className="text-[10px] text-slate-400 mt-1">Toàn hệ thống</p>
               </div>
               <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/50 text-center">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Sẵn sàng / Còn trống</span>
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Còn trống</span>
                 <strong className="text-2xl font-black text-emerald-600">{plots.filter(p => p.Status === 'AVAILABLE').length} ô</strong>
+                <p className="text-[10px] text-emerald-500 mt-1">AVAILABLE</p>
               </div>
               <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/50 text-center">
-                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Khách hàng đang thuê</span>
+                <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">Đang cho thuê</span>
                 <strong className="text-2xl font-black text-rose-600">{plots.filter(p => p.Status === 'RENTED').length} ô</strong>
+                <p className="text-[10px] text-rose-500 mt-1">RENTED</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/50 text-center">
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider block">Đang giữ chỗ</span>
+                <strong className="text-2xl font-black text-blue-600">{plots.filter(p => p.Status === 'RESERVED').length} ô</strong>
+                <p className="text-[10px] text-blue-500 mt-1">RESERVED</p>
               </div>
               <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 text-center">
-                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Đang đóng / Bảo trì</span>
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Đang bảo trì</span>
                 <strong className="text-2xl font-black text-amber-600">{plots.filter(p => p.Status === 'MAINTENANCE').length} ô</strong>
+                <p className="text-[10px] text-amber-500 mt-1">MAINTENANCE</p>
               </div>
             </div>
 
-            {/* Filter Toolbar */}
-            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <span className="font-bold text-slate-500">Lọc Phân Khu:</span>
-                {['ALL', 'Khu A', 'Khu B', 'Khu C', 'Khu D', 'Khu E'].map((area) => (
+            {/* Filter Toolbar + Bulk Actions + Search */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 text-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                {/* Area filter */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-500">Lọc Phân Khu:</span>
+                  {['ALL', 'Khu A', 'Khu B', 'Khu C', 'Khu D', 'Khu E'].map((area) => (
+                    <button
+                      key={area}
+                      onClick={() => setPlotAreaFilter(area)}
+                      className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
+                        plotAreaFilter === area
+                          ? 'bg-rose-600 text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                      }`}
+                    >
+                      {area === 'ALL' ? 'Tất Cả Khu' : area}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Refresh + Status filter */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                   <button
-                    key={area}
-                    onClick={() => setPlotAreaFilter(area)}
-                    className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                      plotAreaFilter === area
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                    }`}
+                    onClick={() => loadPlotsAndOrders()}
+                    disabled={isLoadingPlots}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors disabled:opacity-50"
+                    title="Tải lại danh sách ô đất từ server"
                   >
-                    {area === 'ALL' ? 'Tất Cả Khu' : area}
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPlots ? 'animate-spin' : ''}`} />
+                    Làm Mới
                   </button>
-                ))}
+                  <span className="font-bold text-slate-500">Trạng Thái:</span>
+                  <select
+                    value={plotStatusFilterAdmin}
+                    onChange={(e) => setPlotStatusFilterAdmin(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
+                  >
+                    <option value="ALL">Tất Cả Trạng Thái</option>
+                    <option value="AVAILABLE">CÒN TRỐNG (AVAILABLE)</option>
+                    <option value="RENTED">ĐÃ THUÊ (RENTED)</option>
+                    <option value="RESERVED">ĐANG GIỮ CHỖ (RESERVED)</option>
+                    <option value="MAINTENANCE">ĐANG BẢO TRÌ (MAINTENANCE)</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="font-bold text-slate-500">Trạng Thái:</span>
-                <select
-                  value={plotStatusFilterAdmin}
-                  onChange={(e) => setPlotStatusFilterAdmin(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700"
-                >
-                  <option value="ALL">Tất Cả Trạng Thái</option>
-                  <option value="AVAILABLE">CÒN TRỐNG (AVAILABLE)</option>
-                  <option value="RENTED">ĐÃ THUÊ (RENTED)</option>
-                  <option value="MAINTENANCE">ĐANG BẢO TRÌ (MAINTENANCE)</option>
-                </select>
+              {/* Search + Bulk Actions Row */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm mã ô đất (vd: A-01)..."
+                    value={plotSearch}
+                    onChange={(e) => setPlotSearch(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 w-52"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-400">Thao tác hàng loạt:</span>
+                  <button
+                    onClick={() => handleBulkMaintenance('MAINTENANCE')}
+                    disabled={isBulkUpdating}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 transition-colors disabled:opacity-50"
+                  >
+                    {isBulkUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <AlertTriangle className="w-3 h-3" />}
+                    Bảo Trì Tất Cả AVAILABLE
+                  </button>
+                  <button
+                    onClick={() => handleBulkMaintenance('AVAILABLE')}
+                    disabled={isBulkUpdating}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 transition-colors disabled:opacity-50"
+                  >
+                    {isBulkUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                    Mở Khóa Tất Cả BẢO TRÌ
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Interactive Grid of Admin Plot Controls */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3.5">
-              {plots
-                .filter((p) => (plotAreaFilter === 'ALL' || (p.AreaName || p.PlotCode).includes(plotAreaFilter)))
-                .filter((p) => (plotStatusFilterAdmin === 'ALL' || p.Status === plotStatusFilterAdmin))
-                .map((plot) => {
-                  const isRented = plot.Status === 'RENTED';
-                  const isMaint = plot.Status === 'MAINTENANCE';
+            {isLoadingPlots ? (
+              <div className="py-12 text-center text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-rose-500" />
+                <p className="text-sm font-bold">Đang tải dữ liệu ô đất từ hệ thống...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3.5">
+                {plots
+                  .filter((p) => (plotAreaFilter === 'ALL' || (p.AreaName || p.PlotCode).includes(plotAreaFilter)))
+                  .filter((p) => (plotStatusFilterAdmin === 'ALL' || p.Status === plotStatusFilterAdmin))
+                  .filter((p) => !plotSearch || p.PlotCode.toLowerCase().includes(plotSearch.toLowerCase()))
+                  .map((plot) => {
+                    const isRented = plot.Status === 'RENTED';
+                    const isMaint = plot.Status === 'MAINTENANCE';
+                    const isReserved = plot.Status === 'RESERVED';
+                    const isUpdating = updatingPlotId === plot.PlotId;
 
-                  return (
-                    <div
-                      key={plot.PlotId}
-                      className={`p-4 rounded-2xl border transition-all space-y-2 flex flex-col justify-between ${
-                        isRented
-                          ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800/50'
-                          : isMaint
-                          ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/50'
-                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-300'
-                      }`}
-                    >
-                      <div className="text-center space-y-1">
-                        <p className="font-black text-base text-slate-900 dark:text-white">{plot.PlotCode}</p>
-                        <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-md ${
-                          isRented ? 'bg-rose-600 text-white' : isMaint ? 'bg-amber-600 text-white' : 'bg-emerald-600 text-white'
-                        }`}>
-                          {isRented ? 'ĐÃ THUÊ' : isMaint ? 'ĐANG BẢO TRÌ' : 'CÒN TRỐNG'}
-                        </span>
-                        <p className="text-[11px] text-slate-500 font-semibold">{plot.SizeM2} m² • {plot.BasePricePerMonth?.toLocaleString('vi-VN')}đ/tháng</p>
-                      </div>
-
-                      {/* Admin Quick Action Controls */}
-                      <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-center">
-                        {isMaint ? (
-                          <button
-                            onClick={() => handleUpdatePlotStatus(plot.PlotId, 'AVAILABLE')}
-                            className="w-full py-1.5 px-2 rounded-xl text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white transition-colors"
-                          >
-                            🔓 Mở Khóa Đất
-                          </button>
-                        ) : !isRented ? (
-                          <button
-                            onClick={() => handleUpdatePlotStatus(plot.PlotId, 'MAINTENANCE')}
-                            className="w-full py-1.5 px-2 rounded-xl text-[10px] font-black bg-amber-600 hover:bg-amber-700 text-white transition-colors"
-                          >
-                            🛠️ Đóng Ô Bảo Trì
-                          </button>
-                        ) : (
-                          <span className="block text-[10px] text-rose-600 font-bold py-1">
-                            🔒 Đang Hợp Đồng Thuê
-                          </span>
+                    return (
+                      <div
+                        key={plot.PlotId}
+                        className={`p-4 rounded-2xl border transition-all space-y-2 flex flex-col justify-between relative overflow-hidden ${
+                          isRented
+                            ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800/50'
+                            : isMaint
+                            ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/50'
+                            : isReserved
+                            ? 'bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800/50'
+                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-emerald-300'
+                        }`}
+                      >
+                        {/* Per-card loading overlay */}
+                        {isUpdating && (
+                          <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 flex items-center justify-center rounded-2xl z-10">
+                            <Loader2 className="w-5 h-5 animate-spin text-rose-600" />
+                          </div>
                         )}
+                        <div className="text-center space-y-1">
+                          <p className="font-black text-base text-slate-900 dark:text-white">{plot.PlotCode}</p>
+                          <span className={`inline-block px-2 py-0.5 text-[9px] font-black rounded-md ${
+                            isRented ? 'bg-rose-600 text-white' :
+                            isMaint ? 'bg-amber-600 text-white' :
+                            isReserved ? 'bg-blue-600 text-white' :
+                            'bg-emerald-600 text-white'
+                          }`}>
+                            {isRented ? 'ĐÃ THUÊ' : isMaint ? 'BẢO TRÌ' : isReserved ? 'GIỮ CHỖ' : 'CÒN TRỐNG'}
+                          </span>
+                          <p className="text-[11px] text-slate-500 font-semibold">{plot.SizeM2} m² • {plot.BasePricePerMonth?.toLocaleString('vi-VN')}đ/tháng</p>
+                        </div>
+
+                        {/* Admin Quick Action Controls */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-center">
+                          {isMaint ? (
+                            <button
+                              onClick={() => handleUpdatePlotStatus(plot.PlotId, 'AVAILABLE')}
+                              disabled={isUpdating}
+                              className="w-full py-1.5 px-2 rounded-xl text-[10px] font-black bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50"
+                            >
+                              🔓 Mở Khóa Đất
+                            </button>
+                          ) : isReserved ? (
+                            <span className="block text-[10px] text-blue-600 font-bold py-1">
+                              🔐 Đang Giữ Chỗ (15 phút)
+                            </span>
+                          ) : !isRented ? (
+                            <button
+                              onClick={() => handleUpdatePlotStatus(plot.PlotId, 'MAINTENANCE')}
+                              disabled={isUpdating}
+                              className="w-full py-1.5 px-2 rounded-xl text-[10px] font-black bg-amber-600 hover:bg-amber-700 text-white transition-colors disabled:opacity-50"
+                            >
+                              🛠️ Đóng Ô Bảo Trì
+                            </button>
+                          ) : (
+                            <span className="block text-[10px] text-rose-600 font-bold py-1">
+                              🔒 Đang Hợp Đồng Thuê
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-            </div>
+                    );
+                  })}
+                {/* Empty state when filter returns nothing */}
+                {plots
+                  .filter((p) => (plotAreaFilter === 'ALL' || (p.AreaName || p.PlotCode).includes(plotAreaFilter)))
+                  .filter((p) => (plotStatusFilterAdmin === 'ALL' || p.Status === plotStatusFilterAdmin))
+                  .filter((p) => !plotSearch || p.PlotCode.toLowerCase().includes(plotSearch.toLowerCase())).length === 0 && (
+                  <div className="col-span-full py-12 text-center text-slate-400 space-y-2">
+                    <Layers className="w-8 h-8 mx-auto text-slate-300" />
+                    <p className="text-sm font-bold">Không tìm thấy ô đất nào phù hợp với bộ lọc.</p>
+                    <button
+                      onClick={() => { setPlotAreaFilter('ALL'); setPlotStatusFilterAdmin('ALL'); setPlotSearch(''); }}
+                      className="text-xs text-rose-600 font-bold hover:underline"
+                    >Xóa bộ lọc</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
