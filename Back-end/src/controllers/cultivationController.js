@@ -104,6 +104,19 @@ const getMyDeliveries = async (req, res, next) => {
   }
 };
 
+const getYieldAnalytics = async (req, res, next) => {
+  try {
+    const cultivationId = parseInt(req.params.id, 10);
+    if (isNaN(cultivationId) || cultivationId <= 0) {
+      return errorResponse(res, 'CultivationId không hợp lệ. Vui lòng truyền số nguyên dương.', 400);
+    }
+    const analytics = await cultivationService.getYieldAnalytics(cultivationId);
+    return successResponse(res, analytics, 'Phân tích sản lượng vụ mùa thành công');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getLogs,
   createLog,
@@ -111,4 +124,5 @@ module.exports = {
   getMyCareRequests,
   createHarvest,
   getMyDeliveries,
+  getYieldAnalytics,
 };
