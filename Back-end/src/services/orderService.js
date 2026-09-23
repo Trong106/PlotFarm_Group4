@@ -273,6 +273,7 @@ const getMyCultivations = async (userId) => {
       SELECT 
         c.CultivationId, c.OrderId, c.PlotId, c.SeedId, c.StartDate, c.ExpectedHarvestDate,
         c.ProgressPercent, c.Status as CultivationStatus, c.CreatedAt as CultivationCreatedAt,
+        farm.FarmId, farm.FarmName, farm.Address AS FarmAddress,
         p.PlotCode, p.SizeM2, p.SoilPH, p.StandardHumidity, p.BasePricePerMonth, p.AreaId,
         s.SeedName, s.Category, s.GrowthDurationDays, s.ExpectedYieldKgPerM2, s.ImageUrl as SeedImageUrl,
         cp.PackageName, cp.MonthlyFee, cp.ServicesIncluded,
@@ -286,6 +287,8 @@ const getMyCultivations = async (userId) => {
       FROM Cultivations c
       JOIN RentalOrders ro ON c.OrderId = ro.OrderId
       JOIN Plots p ON c.PlotId = p.PlotId
+      JOIN FarmAreas farmArea ON p.AreaId = farmArea.AreaId
+      JOIN Farms farm ON farmArea.FarmId = farm.FarmId
       JOIN Seeds s ON c.SeedId = s.SeedId
       LEFT JOIN CarePackages cp ON ro.CarePackageId = cp.PackageId
       LEFT JOIN Cameras cam ON p.CameraId = cam.CameraId

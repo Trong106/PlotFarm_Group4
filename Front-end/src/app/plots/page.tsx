@@ -33,6 +33,8 @@ import { PlotBrowser } from '@/components/plots/PlotBrowser';
 import { PlotComparison } from '@/components/plots/PlotComparison';
 import { ShareSelection } from '@/components/plots/ShareSelection';
 import { MobileBookingBar } from '@/components/plots/MobileBookingBar';
+import { SeedDiscoveryFilters } from '@/components/plots/SeedDiscoveryFilters';
+import { filterSeeds, GrowthFilter } from '@/lib/seed-catalog';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
 
@@ -122,6 +124,8 @@ export default function PlotsPage() {
   const [isAllSeedsModalOpen, setIsAllSeedsModalOpen] = useState(false);
   const [seedModalCategory, setSeedModalCategory] = useState<string>('ALL');
   const [seedFiltersOpen, setSeedFiltersOpen] = useState(false);
+  const [seedQuery, setSeedQuery] = useState('');
+  const [seedGrowth, setSeedGrowth] = useState<GrowthFilter>('ALL');
 
   const selectionData = useMemo(() => ({ areas, plots, seeds, packages: carePackages }), [areas, plots, seeds, carePackages]);
   const { selection, updateSelection, moveSeed, hydrated } = usePlotSelection(selectionData, !isLoading && !error);
@@ -183,10 +187,15 @@ export default function PlotsPage() {
   }, [seeds]);
 
   // Filtered seeds for modal
-  const modalFilteredSeeds = useMemo(() => {
-    if (seedModalCategory === 'ALL') return seeds;
-    return seeds.filter((s) => s.Category === seedModalCategory);
-  }, [seeds, seedModalCategory]);
+  const modalFilteredSeeds = useMemo(() => filterSeeds(seeds, {
+    query: seedQuery, growth: seedGrowth, category: seedModalCategory,
+  }), [seeds, seedQuery, seedGrowth, seedModalCategory]);
+  const seedDiscoveryProps = {
+    query: seedQuery, growth: seedGrowth, category: seedModalCategory,
+    count: modalFilteredSeeds.length, total: seeds.length,
+    onQuery: setSeedQuery, onGrowth: setSeedGrowth,
+    onClear: () => { setSeedQuery(''); setSeedGrowth('ALL'); setSeedModalCategory('ALL'); },
+  };
 
   // Compare Plot Handlers
   const toggleComparePlot = (plotId: number, e: React.MouseEvent) => {
@@ -592,6 +601,10 @@ export default function PlotsPage() {
                           </button>
                         </div>
 
+                        <SeedDiscoveryFilters {...seedDiscoveryProps} />
+                        {selectedSeed && !modalFilteredSeeds.some((seed) => seed.SeedId === selectedSeed.SeedId) && (
+                          <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">Giống đang chọn không nằm trong kết quả lọc. Đơn thuê vẫn giữ giống này cho đến khi bạn chọn giống khác.</p>
+                        )}
                         {selectedSeed && (
                           <div className="min-w-0 p-3 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/50 dark:from-emerald-950/40 dark:to-slate-900 border-2 border-emerald-400/80 dark:border-emerald-700 shadow-sm flex flex-col min-[440px]:flex-row items-start gap-3">
                             <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden shrink-0 shadow-md border-2 border-emerald-500/50">
@@ -632,8 +645,8 @@ export default function PlotsPage() {
                               <button
                                 type="button"
                                 aria-label="Chọn giống trước"
-                                disabled={seeds.length < 2}
-                                onClick={() => moveSeed(-1)}
+                                disabled={modalFilteredSeeds.length < 2}
+                                onClick={() => moveSeed(-1, modalFilteredSeeds)}
                                 className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-600"
                               >
                                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -641,8 +654,8 @@ export default function PlotsPage() {
                               <button
                                 type="button"
                                 aria-label="Chọn giống tiếp theo"
-                                disabled={seeds.length < 2}
-                                onClick={() => moveSeed(1)}
+                                disabled={modalFilteredSeeds.length < 2}
+                                onClick={() => moveSeed(1, modalFilteredSeeds)}
                                 className="p-1 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-emerald-600"
                               >
                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -651,7 +664,7 @@ export default function PlotsPage() {
                           </div>
 
                           <div ref={seedScrollRef} className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-none scroll-smooth">
-                            {seeds.map((s) => {
+                            {modalFilteredSeeds.map((s) => {
                               const isSeedActive = selectedSeed?.SeedId === s.SeedId;
                               return (
                                 <button
@@ -767,7 +780,7 @@ export default function PlotsPage() {
       {/* ========================================================================= */}
       {isAllSeedsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-5xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-labelledby="seed-catalog-title" className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-5xl min-w-0 w-full p-4 sm:p-6 space-y-5 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -775,11 +788,12 @@ export default function PlotsPage() {
                   <Sprout className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white">Bộ Sưu Tập {seeds.length} Giống Cây Trồng Chuẩn Hữu Cơ</h3>
+                  <h3 id="seed-catalog-title" className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">Bộ Sưu Tập {seeds.length} Giống Cây Trồng Chuẩn Hữu Cơ</h3>
                   <p className="text-xs text-slate-500">Xem ảnh thật, thông số năng suất và chọn giống cây ưng ý nhất cho ô đất của bạn</p>
                 </div>
               </div>
               <button
+                aria-label="Đóng danh mục giống"
                 onClick={() => setIsAllSeedsModalOpen(false)}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
@@ -787,6 +801,7 @@ export default function PlotsPage() {
               </button>
             </div>
 
+            <SeedDiscoveryFilters {...seedDiscoveryProps} />
             {/* Category Filter */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-slate-600 dark:text-slate-300">Loại cây: {seedModalCategory === 'ALL' ? 'Tất cả' : seedModalCategory}</span>

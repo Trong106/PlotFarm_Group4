@@ -61,8 +61,12 @@ import { MultiPlotSwitcher } from '@/components/plots/MultiPlotSwitcher';
 import { IoTSensorChart } from '@/components/plots/IoTSensorChart';
 import { LightboxGallery, LightboxImageItem } from '@/components/plots/LightboxGallery';
 import { TechnicianInfoCard } from '@/components/plots/TechnicianInfoCard';
+import { FarmWeatherCard } from '@/components/plots/FarmWeatherCard';
 
 interface CultivationItem {
+  FarmId?: number;
+  FarmName?: string;
+  FarmAddress?: string;
   CultivationId: number;
   OrderId: number;
   PlotId: number;
@@ -890,6 +894,8 @@ export default function MyFarmPage() {
               onSelectPlot={(item) => setSelectedItem(item)}
             />
 
+            <FarmWeatherCard key={selectedItem.FarmId ?? `${selectedItem.FarmName}-${selectedItem.FarmAddress}`} farmAddress={selectedItem.FarmAddress} farmName={selectedItem.FarmName} />
+
             {/* TOP 4 KPI SUMMARY METRICS */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3.5">
@@ -1328,7 +1334,7 @@ export default function MyFarmPage() {
                     <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
                       <Activity className="w-5 h-5 text-emerald-500" /> Cảm Biến Môi Trường Luống Đất
                     </h3>
-                    <Badge variant="warning" size="sm">CHỜ KẾT NỐI IoT</Badge>
+                    <Badge variant="warning" size="sm">MÔ PHỎNG</Badge>
                   </div>
 
                   {/* 4 Sensor Cards */}
@@ -1396,7 +1402,7 @@ export default function MyFarmPage() {
                   <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex items-center gap-3">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping shrink-0" />
                     <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
-Trạng thái: Trạm cảm biến IoT thực địa đang hoạt động bình thường, truyền dữ liệu 24/7.
+Các chỉ số cảm biến và biểu đồ đang được mô phỏng, chưa kết nối thiết bị IoT tại ô đất.
                     </p>
                   </div>
 

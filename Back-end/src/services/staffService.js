@@ -727,10 +727,10 @@ const acceptCareRequest = async (staffId, requestId, userRole = 'Staff') => {
  * tự động chuyển trạng thái mùa vụ sang HARVESTED, kích hoạt khởi tạo đơn giao hàng Deliveries,
  * và gửi thông báo cho khách hàng.
  */
-const recordHarvestResult = async (staffId, harvestRequestId, { actualYieldKg, qualityGrade = 'GRADE_A', inspectionNote = '', productImageUrl = null, trackingCode = null, carrierName = null }, userRole = 'Staff') => {
+const recordHarvestResult = async (staffId, harvestRequestId, { cultivationId = null, actualYieldKg, qualityGrade = 'GRADE_A', inspectionNote = '', productImageUrl = null, trackingCode = null, carrierName = null }, userRole = 'Staff') => {
   const pool = getPool();
 
-  let hrCheck = await pool.request()
+  let hrCheck = cultivationId !== null ? { recordset: [] } : await pool.request()
     .input('HarvestRequestId', sql.Int, harvestRequestId)
     .query(`
       SELECT
@@ -749,9 +749,14 @@ const recordHarvestResult = async (staffId, harvestRequestId, { actualYieldKg, q
 
   let hr;
   if (hrCheck.recordset.length === 0) {
+    if (cultivationId === null) {
+      const err = new Error('Không tìm thấy đơn thu hoạch');
+      err.statusCode = 404;
+      throw err;
+    }
     // Kiểm tra xem ID truyền vào có phải là CultivationId trực tiếp không
     const cultCheck = await pool.request()
-      .input('CultivationId', sql.Int, harvestRequestId)
+      .input('CultivationId', sql.Int, cultivationId)
       .query(`
         SELECT
           NULL AS HarvestRequestId, c.CultivationId, ro.UserId AS CustomerId, 'GIAO_TAN_NOI' AS HarvestType, 'REQUESTED' AS HarvestStatus,
@@ -785,8 +790,8 @@ const recordHarvestResult = async (staffId, harvestRequestId, { actualYieldKg, q
     err.statusCode = 409;
     throw err;
   }
-  if (hr.CultivationStatus === 'FAILED') {
-    const err = new Error('Không thể thu hoạch mùa vụ đã thất bại');
+  if (hr.CultivationStatus !== 'READY_TO_HARVEST' || hr.HarvestStatus === 'CANCELLED') {
+    const err = new Error('Chỉ ghi nhận thu hoạch khi vụ mùa sẵn sàng và yêu cầu chưa bị hủy');
     err.statusCode = 409;
     throw err;
   }
@@ -796,6 +801,25 @@ const recordHarvestResult = async (staffId, harvestRequestId, { actualYieldKg, q
 
   try {
     let actualHarvestRequestId = hr.HarvestRequestId;
+    // Serialize completion against duplicate submissions and customer requests.
+    const currentCultivation = await transaction.request()
+      .input('CultivationId', sql.Int, hr.CultivationId)
+      .query(`SELECT Status FROM Cultivations WITH (UPDLOCK, HOLDLOCK) WHERE CultivationId = @CultivationId`);
+    if (currentCultivation.recordset[0]?.Status !== 'READY_TO_HARVEST') {
+      const error = new Error('Vụ mùa không còn ở trạng thái sẵn sàng thu hoạch');
+      error.statusCode = 409;
+      throw error;
+    }
+    if (!actualHarvestRequestId) {
+      const existingRequest = await transaction.request()
+        .input('CultivationId', sql.Int, hr.CultivationId)
+        .query(`SELECT HarvestRequestId FROM HarvestRequests WHERE CultivationId = @CultivationId AND Status <> 'CANCELLED'`);
+      if (existingRequest.recordset.length) {
+        const error = new Error('Vụ mùa đã có yêu cầu thu hoạch. Hãy tải lại và xử lý đơn hiện có.');
+        error.statusCode = 409;
+        throw error;
+      }
+    }
 
     // A. Nếu thu hoạch trực tiếp từ CultivationId mà chưa có HarvestRequests, tạo mới bản ghi
     if (!actualHarvestRequestId) {
