@@ -721,8 +721,8 @@ export default function StaffPage() {
   // Task 2: Submit Actual Harvest Result & Quality Grade with Customer Delivery Notification
   const handleSubmitHarvest = async (e: React.FormEvent) => {
     e.preventDefault();
-    const parsedYield = parseFloat(harvestActualYieldStr);
-    if (isNaN(parsedYield) || parsedYield <= 0) {
+    const parsedYield = Number(harvestActualYieldStr.trim().replace(',', '.'));
+    if (!Number.isFinite(parsedYield) || parsedYield <= 0 || parsedYield > 9999.99) {
       toast.error('Sản lượng thu hoạch thực tế phải lớn hơn 0 kg!');
       return;
     }
@@ -732,8 +732,10 @@ export default function StaffPage() {
 
     try {
       if (selectedHarvestItem) {
-        const reqId = selectedHarvestItem.HarvestRequestId || selectedHarvestItem.CultivationId;
-        const res = await fetch(`http://localhost:5000/api/staff/harvest-orders/${reqId}/result`, {
+        const path = selectedHarvestItem.HarvestRequestId
+          ? 'harvest-orders/' + selectedHarvestItem.HarvestRequestId + '/result'
+          : 'cultivations/' + selectedHarvestItem.CultivationId + '/harvest-result';
+        const res = await fetch(`http://localhost:5000/api/staff/${path}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -764,33 +766,7 @@ export default function StaffPage() {
           setHarvestModalOpen(false);
           await Promise.all([fetchStaffHarvestOrders(), fetchStaffPlots()]);
         } else {
-          // Graceful fallback for local demo
-          setHarvestList((prev) =>
-            prev.map((h) =>
-              h.CultivationId === selectedHarvestItem.CultivationId
-                ? {
-                    ...h,
-                    Status: 'HARVESTED',
-                    ActualYieldKg: parsedYield,
-                    QualityGrade: harvestQualityGrade,
-                    TrackingCode: trackingCode,
-                    DeliveryStatus: 'PACKING',
-                  }
-                : h
-            )
-          );
-          setPlots((prev) =>
-            prev.map((p) =>
-              p.CultivationId === selectedHarvestItem.CultivationId
-                ? { ...p, CultivationStatus: 'HARVESTED', ProgressPercent: 100 }
-                : p
-            )
-          );
-          setHarvestModalOpen(false);
-          toast.success(
-            `Đã ghi nhận thu hoạch thành công ${parsedYield} kg nông sản (${gradeLabel}) cho ô ${selectedHarvestItem.PlotCode}! Đơn giao hàng [${trackingCode}] đã tự động khởi tạo.`,
-            'Ghi Nhận Thu Hoạch Thành Công'
-          );
+          toast.error(data.message || 'Không thể ghi nhận thu hoạch.');
         }
       }
     } catch (err) {

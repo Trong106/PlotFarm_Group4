@@ -28,8 +28,8 @@ export function usePlotSelection(data: SelectionData, ready: boolean) {
     setSelection((current) => normalizePlotSelection({ ...current, ...change }, data));
   }, [data]);
 
-  const moveSeed = useCallback((direction: -1 | 1) => {
-    setSelection((current) => ({ ...current, seedId: adjacentSeedId(data.seeds, current.seedId, direction) }));
+  const moveSeed = useCallback((direction: -1 | 1, filteredSeeds = data.seeds) => {
+    setSelection((current) => ({ ...current, seedId: adjacentSeedId(filteredSeeds, current.seedId, direction) }));
   }, [data.seeds]);
 
   return { selection, updateSelection, moveSeed, hydrated };
