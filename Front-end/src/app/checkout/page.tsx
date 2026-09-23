@@ -17,6 +17,7 @@ import {
   MapPin,
   PlusCircle,
   Sprout,
+  Truck,
   Package,
   Calendar,
   Lock,
@@ -104,6 +105,7 @@ function CheckoutContent() {
     const [isQRModalOpen, setIsQRModalOpen] = useState<boolean>(false);
     const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState<boolean>(false);
     const [isReleasingPlot, setIsReleasingPlot] = useState<boolean>(false);
+    const [deliveryNotes, setDeliveryNotes] = useState<string>('');
   const [countdownSeconds, setCountdownSeconds] = useState<number>(15 * 60); // 15 mins (900s)
   const [reservationStatus, setReservationStatus] = useState<'IDLE' | 'RESERVED' | 'CONFLICT' | 'EXPIRED'>('IDLE');
   const [reservationError, setReservationError] = useState<string | null>(null);
@@ -383,6 +385,7 @@ function CheckoutContent() {
           cycles: cycles,
           rentalDays: totalRentalDays,
           paymentMethod: 'QR_BANK',
+            deliveryNotes: deliveryNotes ? deliveryNotes.trim() : null,
         }),
       });
       const data = await res.json();
@@ -459,6 +462,7 @@ function CheckoutContent() {
           cycles: cycles,
           rentalDays: totalRentalDays,
           paymentMethod: paymentMethod,
+            deliveryNotes: deliveryNotes ? deliveryNotes.trim() : null,
         }),
       });
 
@@ -791,6 +795,31 @@ function CheckoutContent() {
                     </Button>
                   </div>
                 )}
+              </div>
+
+              {/* Ghi chú giao nhận nông sản khi thu hoạch */}
+              <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-emerald-500" /> Ghi Chú Giao Nhận Nông Sản
+                  </h3>
+                  <span className="text-[11px] font-bold text-slate-400">Không bắt buộc</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Thêm yêu cầu đặc biệt khi thu hoạch và giao rau tận nhà (ví dụ: giao giờ hành chính, gọi trước 15 phút, đóng thùng xốp bảo quản mát...)
+                </p>
+                <div className="relative">
+                  <textarea
+                    value={deliveryNotes}
+                    onChange={(e) => setDeliveryNotes(e.target.value.slice(0, 500))}
+                    rows={2}
+                    placeholder="Nhập ghi chú giao nhận hoặc yêu cầu đặc biệt cho nông trại..."
+                    className="w-full px-4 py-3 text-xs rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all resize-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
+                  />
+                  <span className="absolute bottom-2.5 right-3 text-[10px] font-mono text-slate-400">
+                    {deliveryNotes.length}/500
+                  </span>
+                </div>
               </div>
 
               {/* 3. Phương thức thanh toán */}

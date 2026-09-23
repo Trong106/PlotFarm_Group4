@@ -8,7 +8,7 @@ const { generateCareSchedule } = require('./scheduleEngine');
  */
 const createMockCheckout = async (userId, data) => {
   const pool = getPool();
-  const { plotId, seedId, carePackageId, durationMonths, cycles = 1, rentalDays, paymentMethod = 'MOMO' } = data;
+  const { plotId, seedId, carePackageId, durationMonths, cycles = 1, rentalDays, paymentMethod = 'MOMO', deliveryNotes = '' } = data;
 
   if (!plotId || !seedId || !carePackageId) {
     const err = new Error('Thiếu thông tin ô đất, giống cây hoặc gói chăm sóc');
@@ -131,17 +131,18 @@ const createMockCheckout = async (userId, data) => {
       .input('DiscountAmount', sql.Decimal(12, 2), discountAmount)
       .input('TotalAmount', sql.Decimal(12, 2), totalAmount)
       .input('Status', sql.NVarChar(30), 'PAID')
+      .input('DeliveryNotes', sql.NVarChar(500), deliveryNotes ? String(deliveryNotes).trim() : null)
       .query(`
         INSERT INTO RentalOrders (
           OrderCode, UserId, PlotId, SeedId, CarePackageId, DurationMonths,
           TotalRentalDays, StartDate, EndDate, RentalFee, SeedFee, CareFee,
-          DiscountAmount, TotalAmount, Status, CreatedAt, PaidAt
+          DiscountAmount, TotalAmount, Status, DeliveryNotes, CreatedAt, PaidAt
         )
         OUTPUT INSERTED.OrderId
         VALUES (
           @OrderCode, @UserId, @PlotId, @SeedId, @CarePackageId, @DurationMonths,
           @TotalRentalDays, @StartDate, @EndDate, @RentalFee, @SeedFee, @CareFee,
-          @DiscountAmount, @TotalAmount, @Status, GETDATE(), GETDATE()
+          @DiscountAmount, @TotalAmount, @Status, @DeliveryNotes, GETDATE(), GETDATE()
         )
       `);
 
@@ -182,7 +183,7 @@ const createMockCheckout = async (userId, data) => {
       .input('TransactionCode', sql.NVarChar(50), txCode)
       .input('PaymentMethod', sql.NVarChar(30), paymentMethod)
       .input('Amount', sql.Decimal(12, 2), totalAmount)
-      .input('GatewayResponse', sql.NVarChar(sql.MAX), JSON.stringify({ status: 'SUCCESS', method: paymentMethod, cycles: cyclesCount, rentalDays: totalRentalDays }))
+      .input('GatewayResponse', sql.NVarChar(sql.MAX), JSON.stringify({ status: 'SUCCESS', method: paymentMethod, cycles: cyclesCount, rentalDays: totalRentalDays, deliveryNotes: deliveryNotes ? String(deliveryNotes).trim() : null }))
       .query(`
         INSERT INTO Payments (OrderId, TransactionCode, PaymentMethod, Amount, PaymentDate, Status, GatewayResponse)
         VALUES (@OrderId, @TransactionCode, @PaymentMethod, @Amount, GETDATE(), 'SUCCESS', @GatewayResponse)
@@ -338,7 +339,7 @@ const getMyOrders = async (userId) => {
         ro.OrderId, ro.OrderCode, ro.PlotId, ro.SeedId, ro.CarePackageId,
         ro.DurationMonths, ro.TotalRentalDays, ro.StartDate, ro.EndDate,
         ro.RentalFee, ro.SeedFee, ro.CareFee, ro.DiscountAmount, ro.TotalAmount,
-        ro.Status, ro.CreatedAt, ro.PaidAt,
+        ro.Status, ro.DeliveryNotes, ro.CreatedAt, ro.PaidAt,
         p.PlotCode, p.SizeM2,
         s.SeedName, s.ImageUrl as SeedImageUrl,
         cp.PackageName,
@@ -368,7 +369,7 @@ const getAllOrders = async () => {
     SELECT 
       ro.OrderId, ro.OrderCode, ro.UserId, u.FullName, u.Email,
       p.PlotCode, s.SeedName, cp.PackageName,
-      ro.TotalAmount, ro.Status, ro.CreatedAt, ro.PaidAt,
+      ro.TotalAmount, ro.Status, ro.DeliveryNotes, ro.CreatedAt, ro.PaidAt,
       ro.DurationMonths, ro.TotalRentalDays, ro.StartDate, ro.EndDate
     FROM RentalOrders ro
     JOIN Users u ON ro.UserId = u.UserId

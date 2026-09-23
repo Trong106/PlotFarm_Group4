@@ -14,7 +14,9 @@ import {
   Leaf, 
   Receipt,
   QrCode,
-  Download
+  Download,
+  Truck,
+  Loader2
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -36,6 +38,7 @@ export interface ElectronicInvoiceData {
   DiscountAmount?: number;
   TotalAmount: number;
   Status: string;
+  DeliveryNotes?: string;
   CreatedAt: string;
   PaidAt?: string;
   PlotCode: string;
@@ -66,6 +69,8 @@ export const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({
   customerEmail,
 }) => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
 
   if (!order) return null;
 
@@ -102,6 +107,209 @@ export const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({
       ? "Cổng thanh toán VNPAY" 
       : "Chuyển khoản Ngân hàng";
 
+  // HTML5 Canvas Digital Receipt Generation with Watermark
+  const handleDownloadReceipt = () => {
+    try {
+      setIsDownloading(true);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        setIsDownloading(false);
+        return;
+      }
+
+      // High-resolution canvas (800x1200)
+      canvas.width = 800;
+      canvas.height = 1200;
+
+      // Background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Outer Border
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+      // Header Banner
+      const headerGrad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      headerGrad.addColorStop(0, "#059669");
+      headerGrad.addColorStop(1, "#10b981");
+      ctx.fillStyle = headerGrad;
+      ctx.fillRect(10, 10, canvas.width - 20, 140);
+
+      // Header Title
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 26px sans-serif";
+      ctx.fillText("HỆ THỐNG NÔNG TRẠI THÔNG MINH PLOTFARM", 40, 60);
+
+      ctx.font = "14px sans-serif";
+      ctx.fillStyle = "#d1fae5";
+      ctx.fillText("BIÊN LAI ĐIỆN TỬ - XÁC THỰC THANH TOÁN TỰ ĐỘNG NAPAS247", 40, 90);
+      ctx.fillText("Hotline: 1900 8888  |  Website: https://plotfarm.vn  |  Tiêu chuẩn VietGAP", 40, 115);
+
+      // Watermark in background
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2 + 60);
+      ctx.rotate(-Math.PI / 6);
+      ctx.font = "bold 44px sans-serif";
+      ctx.fillStyle = "rgba(16, 185, 129, 0.07)";
+      ctx.textAlign = "center";
+      ctx.fillText("PLOTFARM - ĐÃ THANH TOÁN (PAID)", 0, -50);
+      ctx.fillText("VIETGAP CERTIFIED - " + txnCode, 0, 50);
+      ctx.restore();
+
+      // Info Block: Codes
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(40, 175, canvas.width - 80, 80);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(40, 175, canvas.width - 80, 80);
+
+      ctx.fillStyle = "#64748b";
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillText("MÃ ĐƠN HÀNG:", 60, 205);
+      ctx.fillText("MÃ GIAO DỊCH NGÂN HÀNG (TXN):", 420, 205);
+
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 18px monospace";
+      ctx.fillText(order.OrderCode, 60, 235);
+
+      ctx.fillStyle = "#047857";
+      ctx.fillText(txnCode, 420, 235);
+
+      // Customer & Farm Section
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "bold 15px sans-serif";
+      ctx.fillText("THÔNG TIN HỢP ĐỒNG CANH TÁC", 40, 290);
+
+      ctx.font = "14px sans-serif";
+      ctx.fillStyle = "#334155";
+      ctx.fillText(`Khách hàng: ${customerName}`, 40, 320);
+      ctx.fillText(`Số điện thoại: ${customerPhone || "N/A"}`, 40, 345);
+      ctx.fillText(`Phương thức: ${paymentMethodLabel}`, 40, 370);
+      ctx.fillText(`Ngày thanh toán: ${formatDate(order.PaidAt || order.CreatedAt)}`, 40, 395);
+
+      ctx.fillText(`Ô đất: ${order.PlotCode} (${order.SizeM2} m²)`, 420, 320);
+      ctx.fillText(`Giống cây: ${order.SeedName} (VietGAP)`, 420, 345);
+      ctx.fillText(`Gói dịch vụ: ${order.PackageName}`, 420, 370);
+      ctx.fillText(`Thời hạn: ${order.DurationMonths} Tháng (${order.TotalRentalDays} ngày)`, 420, 395);
+
+      // Delivery notes if any
+      let tableStartY = 430;
+      if (order.DeliveryNotes) {
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillRect(40, 420, canvas.width - 80, 45);
+        ctx.strokeStyle = "#fde68a";
+        ctx.strokeRect(40, 420, canvas.width - 80, 45);
+
+        ctx.fillStyle = "#92400e";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText("GHI CHÚ GIAO NHẬN: " + order.DeliveryNotes.slice(0, 75), 55, 448);
+        tableStartY = 485;
+      }
+
+      // Pricing Table Header
+      ctx.fillStyle = "#f1f5f9";
+      ctx.fillRect(40, tableStartY, canvas.width - 80, 35);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.strokeRect(40, tableStartY, canvas.width - 80, 35);
+
+      ctx.fillStyle = "#475569";
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillText("HẠNG MỤC DỊCH VỤ", 55, tableStartY + 23);
+      ctx.fillText("QUY MÔ", 420, tableStartY + 23);
+      ctx.fillText("THÀNH TIỀN", 640, tableStartY + 23);
+
+      // Rows
+      const rows = [
+        { label: "1. Tiền Thuê Mặt Bằng Ô Đất", desc: `${order.DurationMonths} tháng (${order.SizeM2}m²)`, price: formatCurrency(order.RentalFee) },
+        { label: "2. Hạt Giống Cây Trồng Chuẩn VietGAP", desc: "Trọn mùa vụ", price: formatCurrency(order.SeedFee) },
+        { label: "3. Gói Chăm Sóc & Kỹ Thuật Viên Thực Địa", desc: `${order.DurationMonths} tháng`, price: formatCurrency(order.CareFee) },
+      ];
+
+      if (order.DiscountAmount && order.DiscountAmount > 0) {
+        rows.push({ label: "4. Chiết Khấu / Ưu Đãi Mùa Vụ", desc: "Khuyến mại", price: "-" + formatCurrency(order.DiscountAmount) });
+      }
+
+      let rowY = tableStartY + 35;
+      ctx.font = "13px sans-serif";
+      for (const row of rows) {
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.strokeRect(40, rowY, canvas.width - 80, 45);
+
+        ctx.fillStyle = "#1e293b";
+        ctx.fillText(row.label, 55, rowY + 28);
+        ctx.fillStyle = "#64748b";
+        ctx.fillText(row.desc, 420, rowY + 28);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 13px sans-serif";
+        ctx.fillText(row.price, 640, rowY + 28);
+        ctx.font = "13px sans-serif";
+        rowY += 45;
+      }
+
+      // Total row
+      ctx.fillStyle = "#ecfdf5";
+      ctx.fillRect(40, rowY, canvas.width - 80, 55);
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(40, rowY, canvas.width - 80, 55);
+
+      ctx.fillStyle = "#065f46";
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillText("TỔNG CỘNG ĐÃ THANH TOÁN (PAID)", 55, rowY + 34);
+
+      ctx.fillStyle = "#047857";
+      ctx.font = "bold 20px sans-serif";
+      ctx.fillText(formatCurrency(order.TotalAmount), 620, rowY + 35);
+
+      // Legal & Verification Footer
+      const footerY = rowY + 80;
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(40, footerY, canvas.width - 80, 80);
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(40, footerY, canvas.width - 80, 80);
+
+      ctx.fillStyle = "#475569";
+      ctx.font = "12px sans-serif";
+      ctx.fillText("✓ Biên lai điện tử được mã hóa và xác thực tự động trên hệ thống ngân hàng Napas247.", 55, footerY + 30);
+      ctx.fillText("✓ Cam kết đảm bảo SLA chăm sóc và quyền sở hữu toàn bộ sản lượng rau sạch khi thu hoạch.", 55, footerY + 55);
+
+      // Seal Stamp
+      ctx.save();
+      ctx.translate(canvas.width - 150, footerY + 120);
+      ctx.beginPath();
+      ctx.arc(0, 0, 45, 0, Math.PI * 2);
+      ctx.strokeStyle = "#059669";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillStyle = "#059669";
+      ctx.textAlign = "center";
+      ctx.fillText("PLOTFARM", 0, -18);
+      ctx.fillText("ĐÃ XÁC THỰC", 0, 2);
+      ctx.fillText("VIETGAP", 0, 20);
+      ctx.restore();
+
+      // Download triggered
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `BienLai-PlotFarm-${order.OrderCode}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 3000);
+    } catch (e) {
+      console.error("Receipt generation failed:", e);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -115,6 +323,16 @@ export const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({
             <span>Xác thực thanh toán VietQR Napas247</span>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadReceipt}
+              disabled={isDownloading}
+              leftIcon={isDownloading ? <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> : <Download className="w-4 h-4 text-emerald-600" />}
+              className="font-bold border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+            >
+              {isDownloading ? "Đang Tạo Ảnh..." : downloadSuccess ? "Đã Tải Xong ✓" : "Tải Biên Lai (Ảnh)"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -225,6 +443,19 @@ export const ElectronicInvoiceModal: React.FC<ElectronicInvoiceModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Delivery Notes if available */}
+        {order.DeliveryNotes && (
+          <div className="p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-2xl border border-amber-200/80 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
+            <Truck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold text-[11px] uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                Yêu Cầu & Ghi Chú Giao Nhận Nông Sản:
+              </span>
+              <p className="italic text-slate-700 dark:text-slate-300">{order.DeliveryNotes}</p>
+            </div>
+          </div>
+        )}
 
         {/* Transparent Fee Breakdown Table */}
         <div className="space-y-2">

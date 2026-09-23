@@ -5,7 +5,7 @@ const plotService = require('../src/services/plotService');
 const orderService = require('../src/services/orderService');
 
 async function runE2ETest() {
-  console.log('--- BẮT ĐẦU KIỂM THỬ E2E CHECKOUT & HÓA ĐƠN ĐIỆN TỬ ---');
+  console.log('--- BẮT ĐẦU KIỂM THỬ E2E CHECKOUT, HÓA ĐƠN ĐIỆN TỬ & GHI CHÚ GIAO NHẬN ---');
 
   try {
     await connectDB();
@@ -25,7 +25,6 @@ async function runE2ETest() {
       SELECT TOP 1 PlotId, PlotCode, Status FROM Plots WHERE Status = 'AVAILABLE'
     `);
     if (plotRes.recordset.length === 0) {
-      // Free plot 1 for testing
       await pool.request().query(`
         UPDATE Plots SET Status = 'AVAILABLE', ReservedUntil = NULL, ReservedByUserId = NULL WHERE PlotId = 1
       `);
@@ -61,8 +60,8 @@ async function runE2ETest() {
     }
     console.log('✓ DB đã giải phóng ô đất trở về AVAILABLE ngay lập tức (tránh chiếm dụng ảo)');
 
-    // 5. Test Re-Reserve and Complete Checkout
-    console.log('\n[Bước 3] Giữ chỗ lại và thực hiện thanh toán...');
+    // 5. Test Re-Reserve and Complete Checkout with Delivery Notes
+    console.log('\n[Bước 3] Giữ chỗ lại và thực hiện thanh toán có GHI CHÚ GIAO NHẬN...');
     await plotService.reservePlot(testPlot.PlotId, customer.UserId);
 
     // Get seed and package
@@ -71,6 +70,8 @@ async function runE2ETest() {
     const seedId = seedRes.recordset[0]?.SeedId || 1;
     const pkgId = pkgRes.recordset[0]?.PackageId || 1;
 
+    const testDeliveryNotes = 'Giao giờ hành chính, gọi trước khi giao 15 phút, thùng xốp bảo quản mát';
+
     // Checkout
     const checkoutResult = await orderService.createMockCheckout(customer.UserId, {
       plotId: testPlot.PlotId,
@@ -78,18 +79,20 @@ async function runE2ETest() {
       carePackageId: pkgId,
       durationMonths: 2,
       cycles: 1,
-      paymentMethod: 'QR_BANK'
+      paymentMethod: 'QR_BANK',
+      deliveryNotes: testDeliveryNotes
     });
     console.log(`✓ Thanh toán thành công! OrderId=${checkoutResult.orderId}, OrderCode=${checkoutResult.orderCode}, Total=${checkoutResult.totalAmount} VND`);
 
-    // 6. Test Fetch Orders (Invoice Detail Verification)
-    console.log('\n[Bước 4] Kiểm tra truy vấn Hóa Đơn Điện Tử (getMyOrders)...');
+    // 6. Test Fetch Orders (Invoice Detail Verification & Delivery Notes)
+    console.log('\n[Bước 4] Kiểm tra truy vấn Hóa Đơn Điện Tử & Ghi Chú Giao Nhận (getMyOrders)...');
     const orders = await orderService.getMyOrders(customer.UserId);
     const latestOrder = orders.find(o => o.OrderId === checkoutResult.orderId) || orders[0];
 
     console.log(`✓ Đơn hàng mới nhất: Mã=${latestOrder.OrderCode}, Trạng thái=${latestOrder.Status}`);
     console.log(`✓ Mã Giao Dịch Ngân Hàng (TXN): ${latestOrder.TransactionCode || 'N/A'}`);
     console.log(`✓ Phương thức thanh toán: ${latestOrder.PaymentMethod || 'N/A'}`);
+    console.log(`✓ Ghi chú giao nhận lưu trữ: "${latestOrder.DeliveryNotes || 'N/A'}"`);
     console.log(`✓ Phân rã biểu phí minh bạch:`);
     console.log(`   - Tiền thuê đất (RentalFee): ${Number(latestOrder.RentalFee).toLocaleString('vi-VN')} VND`);
     console.log(`   - Phí hạt giống (SeedFee): ${Number(latestOrder.SeedFee).toLocaleString('vi-VN')} VND`);
@@ -102,6 +105,10 @@ async function runE2ETest() {
     if (!latestOrder.RentalFee || !latestOrder.TotalAmount) {
       throw new Error('Thiếu thông tin biểu phí phân rã!');
     }
+    if (latestOrder.DeliveryNotes !== testDeliveryNotes) {
+      throw new Error(`DeliveryNotes không khớp! Kỳ vọng: "${testDeliveryNotes}", Nhận được: "${latestOrder.DeliveryNotes}"`);
+    }
+    console.log('✓ Ghi chú giao nhận đã được lưu trữ và truy vấn chính xác 100%');
 
     // 7. Test Vietnamese Phone Number Validation for Address Book
     console.log('\n[Bước 5] Kiểm tra xác thực số điện thoại Việt Nam trong Sổ Địa Chỉ...');
@@ -117,9 +124,9 @@ async function runE2ETest() {
     }
     console.log(`✓ Xác thực thành công 10/10 mẫu số điện thoại Việt Nam (10 số, đầu 03/05/07/08/09)`);
 
-    console.log('\n=========================================');
-    console.log('🎉 TẤT CẢ 5 BƯỚC KIỂM THỬ E2E ĐỀU ĐẠT 100%!');
-    console.log('=========================================');
+    console.log('\n===============================================================');
+    console.log('🎉 TẤT CẢ 5 BƯỚC KIỂM THỬ E2E CHECKOUT & HÓA ĐƠN ĐỀU ĐẠT 100%!');
+    console.log('===============================================================');
     process.exit(0);
   } catch (err) {
     console.error('\n❌ LỖI TRONG QUÁ TRÌNH KIỂM THỬ:', err);
