@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Camera,
   Maximize2,
+  Minimize2,
   RefreshCw,
   Sparkles,
   MapPin,
@@ -218,6 +219,18 @@ export default function MyFarmPage() {
   const [isNightVision, setIsNightVision] = useState(false);
   const [isRefreshingStream, setIsRefreshingStream] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [snapshotImageUrl, setSnapshotImageUrl] = useState<string | null>(null);
+  const [isSnapshotModalOpen, setIsSnapshotModalOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Fullscreen Listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // Realtime clock
   // Role Guard: Redirect Admin & Staff away from customer farming page
@@ -543,6 +556,58 @@ export default function MyFarmPage() {
     }
   };
 
+  // Camera Fullscreen & Snapshot Handlers (TuanPM Task)
+  const handleToggleFullscreen = () => {
+    const elem = document.getElementById('plotfarm-cam-player');
+    if (!elem) return;
+    if (!document.fullscreenElement) {
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if ((elem as any).webkitRequestFullscreen) {
+        (elem as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  };
+
+  const handleDownloadSnapshot = () => {
+    if (!snapshotImageUrl || !selectedItem) return;
+    const a = document.createElement('a');
+    a.href = snapshotImageUrl;
+    a.download = `plotfarm-${selectedItem.PlotCode}-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success('Đã tải ảnh kỷ niệm vườn rau về thiết bị thành công!', 'Tải Ảnh Thành Công');
+  };
+
+  const handleShareSnapshot = async () => {
+    if (!snapshotImageUrl || !selectedItem) return;
+    try {
+      if (navigator.share) {
+        const response = await fetch(snapshotImageUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `plotfarm-${selectedItem.PlotCode}.png`, { type: 'image/png' });
+        await navigator.share({
+          title: `Kỷ niệm vườn rau Ô ${selectedItem.PlotCode} - PlotFarm`,
+          text: `Khoảnh khắc góc vườn rau ${selectedItem.PlotCode} (${selectedItem.SeedName}) tại nông trại PlotFarm!`,
+          files: [file],
+        });
+        toast.success('Đã mở menu chia sẻ thành công!', 'Chia Sẻ Kỷ Niệm');
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success('Đã sao chép liên kết giám sát vườn rau vào clipboard!', 'Chia Sẻ Kỷ Niệm');
+      }
+    } catch {
+      // User cancelled share
+    }
+  };
+
   // Snapshot Camera Frame with Watermark
   const handleCameraSnapshot = async () => {
     if (!selectedItem) return;
@@ -610,26 +675,20 @@ export default function MyFarmPage() {
       ctx.font = '13px sans-serif';
       ctx.fillText('Hệ thống giám sát nông trại thông minh PlotFarm VietGAP', 760, 720 - 40);
 
-      // Download PNG
+      // Generate Data URL & Open Preview Modal
       const dataUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = `plotfarm-${selectedItem.PlotCode}-${Date.now()}.png`;
-      link.href = dataUrl;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      setSnapshotImageUrl(dataUrl);
+      setIsSnapshotModalOpen(true);
 
       toast.success(
-        `Đã chụp và lưu ảnh luống rau ${selectedItem.PlotCode} về thiết bị thành công!`,
-        'Chụp Ảnh Nhanh'
+        `Đã tạo ảnh kỷ niệm vườn rau Ô ${selectedItem.PlotCode} với nhãn watermark thành công!`,
+        'Kỷ Niệm Vườn Rau'
       );
     } catch {
-      const link = document.createElement('a');
-      link.href = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80';
-      link.target = '_blank';
-      link.download = `plotfarm-${selectedItem.PlotCode}.jpg`;
-      link.click();
-      toast.info('Đã tải hình ảnh trực tiếp từ camera về máy của bạn.', 'Đã Tải Ảnh');
+      const fallbackUrl = 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1200&q=80';
+      setSnapshotImageUrl(fallbackUrl);
+      setIsSnapshotModalOpen(true);
+      toast.info('Đã tải hình ảnh xem trước kỷ niệm vườn rau.', 'Kỷ Niệm Vườn Rau');
     } finally {
       setIsSnapshotting(false);
     }
@@ -1228,20 +1287,11 @@ export default function MyFarmPage() {
                           <span>Chụp ảnh nhanh từ Camera</span>
                         </button>
                         <button
-                          onClick={() => {
-                            const elem = document.getElementById('plotfarm-cam-player');
-                            if (elem) {
-                              if (!document.fullscreenElement) {
-                                elem.requestFullscreen?.().catch(() => {});
-                              } else {
-                                document.exitFullscreen?.().catch(() => {});
-                              }
-                            }
-                          }}
+                          onClick={handleToggleFullscreen}
                           className="bg-black/50 hover:bg-black/70 border border-white/20 text-white p-2 rounded-lg backdrop-blur-md transition-colors"
-                          title="Phóng to toàn màn hình"
+                          title={isFullscreen ? 'Thoát toàn màn hình' : 'Phóng to toàn màn hình'}
                         >
-                          <Maximize2 className="w-4 h-4" />
+                          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
@@ -2361,6 +2411,77 @@ Các chỉ số cảm biến và biểu đồ đang được mô phỏng, chưa 
                 >
                   Đóng
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: CAMERA SNAPSHOT SOUVENIR PREVIEW MODAL (TuanPM Task) */}
+      {isSnapshotModalOpen && snapshotImageUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+          <div
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-3xl w-full overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-white/20 backdrop-blur-md">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg">Kỷ Niệm Vườn Rau Của Bạn</h3>
+                  <p className="text-xs text-emerald-100">
+                    Ảnh đã tự động gắn nhãn mã ô đất, giống cây và chỉ số môi trường sinh trưởng
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSnapshotModalOpen(false)}
+                className="p-1.5 rounded-full hover:bg-white/20 text-white transition-colors"
+                title="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body / Image Preview */}
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-lg bg-slate-950 group">
+                <img
+                  src={snapshotImageUrl}
+                  alt="Kỷ niệm vườn rau PlotFarm"
+                  className="w-full h-auto object-contain max-h-[60vh] mx-auto"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Ảnh chất lượng cao sẵn sàng để lưu giữ kỷ niệm hoặc chia sẻ lên MXH.</span>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleShareSnapshot}
+                    className="flex-1 sm:flex-none gap-2 font-bold"
+                  >
+                    <Send className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    Chia Sẻ
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleDownloadSnapshot}
+                    className="flex-1 sm:flex-none gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-md shadow-emerald-600/20"
+                  >
+                    <Download className="w-4 h-4" />
+                    Tải Ảnh Về Máy
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
