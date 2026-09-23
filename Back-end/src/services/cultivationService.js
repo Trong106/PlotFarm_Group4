@@ -258,6 +258,133 @@ const getMyDeliveries = async (userId) => {
   return result.recordset;
 };
 
+/**
+ * Phân tích sản lượng vụ mùa (Yield Analytics)
+ * So sánh sản lượng dự kiến (SizeM2 × ExpectedYieldKgPerM2) với sản lượng thực tế
+ * từ nhân viên thực địa, trả về tỷ lệ % hoàn thành mục tiêu vụ mùa
+ */
+const getYieldAnalytics = async (cultivationId) => {
+  const pool = getPool();
+
+  // 1. Lấy thông tin vụ mùa kèm ô đất và giống cây
+  const cultResult = await pool.request()
+    .input('CultivationId', sql.Int, cultivationId)
+    .query(`
+      SELECT
+        c.CultivationId,
+        c.Status           AS CultivationStatus,
+        c.StartDate,
+        c.ExpectedHarvestDate,
+        c.ActualHarvestDate,
+        c.ProgressPercent,
+        p.PlotId,
+        p.PlotCode,
+        p.SizeM2,
+        s.SeedId,
+        s.SeedName,
+        s.ExpectedYieldKgPerM2,
+        s.Category         AS SeedCategory
+      FROM Cultivations c
+      JOIN Plots p ON c.PlotId = p.PlotId
+      JOIN Seeds s ON c.SeedId = s.SeedId
+      WHERE c.CultivationId = @CultivationId
+    `);
+
+  if (cultResult.recordset.length === 0) {
+    const err = new Error('Không tìm thấy vụ mùa canh tác với mã này');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const cult = cultResult.recordset[0];
+
+  // 2. Tính sản lượng dự kiến
+  const sizeM2 = parseFloat(cult.SizeM2) || 0;
+  const expectedYieldKgPerM2 = parseFloat(cult.ExpectedYieldKgPerM2) || 0;
+  const expectedYieldKg = parseFloat((sizeM2 * expectedYieldKgPerM2).toFixed(2));
+
+  // 3. Lấy tất cả kết quả thu hoạch thực tế từ HarvestResults
+  const harvestResult = await pool.request()
+    .input('CultivationId', sql.Int, cultivationId)
+    .query(`
+      SELECT
+        hr_result.ResultId,
+        hr_result.ActualYieldKg,
+        hr_result.QualityGrade,
+        hr_result.HarvestDate,
+        hr_result.InspectionNote,
+        hr_result.ProductImageUrl,
+        u.FullName AS StaffName
+      FROM HarvestResults hr_result
+      JOIN HarvestRequests hr ON hr_result.HarvestRequestId = hr.HarvestRequestId
+      JOIN Users u ON hr_result.StaffId = u.UserId
+      WHERE hr.CultivationId = @CultivationId
+        AND hr.Status <> 'CANCELLED'
+      ORDER BY hr_result.HarvestDate DESC
+    `);
+
+  const harvests = harvestResult.recordset.map((h) => ({
+    resultId: h.ResultId,
+    actualYieldKg: parseFloat(h.ActualYieldKg),
+    qualityGrade: h.QualityGrade,
+    harvestDate: h.HarvestDate,
+    inspectionNote: h.InspectionNote || null,
+    productImageUrl: h.ProductImageUrl || null,
+    staffName: h.StaffName,
+  }));
+
+  // 4. Tính tổng sản lượng thực tế
+  const actualYieldKg = parseFloat(
+    harvests.reduce((sum, h) => sum + h.actualYieldKg, 0).toFixed(2)
+  );
+
+  // 5. Tính tỷ lệ hoàn thành và khoảng cách sản lượng
+  let completionRate = 0;
+  if (expectedYieldKg > 0) {
+    completionRate = parseFloat(((actualYieldKg / expectedYieldKg) * 100).toFixed(2));
+  }
+
+  const yieldGap = parseFloat((actualYieldKg - expectedYieldKg).toFixed(2));
+  const yieldGapPercent = expectedYieldKg > 0
+    ? parseFloat(((yieldGap / expectedYieldKg) * 100).toFixed(2))
+    : 0;
+
+  // 6. Đánh giá mức độ đạt sản lượng
+  let assessment;
+  if (actualYieldKg === 0 && harvests.length === 0) {
+    assessment = 'CHƯA THU HOẠCH';
+  } else if (completionRate >= 100) {
+    assessment = 'XUẤT SẮC';
+  } else if (completionRate >= 80) {
+    assessment = 'KHÁ';
+  } else if (completionRate >= 50) {
+    assessment = 'TRUNG BÌNH';
+  } else {
+    assessment = 'CHƯA ĐẠT';
+  }
+
+  return {
+    cultivationId: cult.CultivationId,
+    plotCode: cult.PlotCode,
+    sizeM2,
+    seedName: cult.SeedName,
+    seedCategory: cult.SeedCategory,
+    expectedYieldKgPerM2,
+    expectedYieldKg,
+    actualYieldKg,
+    completionRate,
+    cultivationStatus: cult.CultivationStatus,
+    startDate: cult.StartDate,
+    expectedHarvestDate: cult.ExpectedHarvestDate,
+    actualHarvestDate: cult.ActualHarvestDate || null,
+    totalHarvests: harvests.length,
+    harvests,
+    yieldGap,
+    yieldGapPercent,
+    assessment,
+  };
+};
+
 module.exports = {
   getCultivationLogs,
   createCultivationLog,
@@ -265,4 +392,5 @@ module.exports = {
   getMyCareRequests,
   createHarvestRequest,
   getMyDeliveries,
+  getYieldAnalytics,
 };
