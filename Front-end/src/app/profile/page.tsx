@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -27,6 +27,7 @@ import {
   KeyRound,
   ExternalLink,
   Sprout,
+  Truck,
   FileText,
   Clock,
 } from 'lucide-react';
@@ -62,6 +63,7 @@ interface MyOrder {
   SeedName: string;
   SeedImageUrl?: string;
   PackageName: string;
+  DeliveryNotes?: string;
   DiscountAmount?: number;
   PaidAt?: string;
   TransactionCode?: string;
@@ -95,6 +97,20 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<MyOrder | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
+
+  const activeOrdersCount = useMemo(() => orders.filter(o => o.Status === 'PAID' || o.Status === 'ACTIVE' || o.Status === 'GROWING').length, [orders]);
+  const completedOrdersCount = useMemo(() => orders.filter(o => o.Status === 'COMPLETED' || o.Status === 'HARVESTED').length, [orders]);
+
+  const displayedOrders = useMemo(() => {
+    if (orderStatusFilter === 'ACTIVE') {
+      return orders.filter(o => o.Status === 'PAID' || o.Status === 'ACTIVE' || o.Status === 'GROWING');
+    }
+    if (orderStatusFilter === 'COMPLETED') {
+      return orders.filter(o => o.Status === 'COMPLETED' || o.Status === 'HARVESTED');
+    }
+    return orders;
+  }, [orders, orderStatusFilter]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   // Change Password state
@@ -706,6 +722,55 @@ export default function ProfilePage() {
               </p>
             </div>
 
+            {/* Order Status Filter Bar */}
+            <div className="flex items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-fit">
+              <button
+                type="button"
+                onClick={() => setOrderStatusFilter('ALL')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  orderStatusFilter === 'ALL'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                }`}
+              >
+                Tất Cả Đơn
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-700 font-mono font-bold">
+                  {orders.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOrderStatusFilter('ACTIVE')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  orderStatusFilter === 'ACTIVE'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-emerald-600'
+                }`}
+              >
+                Đang Canh Tác
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-mono font-bold">
+                  {activeOrdersCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOrderStatusFilter('COMPLETED')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  orderStatusFilter === 'COMPLETED'
+                    ? 'bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-blue-600'
+                }`}
+              >
+                Đã Hoàn Thành
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 font-mono font-bold">
+                  {completedOrdersCount}
+                </span>
+              </button>
+            </div>
+
+
             {isLoadingOrders ? (
               <div className="p-12 text-center text-xs text-slate-500">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
@@ -726,7 +791,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {orders.map((order) => (
+                {displayedOrders.map((order) => (
                   <Card key={order.OrderId} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                     <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40">
                       <div>
@@ -772,6 +837,13 @@ export default function ProfilePage() {
                         </Link>
                       </div>
                     </div>
+                    {order.DeliveryNotes && (
+                      <div className="px-5 sm:px-6 py-2.5 bg-amber-50/60 dark:bg-amber-950/20 border-t border-amber-200/50 dark:border-amber-900/30 flex items-center gap-2 text-xs text-amber-900 dark:text-amber-200">
+                        <Truck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="font-semibold text-[11px]">Ghi chú giao nhận:</span>
+                        <span className="truncate italic text-[11px] opacity-90">{order.DeliveryNotes}</span>
+                      </div>
+                    )}
                     <div className="px-5 sm:px-6 py-3.5 bg-slate-50/80 dark:bg-slate-950/60 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-slate-500">Mã giao dịch:</span>

@@ -418,6 +418,7 @@ BEGIN
         Status NVARCHAR(30) NOT NULL CONSTRAINT DF_RentalOrders_Status DEFAULT 'PENDING_PAYMENT',
         CreatedAt DATETIME2(0) NOT NULL CONSTRAINT DF_RentalOrders_CreatedAt DEFAULT SYSDATETIME(),
         PaidAt DATETIME2(0) NULL,
+        DeliveryNotes NVARCHAR(500) NULL,
         CONSTRAINT FK_RentalOrders_Users FOREIGN KEY (UserId) REFERENCES dbo.Users(UserId),
         CONSTRAINT FK_RentalOrders_Plots FOREIGN KEY (PlotId) REFERENCES dbo.Plots(PlotId),
         CONSTRAINT FK_RentalOrders_Seeds FOREIGN KEY (SeedId) REFERENCES dbo.Seeds(SeedId),
