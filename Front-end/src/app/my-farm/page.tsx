@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { CarePriority, CarePrioritySelector, PriorityBadge } from '@/components/my-farm/CarePriority';
+import { WeeklyCareCard } from '@/components/my-farm/WeeklyCareCard';
 import { useRouter } from 'next/navigation';
 import {
   Sprout,
@@ -111,13 +113,13 @@ interface CultivationLogItem {
   Title: string;
   Notes: string;
   ImageUrl: string | null;
-  VideoUrl: string | null;
   PlantHealthStatus: string;
   CreatedAt: string;
   StaffName?: string;
 }
 
 interface CareRequestItem {
+  Priority?: CarePriority;
   RequestId: number;
   CultivationId: number;
   ServiceType: string;
@@ -176,8 +178,14 @@ export default function MyFarmPage() {
   const [activeTab, setActiveTab] = useState<'timeline' | 'care' | 'delivery'>('timeline');
 
   // Day 2 Data States
-  const [logs, setLogs] = useState<CultivationLogItem[]>([]);
+  const [loadedLogs, setLogs] = useState<CultivationLogItem[]>([]);
+  const logs = useMemo(() => loadedLogs.filter(log => log.CultivationId === selectedItem?.CultivationId), [loadedLogs, selectedItem?.CultivationId]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
+  const [logsCultivationId, setLogsCultivationId] = useState<number | null>(null);
+  const logsGeneration = useRef(0);
+  const selectedCultivationRef = useRef<number | undefined>(selectedItem?.CultivationId);
+  selectedCultivationRef.current = selectedItem?.CultivationId;
   const [careRequests, setCareRequests] = useState<CareRequestItem[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryItem[]>([]);
 
@@ -189,7 +197,7 @@ export default function MyFarmPage() {
 
   // Care Request Form
   const [careServiceType, setCareServiceType] = useState('BÓN PHÂN HỮU CƠ BỔ SUNG');
-  const [carePriority, setCarePriority] = useState<'NORMAL' | 'URGENT'>('NORMAL');
+  const [carePriority, setCarePriority] = useState<CarePriority>('NORMAL');
   const [carePreferredTime, setCarePreferredTime] = useState('');
   const [careNote, setCareNote] = useState('');
   const [isSubmittingCare, setIsSubmittingCare] = useState(false);
@@ -358,23 +366,25 @@ export default function MyFarmPage() {
   }, [addresses, user]);
 
   // Fetch Logs when selectedItem changes
-  const fetchLogs = useCallback(async (cultivationId: number) => {
+  const fetchLogs = useCallback(async (cultivationId: number, background = false) => {
+    const generation = ++logsGeneration.current;
+    const current = () => generation === logsGeneration.current && selectedCultivationRef.current === cultivationId;
+    if (!background) setLogs([]);
+    setLogsCultivationId(cultivationId);
+    setLogsError(null);
+    if (!background) setIsLoadingLogs(true);
     try {
-      setIsLoadingLogs(true);
-      const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || localStorage.getItem('plotfarm_token')) : null);
+      const authToken = token || localStorage.getItem('token') || localStorage.getItem('plotfarm_token');
       const res = await fetch(`http://localhost:5000/api/cultivations/${cultivationId}/logs`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
+        headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
-      if (data.success && data.data) {
-        setLogs(data.data);
-      }
-    } catch (err) {
-      console.error('Error loading logs:', err);
+      if (!res.ok || !data.success || !Array.isArray(data.data)) throw new Error('logs');
+      if (current()) setLogs(data.data.filter((log: CultivationLogItem) => log.CultivationId === cultivationId));
+    } catch {
+      if (current()) setLogsError('Không thể tải lịch sử chăm sóc. Vui lòng thử lại.');
     } finally {
-      setIsLoadingLogs(false);
+      if (current()) setIsLoadingLogs(false);
     }
   }, [token]);
 
@@ -412,7 +422,25 @@ export default function MyFarmPage() {
       fetchLogs(selectedItem.CultivationId);
       fetchCareAndDeliveries();
     }
+    return () => { logsGeneration.current += 1; };
   }, [selectedItem, fetchLogs, fetchCareAndDeliveries]);
+
+  useEffect(() => {
+    const cultivationId = selectedItem?.CultivationId;
+    if (!cultivationId) return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchLogs(cultivationId, true);
+        void fetchCareAndDeliveries();
+      }
+    };
+    const interval = window.setInterval(refresh, 30000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [selectedItem?.CultivationId, fetchLogs, fetchCareAndDeliveries]);
 
   // Submit Care Request
   const handleSubmitCareRequest = async (e: React.FormEvent) => {
@@ -429,7 +457,6 @@ export default function MyFarmPage() {
       const authToken = token || localStorage.getItem('plotfarm_token') || localStorage.getItem('token');
       
       const formattedNote = [
-        carePriority === 'URGENT' ? '🔴 [KHẨN CẤP]' : '🟡 [BÌNH THƯỜNG]',
         carePreferredTime ? `⏰ [Khung giờ: ${carePreferredTime}]` : '',
         careNote.trim()
       ].filter(Boolean).join(' - ');
@@ -444,17 +471,13 @@ export default function MyFarmPage() {
           cultivationId: selectedItem.CultivationId,
           serviceType: careServiceType,
           customerNote: formattedNote,
+          priority: carePriority,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        toast.success(
-          carePriority === 'URGENT'
-            ? 'Đã gửi yêu cầu chăm sóc khẩn cấp! Kỹ thuật viên nông trại đã nhận cảnh báo đỏ và chuẩn bị xử lý ngay.'
-            : 'Gửi yêu cầu chăm sóc thành công! Kỹ thuật viên PlotFarm sẽ tiếp nhận theo kế hoạch ca trực.',
-          'Đã Tiếp Nhận Yêu Cầu'
-        );
+        toast.success('Đã gửi yêu cầu chăm sóc với mức ưu tiên đã chọn.', 'Đã tiếp nhận yêu cầu');
         setIsCareModalOpen(false);
         setCareNote('');
         setCarePreferredTime('');
@@ -1450,8 +1473,17 @@ Các chỉ số cảm biến và biểu đồ đang được mô phỏng, chưa 
               seedName={selectedItem.SeedName}
             />
 
+            <WeeklyCareCard
+              logs={logs}
+              cultivationId={selectedItem.CultivationId}
+              loading={isLoadingLogs || logsCultivationId !== selectedItem.CultivationId}
+              error={logsCultivationId === selectedItem.CultivationId ? logsError : null}
+              onRetry={() => fetchLogs(selectedItem.CultivationId)}
+              onViewLogs={() => { setActiveTab('timeline'); document.getElementById('farm-activity-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+            />
+
             {/* 3. DAY 2 INTERACTIVE TABS: TIMELINE, CARE REQUESTS, DELIVERY TRACKING */}
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div id="farm-activity-tabs" className="scroll-mt-24 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
               {/* Tab Navigation Header */}
               <div className="flex items-center border-b border-slate-200 dark:border-slate-800 px-6 pt-4 gap-4 overflow-x-auto">
                 <button
@@ -1538,7 +1570,8 @@ Các chỉ số cảm biến và biểu đồ đang được mô phỏng, chưa 
                     </div>
                   )}
 
-                  {!isLoadingLogs && logs.length === 0 && (
+                  {!isLoadingLogs && logsError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{logsError}</p>}
+                  {!isLoadingLogs && !logsError && logs.length === 0 && (
                     <div className="py-12 text-center text-slate-500 space-y-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <Clock className="w-8 h-8 text-slate-400 mx-auto" />
                       <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Chưa có báo cáo chăm sóc nào từ kỹ thuật viên</p>
@@ -1692,6 +1725,7 @@ Các chỉ số cảm biến và biểu đồ đang được mô phỏng, chưa 
                             {getCareStatusBadge(req.Status)}
                           </div>
 
+                          <PriorityBadge priority={req.Priority} note={req.CustomerNote} />
                           {req.CustomerNote && (
                             <div className="bg-white dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-300">
                               <strong className="text-slate-800 dark:text-slate-100 block mb-0.5">Lời nhắn của bạn:</strong>
@@ -1945,47 +1979,7 @@ Các chỉ số cảm biến và biểu đồ đang được mô phỏng, chưa 
                 </div>
               </div>
 
-              {/* 2. Priority Selector */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-                  2. Mức Độ Ưu Tiên Xử Lý:
-                </label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div
-                    onClick={() => setCarePriority('NORMAL')}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${
-                      carePriority === 'NORMAL'
-                        ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 ring-1 ring-emerald-500/30'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        🟡 Bình Thường
-                      </span>
-                      {carePriority === 'NORMAL' && <Check className="w-3.5 h-3.5 text-emerald-600" />}
-                    </div>
-                    <span className="text-[10px] text-slate-500">Xử lý trong ca trực thường nhật kế tiếp</span>
-                  </div>
-
-                  <div
-                    onClick={() => setCarePriority('URGENT')}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${
-                      carePriority === 'URGENT'
-                        ? 'border-red-500 bg-red-50/80 dark:bg-red-950/40 ring-1 ring-red-500/30'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-red-600 dark:text-red-400 flex items-center gap-1.5">
-                        🔴 Khẩn Cấp
-                      </span>
-                      {carePriority === 'URGENT' && <Check className="w-3.5 h-3.5 text-red-600" />}
-                    </div>
-                    <span className="text-[10px] text-slate-500">Báo động đỏ KTV xử lý trong 1 - 2 giờ</span>
-                  </div>
-                </div>
-              </div>
+              <CarePrioritySelector value={carePriority} onChange={setCarePriority} />
 
               {/* 3. Desired Timeframe */}
               <div className="space-y-1.5">

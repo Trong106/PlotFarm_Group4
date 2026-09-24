@@ -1,4 +1,5 @@
 const { getPool, sql } = require('../config/db');
+const { notifyCareActivity } = require('./careActivityNotification');
 
 /**
  * Lấy danh sách nhật ký canh tác theo CultivationId
@@ -10,7 +11,7 @@ const getCultivationLogs = async (cultivationId) => {
     .query(`
       SELECT 
         l.LogId, l.CultivationId, l.StaffId, l.LogDate, l.ActivityType,
-        l.Title, l.Notes, l.ImageUrl, l.VideoUrl, l.PlantHealthStatus, l.CreatedAt,
+        l.Title, l.Notes, l.ImageUrl, l.PlantHealthStatus, l.CreatedAt,
         u.FullName as StaffName
       FROM CultivationLogs l
       LEFT JOIN Users u ON l.StaffId = u.UserId
@@ -36,26 +37,45 @@ const createCultivationLog = async ({ cultivationId, staffId = 2, activityType, 
     throw error;
   }
 
-  const result = await pool.request()
-    .input('CultivationId', sql.Int, cultivationId)
-    .input('StaffId', sql.Int, staffId)
-    .input('ActivityType', sql.NVarChar(50), activityType)
-    .input('Title', sql.NVarChar(150), title)
-    .input('Notes', sql.NVarChar(sql.MAX), notes || '')
-    .input('ImageUrl', sql.NVarChar(500), imageUrl || null)
-    .input('PlantHealthStatus', sql.NVarChar(50), plantHealthStatus)
-    .query(`
-      INSERT INTO CultivationLogs (CultivationId, StaffId, LogDate, ActivityType, Title, Notes, ImageUrl, PlantHealthStatus, CreatedAt)
-      OUTPUT INSERTED.*
-      VALUES (@CultivationId, @StaffId, GETDATE(), @ActivityType, @Title, @Notes, @ImageUrl, @PlantHealthStatus, GETDATE())
-    `);
-  return result.recordset[0];
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const result = await transaction.request()
+      .input('CultivationId', sql.Int, cultivationId)
+      .input('StaffId', sql.Int, staffId)
+      .input('ActivityType', sql.NVarChar(50), activityType)
+      .input('Title', sql.NVarChar(150), title)
+      .input('Notes', sql.NVarChar(sql.MAX), notes || '')
+      .input('ImageUrl', sql.NVarChar(500), imageUrl || null)
+      .input('PlantHealthStatus', sql.NVarChar(50), plantHealthStatus)
+      .query(`
+        INSERT INTO CultivationLogs (CultivationId, StaffId, LogDate, ActivityType, Title, Notes, ImageUrl, PlantHealthStatus, CreatedAt)
+        OUTPUT INSERTED.*
+        VALUES (@CultivationId, @StaffId, GETDATE(), @ActivityType, @Title, @Notes, @ImageUrl, @PlantHealthStatus, GETDATE())
+      `);
+    await notifyCareActivity(transaction, cultivationId, title);
+    await transaction.commit();
+    return result.recordset[0];
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 /**
  * Tạo yêu cầu chăm sóc đột xuất (Care Request)
  */
-const createCareRequest = async (userId, { cultivationId, serviceType, customerNote }) => {
+const createCareRequest = async (userId, { cultivationId, serviceType, customerNote, priority }) => {
+  // Accept older clients that only included the structured label in their note.
+  const priorityValue = priority === undefined
+    ? (typeof customerNote === 'string' && customerNote.includes('[KHẨN CẤP]') ? 'URGENT'
+      : typeof customerNote === 'string' && customerNote.includes('[CẦN LƯU Ý]') ? 'ATTENTION' : 'NORMAL')
+    : priority;
+  if (!['NORMAL', 'ATTENTION', 'URGENT'].includes(priorityValue)) {
+    const error = new Error('Mức ưu tiên phải là Bình thường, Cần lưu ý hoặc Khẩn cấp.');
+    error.statusCode = 400;
+    throw error;
+  }
   const pool = getPool();
   const transaction = new sql.Transaction(pool);
   await transaction.begin();
@@ -88,15 +108,16 @@ const createCareRequest = async (userId, { cultivationId, serviceType, customerN
       .input('CultivationId', sql.Int, cultivationId)
       .input('UserId', sql.Int, userId)
       .input('ServiceType', sql.NVarChar(100), serviceType)
+      .input('Priority', sql.NVarChar(20), priorityValue)
       .input('CustomerNote', sql.NVarChar(500), customerNote || '')
       .query(`
         INSERT INTO CareRequests (
-          CultivationId, UserId, ServiceType, CustomerNote,
+          CultivationId, UserId, ServiceType, CustomerNote, Priority,
           AdditionalFee, IsFeeAccepted, PaymentStatus, Status, RequestedAt
         )
         OUTPUT INSERTED.*
         VALUES (
-          @CultivationId, @UserId, @ServiceType, @CustomerNote,
+          @CultivationId, @UserId, @ServiceType, @CustomerNote, @Priority,
           0, 1, 'PAID', 'PENDING', GETDATE()
         )
       `);
@@ -118,7 +139,7 @@ const getMyCareRequests = async (userId) => {
     .input('UserId', sql.Int, userId)
     .query(`
       SELECT 
-        cr.RequestId, cr.CultivationId, cr.ServiceType, cr.CustomerNote,
+        cr.RequestId, cr.CultivationId, cr.ServiceType, cr.CustomerNote, cr.Priority,
         cr.Status, cr.ResultNote, cr.ResultImageUrl, cr.RequestedAt, cr.CompletedAt,
         p.PlotCode, s.SeedName, u.FullName as StaffName
       FROM CareRequests cr

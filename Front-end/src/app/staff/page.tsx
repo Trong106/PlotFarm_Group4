@@ -1,5 +1,7 @@
 'use client';
 
+import { CarePriority, PriorityBadge, resolveCarePriority } from '@/components/my-farm/CarePriority';
+
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -86,8 +88,9 @@ interface CareRequest {
   RequestType: string;
   Note: string;
   CreatedAt: string;
-  Status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  Priority?: 'NORMAL' | 'URGENT';
+  Status: 'PENDING' | 'AWAITING_FEE' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED';
+  Priority?: CarePriority;
+  RequestedTimestamp?: number;
   PreferredTime?: string;
   ResolvedNote?: string;
   ResolvedImage?: string;
@@ -393,7 +396,6 @@ export default function StaffPage() {
         if (data.success && Array.isArray(data.data)) {
           const mapped: CareRequest[] = data.data.map((r: any) => {
             const rawNote = r.CustomerNote || '';
-            const isUrgent = rawNote.includes('KHẨN CẤP') || rawNote.toUpperCase().includes('URGENT');
             return {
               RequestId: r.RequestId,
               PlotCode: r.PlotCode || `PLOT_${r.CultivationId}`,
@@ -403,19 +405,24 @@ export default function StaffPage() {
               Note: rawNote,
               CreatedAt: r.RequestedAt ? new Date(r.RequestedAt).toLocaleString('vi-VN') : 'Hôm nay',
               Status: r.Status || 'PENDING',
-              Priority: isUrgent ? 'URGENT' : 'NORMAL',
+              Priority: resolveCarePriority(r.Priority, rawNote),
+              RequestedTimestamp: Date.parse(r.RequestedAt) || 0,
               ResolvedNote: r.ResultNote || undefined,
               ResolvedImage: r.ResultImageUrl || undefined,
             };
           });
 
-          // Sắp xếp: URGENT lên đầu, sau đó PENDING, sau đó theo ID DESC
+          // Yêu cầu chưa đóng trước, ưu tiên cao trước, cùng mức thì yêu cầu cũ trước.
           mapped.sort((a, b) => {
-            if (a.Priority === 'URGENT' && b.Priority !== 'URGENT') return -1;
-            if (a.Priority !== 'URGENT' && b.Priority === 'URGENT') return 1;
-            if (a.Status === 'PENDING' && b.Status !== 'PENDING') return -1;
-            if (a.Status !== 'PENDING' && b.Status === 'PENDING') return 1;
-            return b.RequestId - a.RequestId;
+            const actionable = (status: string) => ['PENDING', 'AWAITING_FEE', 'IN_PROGRESS'].includes(status);
+            const activeDifference = Number(actionable(b.Status)) - Number(actionable(a.Status));
+            if (activeDifference) return activeDifference;
+            const rank = { URGENT: 2, ATTENTION: 1, NORMAL: 0 };
+            if (actionable(a.Status)) {
+              const priorityDifference = rank[b.Priority || 'NORMAL'] - rank[a.Priority || 'NORMAL'];
+              if (priorityDifference) return priorityDifference;
+            }
+            return (a.RequestedTimestamp || 0) - (b.RequestedTimestamp || 0) || a.RequestId - b.RequestId;
           });
 
           setCareRequests(mapped);
@@ -596,8 +603,12 @@ export default function StaffPage() {
         }
       } else {
         // Normal Cultivation Log API call
-        if (selectedPlotForLog?.CultivationId) {
-          await fetch(`http://localhost:5000/api/cultivations/${selectedPlotForLog.CultivationId}/logs`, {
+        if (!selectedPlotForLog?.CultivationId) {
+          toast.error('Ô đất chưa có vụ mùa để đăng nhật ký.');
+          return;
+        }
+        {
+          const res = await fetch(`http://localhost:5000/api/cultivations/${selectedPlotForLog.CultivationId}/logs`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -611,6 +622,11 @@ export default function StaffPage() {
               plantHealthStatus: logHealthStatus,
             }),
           });
+          const data = await res.json();
+          if (!res.ok || !data.success) {
+            toast.error(data.message || 'Không thể lưu nhật ký. Vui lòng thử lại.');
+            return;
+          }
         }
 
         toast.success(
@@ -1154,11 +1170,7 @@ export default function StaffPage() {
                           Ô {req.PlotCode}
                         </span>
                         <h4 className="font-bold text-sm text-slate-900 dark:text-slate-100">{req.RequestType}</h4>
-                        {req.Priority === 'URGENT' && (
-                          <span className="px-2 py-0.5 rounded-md bg-red-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-xs animate-pulse">
-                            🚨 KHẨN CẤP
-                          </span>
-                        )}
+                        <PriorityBadge priority={req.Priority} note={req.Note} />
                       </div>
                       <Badge
                         variant={
@@ -1870,6 +1882,7 @@ export default function StaffPage() {
               Yêu cầu của khách: &quot;{selectedRequest?.Note}&quot;
             </p>
             <span className="text-slate-500">Khách hàng: {selectedRequest?.CustomerName}</span>
+            <PriorityBadge priority={selectedRequest?.Priority} note={selectedRequest?.Note} />
           </div>
 
           <div>
