@@ -1,4 +1,20 @@
 export type PlotStatusFilter = 'ALL' | 'AVAILABLE' | 'RENTED' | 'RESERVED' | 'MAINTENANCE' | 'FALLOWING';
+export type SizeFilter = 'ALL' | 'SMALL' | 'MEDIUM' | 'LARGE';
+
+export const SIZE_FILTER_LABELS: Record<SizeFilter, string> = {
+  ALL: 'Tất cả',
+  SMALL: 'Nhỏ < 30m²',
+  MEDIUM: 'Vừa 30–60m²',
+  LARGE: 'Lớn > 60m²',
+};
+
+/** Returns true when the plot's area matches the given size bucket. */
+export function matchesSizeFilter(sizeM2: number, filter: SizeFilter): boolean {
+  if (filter === 'ALL') return true;
+  if (filter === 'SMALL') return sizeM2 < 30;
+  if (filter === 'MEDIUM') return sizeM2 >= 30 && sizeM2 <= 60;
+  return sizeM2 > 60; // LARGE
+}
 
 export interface PlotSelection {
   areaId: number | null;
@@ -7,6 +23,7 @@ export interface PlotSelection {
   pkgId: number | null;
   view: 'GRID' | 'LIST';
   status: PlotStatusFilter;
+  sizeFilter: SizeFilter;
   minPrice: number | null;
   maxPrice: number | null;
   minPH: number | null;
@@ -15,7 +32,7 @@ export interface PlotSelection {
 }
 
 export interface SelectionArea { AreaId: number; SoilType: string }
-export interface SelectionPlot { PlotId: number; AreaId: number; BasePricePerMonth: number; Status: string; SoilPH?: number | null }
+export interface SelectionPlot { PlotId: number; AreaId: number; BasePricePerMonth: number; Status: string; SoilPH?: number | null; SizeM2?: number | null }
 
 export const SOIL_TYPE_PRESETS = ['Đất đỏ bazan', 'Đất thịt pha cát'];
 
@@ -34,7 +51,7 @@ export interface SelectionData {
 
 export const EMPTY_SELECTION: PlotSelection = {
   areaId: null, plotId: null, seedId: null, pkgId: null,
-  view: 'GRID', status: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '',
+  view: 'GRID', status: 'ALL', sizeFilter: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '',
 };
 
 export const PLOT_STATUS_LABELS: Record<PlotStatusFilter, string> = {
@@ -78,12 +95,15 @@ export function parsePlotQuery(params: URLSearchParams): PlotSelection {
     return Number.isSafeInteger(value) && value > 0 ? value : null;
   };
   const status = params.get('status')?.toUpperCase() || 'ALL';
+  const rawSize = params.get('sizeFilter')?.toUpperCase() as SizeFilter | null;
+  const sizeFilter: SizeFilter = rawSize && Object.prototype.hasOwnProperty.call(SIZE_FILTER_LABELS, rawSize) ? rawSize : 'ALL';
   const prices = validatePriceRange(params.get('minPrice') || '', params.get('maxPrice') || '');
   const ph = validatePHRange(params.get('minPH') || '', params.get('maxPH') || '');
   return {
     areaId: id('areaId'), plotId: id('plotId'), seedId: id('seedId'), pkgId: id('pkgId'),
     view: params.get('view')?.toUpperCase() === 'LIST' ? 'LIST' : 'GRID',
     status: Object.prototype.hasOwnProperty.call(PLOT_STATUS_LABELS, status) ? status as PlotStatusFilter : 'ALL',
+    sizeFilter,
     minPrice: prices.minPrice, maxPrice: prices.maxPrice, soil: params.get('soil')?.trim() || '',
     minPH: ph.minPH, maxPH: ph.maxPH,
   };
@@ -92,6 +112,7 @@ export function parsePlotQuery(params: URLSearchParams): PlotSelection {
 export function filterPlots<T extends SelectionPlot>(plots: T[], areas: SelectionArea[], selection: PlotSelection): T[] {
   return plots.filter((plot) => plot.AreaId === selection.areaId
     && (selection.status === 'ALL' || plot.Status === selection.status)
+    && (selection.sizeFilter === 'ALL' || (plot.SizeM2 != null && matchesSizeFilter(Number(plot.SizeM2), selection.sizeFilter)))
     && (selection.minPrice === null || Number(plot.BasePricePerMonth) >= selection.minPrice)
     && (selection.maxPrice === null || Number(plot.BasePricePerMonth) <= selection.maxPrice)
     && ((selection.minPH == null && selection.maxPH == null) || (
@@ -124,6 +145,7 @@ export function writePlotQuery(url: URL, selection: PlotSelection): URL {
   const values: Record<string, string | number | null> = {
     areaId: selection.areaId, plotId: selection.plotId, seedId: selection.seedId, pkgId: selection.pkgId,
     view: selection.view.toLowerCase(), status: selection.status === 'ALL' ? null : selection.status,
+    sizeFilter: selection.sizeFilter === 'ALL' ? null : selection.sizeFilter,
     minPrice: selection.minPrice, maxPrice: selection.maxPrice, soil: selection.soil || null,
     minPH: selection.minPH, maxPH: selection.maxPH,
   };
