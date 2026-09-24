@@ -34,6 +34,7 @@ import { PlotComparison } from '@/components/plots/PlotComparison';
 import { ShareSelection } from '@/components/plots/ShareSelection';
 import { MobileBookingBar } from '@/components/plots/MobileBookingBar';
 import { SeedDiscoveryFilters } from '@/components/plots/SeedDiscoveryFilters';
+import { SeedInfoTooltip } from '@/components/plots/SeedInfoTooltip';
 import { filterSeeds, GrowthFilter } from '@/lib/seed-catalog';
 import { useAuthStore } from '@/store/useAuthStore';
 import { toast } from '@/store/useToastStore';
@@ -620,6 +621,7 @@ export default function PlotsPage() {
                                   <Clock className="w-3 h-3" /> {selectedSeed.GrowthDurationDays} ngày/vụ
                                 </span>
                                 <span className="text-[11px] font-bold text-slate-500">{selectedSeed.Category}</span>
+                                <SeedInfoTooltip seed={selectedSeed} buttonVariant="badge" />
                               </div>
 
                               <h5 className="break-words font-black text-sm sm:text-base text-slate-900 dark:text-white leading-tight">
@@ -856,9 +858,12 @@ export default function PlotsPage() {
 
                     {/* Content */}
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-black text-sm text-slate-900 dark:text-white">{seed.SeedName}</h4>
-                        <span className="text-[10px] text-slate-400">{seed.Category}</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">{seed.SeedName}</h4>
+                          <SeedInfoTooltip seed={seed} buttonVariant="icon" />
+                        </div>
+                        <span className="text-[10px] text-slate-400 shrink-0">{seed.Category}</span>
                       </div>
                       <p className="text-xs text-slate-500 line-clamp-2">{seed.Description}</p>
                     </div>
