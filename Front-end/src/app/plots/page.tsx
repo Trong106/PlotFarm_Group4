@@ -136,7 +136,7 @@ export default function PlotsPage() {
   const selectedPackage = carePackages.find((pkg) => pkg.PackageId === selection.pkgId) || null;
   const setSelectedSeed = (seed: Seed) => updateSelection({ seedId: seed.SeedId });
   const setSelectedPackage = (pkg: CarePackage) => updateSelection({ pkgId: pkg.PackageId });
-  const setSelectedPlot = (plot: Plot) => updateSelection({ areaId: plot.AreaId, plotId: plot.PlotId, status: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '' });
+  const setSelectedPlot = (plot: Plot) => updateSelection({ areaId: plot.AreaId, plotId: plot.PlotId, status: 'ALL', sizeFilter: 'ALL', minPrice: null, maxPrice: null, minPH: null, maxPH: null, soil: '' });
   const currentAreaInfo = areas.find((area) => area.AreaId === selectedAreaId);
 
   // Fetch initial data
