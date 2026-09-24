@@ -121,7 +121,7 @@ function CheckoutContent() {
     if (plot) {
       const cleanCode = plot.PlotCode.replace(/[^a-zA-Z0-9]/g, '');
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      setTransactionRef(`PF${cleanCode}_${randomSuffix}`);
+      setTransactionRef(`PLOTFARM_${cleanCode}_${randomSuffix}`);
     }
   }, [plot]);
 
@@ -241,9 +241,37 @@ function CheckoutContent() {
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  const handleCopyText = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`Đã sao chép ${label} vào clipboard!`, 'Sao chép thành công');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopyText = async (text: string, fieldKey: string, label: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedField(fieldKey);
+      toast.success(`Đã sao chép ${label} vào bộ nhớ tạm!`, 'Sao chép thành công');
+      setTimeout(() => {
+        setCopiedField((prev) => (prev === fieldKey ? null : prev));
+      }, 2500);
+    } catch {
+      toast.error('Không thể sao chép, vui lòng sao chép thủ công.');
+    }
+  };
+
+  const handleCopyAllTransferInfo = () => {
+    const fullInfo = `Ngân hàng thụ hưởng: Vietcombank (CN TP.HCM)
+Chủ tài khoản: PLOTFARM AGRI TECH
+Số tài khoản: 999888666888
+Số tiền chính xác: ${formatVND(finalTotal)}
+Cú pháp chuyển khoản: ${transactionRef}`;
+    handleCopyText(fullInfo, 'all', 'toàn bộ thông tin chuyển tiền');
   };
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1256,26 +1284,67 @@ function CheckoutContent() {
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Ngân hàng thụ hưởng:</span>
-                  <span className="font-extrabold text-slate-800 dark:text-slate-100">Vietcombank (CN TP.HCM)</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-slate-800 dark:text-slate-100">Vietcombank (CN TP.HCM)</span>
+                    {copiedField === 'bank' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
+                        <Check className="w-3 h-3 text-emerald-600" /> Đã chép
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText('Vietcombank', 'bank', 'Ngân hàng thụ hưởng')}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-200/70 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-700/60 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-slate-300 rounded text-[11px] font-medium transition-colors"
+                        title="Sao chép tên ngân hàng"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Chép</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Chủ tài khoản:</span>
-                  <span className="font-extrabold text-slate-800 dark:text-slate-100 uppercase">PLOTFARM AGRI TECH</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-slate-800 dark:text-slate-100 uppercase">PLOTFARM AGRI TECH</span>
+                    {copiedField === 'accountOwner' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
+                        <Check className="w-3 h-3 text-emerald-600" /> Đã chép
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText('PLOTFARM AGRI TECH', 'accountOwner', 'Chủ tài khoản')}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-200/70 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-700/60 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-slate-300 rounded text-[11px] font-medium transition-colors"
+                        title="Sao chép tên chủ tài khoản"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Chép</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500">Số tài khoản:</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">999888666888</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText('999888666888', 'Số tài khoản')}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-600 transition-colors"
-                      title="Sao chép"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                    <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm tracking-wider">999888666888</span>
+                    {copiedField === 'accountNumber' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
+                        <Check className="w-3 h-3 text-emerald-600" /> Đã chép
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText('999888666888', 'accountNumber', 'Số tài khoản')}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-200/70 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-700/60 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-slate-300 rounded text-[11px] font-medium transition-colors"
+                        title="Sao chép số tài khoản"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Chép</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -1285,33 +1354,66 @@ function CheckoutContent() {
                     <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">
                       {formatVND(finalTotal)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText(String(finalTotal), 'Số tiền')}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-600 transition-colors"
-                      title="Sao chép"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                    {copiedField === 'amount' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
+                        <Check className="w-3 h-3 text-emerald-600" /> Đã chép
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(String(finalTotal), 'amount', 'Số tiền')}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-200/70 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-slate-700/60 dark:hover:bg-emerald-900/40 text-slate-600 dark:text-slate-300 rounded text-[11px] font-medium transition-colors"
+                        title="Sao chép số tiền"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Chép</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex justify-between items-center pt-1.5 border-t border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-500">Nội dung chuyển tiền:</span>
+                  <span className="text-slate-500">Cú pháp chuyển khoản:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-black text-amber-600 dark:text-amber-400 text-xs bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
                       {transactionRef}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText(transactionRef, 'Nội dung chuyển tiền')}
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-emerald-600 transition-colors"
-                      title="Sao chép"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                    {copiedField === 'ref' ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 animate-in fade-in">
+                        <Check className="w-3 h-3 text-emerald-600" /> Đã chép
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(transactionRef, 'ref', 'Cú pháp chuyển khoản')}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-800/60 text-amber-800 dark:text-amber-300 rounded text-[11px] font-bold transition-colors"
+                        title="Sao chép cú pháp chuyển khoản"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Chép</span>
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Quick copy all transfer info */}
+                <button
+                  type="button"
+                  onClick={handleCopyAllTransferInfo}
+                  className="w-full mt-2.5 py-1.5 px-3 rounded-xl border border-dashed border-emerald-400 dark:border-emerald-600 bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all font-semibold flex items-center justify-center gap-1.5 text-[11px]"
+                >
+                  {copiedField === 'all' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Đã sao chép toàn bộ thông tin chuyển tiền!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Sao chép toàn bộ thông tin chuyển khoản</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 text-[11px] leading-relaxed">
