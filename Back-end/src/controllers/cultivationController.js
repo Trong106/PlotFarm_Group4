@@ -43,11 +43,11 @@ const createCareRequest = async (req, res, next) => {
     if (!userId) {
       return errorResponse(res, 'Vui lòng đăng nhập', 401);
     }
-    const { cultivationId, serviceType, customerNote } = req.body;
+    const { cultivationId, serviceType, customerNote, priority } = req.body;
     if (!cultivationId || !serviceType) {
       return errorResponse(res, 'Mã mùa vụ và loại dịch vụ là bắt buộc', 400);
     }
-    const result = await cultivationService.createCareRequest(userId, { cultivationId, serviceType, customerNote });
+    const result = await cultivationService.createCareRequest(userId, { cultivationId, serviceType, customerNote, priority });
     return successResponse(res, result, 'Gửi yêu cầu chăm sóc thành công! Kỹ thuật viên sẽ xử lý sớm nhất.', 201);
   } catch (error) {
     next(error);

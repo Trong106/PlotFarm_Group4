@@ -30,6 +30,7 @@ import {
   Truck,
   FileText,
   Clock,
+  ScrollText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -40,6 +41,7 @@ import { useAddressStore, UserAddress } from '@/store/useAddressStore';
 import Header from '@/components/Header';
 import { AddressModal } from '@/components/profile/AddressModal';
 import { ElectronicInvoiceModal } from '@/components/profile/ElectronicInvoiceModal';
+import { RentalAgreementModal } from '@/components/profile/RentalAgreementModal';
 import api from '@/lib/axios';
 
 interface MyOrder {
@@ -97,6 +99,8 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState<MyOrder[]>([]);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<MyOrder | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [selectedAgreementOrder, setSelectedAgreementOrder] = useState<MyOrder | null>(null);
+  const [isAgreementModalOpen, setIsAgreementModalOpen] = useState(false);
   const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
 
   const activeOrdersCount = useMemo(() => orders.filter(o => o.Status === 'PAID' || o.Status === 'ACTIVE' || o.Status === 'GROWING').length, [orders]);
@@ -851,18 +855,32 @@ export default function ProfilePage() {
                           {order.TransactionCode || 'TXN_VIETQR_VERIFIED'}
                         </span>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedInvoiceOrder(order);
-                          setIsInvoiceModalOpen(true);
-                        }}
-                        leftIcon={<FileText className="w-3.5 h-3.5 text-emerald-600" />}
-                        className="text-xs font-bold border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-                      >
-                        Xem Hóa Đơn Điện Tử
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedInvoiceOrder(order);
+                            setIsInvoiceModalOpen(true);
+                          }}
+                          leftIcon={<FileText className="w-3.5 h-3.5 text-emerald-600" />}
+                          className="text-xs font-bold border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                        >
+                          Xem Hóa Đơn Điện Tử
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedAgreementOrder(order);
+                            setIsAgreementModalOpen(true);
+                          }}
+                          leftIcon={<ScrollText className="w-3.5 h-3.5 text-sky-600" />}
+                          className="text-xs font-bold border-sky-300 text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950"
+                        >
+                          Xem Thỏa Thuận Thuê Đất
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -996,6 +1014,19 @@ export default function ProfilePage() {
           setSelectedInvoiceOrder(null);
         }}
         order={selectedInvoiceOrder}
+        customerName={fullName || user?.fullName}
+        customerPhone={phoneNumber || user?.phoneNumber}
+        customerEmail={user?.email}
+      />
+
+      {/* Rental Agreement E-Contract Modal */}
+      <RentalAgreementModal
+        isOpen={isAgreementModalOpen}
+        onClose={() => {
+          setIsAgreementModalOpen(false);
+          setSelectedAgreementOrder(null);
+        }}
+        order={selectedAgreementOrder as any}
         customerName={fullName || user?.fullName}
         customerPhone={phoneNumber || user?.phoneNumber}
         customerEmail={user?.email}

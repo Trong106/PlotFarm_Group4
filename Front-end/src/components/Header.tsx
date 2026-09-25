@@ -96,11 +96,19 @@ export default function Header() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) return;
 
+    let cancelled = false;
     const fetchCount = async () => {
+      if (document.visibilityState !== 'visible') return;
       try {
         const { data } = await api.get('/notifications/unread-count');
-        if (data.success && data.data?.unreadCount !== undefined) {
+        if (!cancelled && data.success && data.data?.unreadCount !== undefined) {
           setUnreadCount(data.data.unreadCount);
+        }
+        if (isNotifOpen && !cancelled) {
+          const result = await api.get('/notifications');
+          if (!cancelled && result.data.success && Array.isArray(result.data.data)) {
+            setNotifications(result.data.data);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch unread notifications count:', err);
@@ -109,8 +117,13 @@ export default function Header() {
 
     fetchCount();
     const interval = setInterval(fetchCount, 30000); // 30s polling
-    return () => clearInterval(interval);
-  }, [isAuthenticated]);
+    window.addEventListener('focus', fetchCount);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchCount);
+    };
+  }, [isAuthenticated, user?.userId, isNotifOpen]);
 
   // Fetch full notifications list when opening dropdown
   const handleToggleNotif = async () => {

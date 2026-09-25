@@ -525,6 +525,8 @@ BEGIN
         AssignedStaffId INT NULL,
         ServiceType NVARCHAR(100) NOT NULL,
         CustomerNote NVARCHAR(500) NULL,
+        Priority NVARCHAR(20) NOT NULL CONSTRAINT DF_CareRequests_Priority DEFAULT 'NORMAL'
+          CONSTRAINT CK_CareRequests_Priority CHECK (Priority IN ('NORMAL', 'ATTENTION', 'URGENT')),
         AdditionalFee DECIMAL(12,2) NOT NULL DEFAULT 0,
         IsFeeAccepted BIT NOT NULL DEFAULT 1,
         PaymentStatus NVARCHAR(30) NOT NULL DEFAULT 'PAID',

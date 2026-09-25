@@ -16,6 +16,7 @@ const completeHarvest = require('./completeHarvest');
 
 const { getPool, sql } = require('../config/db');
 const notificationService = require('./notificationService');
+const { notifyCareActivity } = require('./careActivityNotification');
 
 
 /**
@@ -301,6 +302,7 @@ const completeCareRequest = async (staffId, requestId, { resultNote, resultImage
       `);
 
     const newLog = logResult.recordset[0];
+    await notifyCareActivity(transaction, careReq.CultivationId, logTitle);
     await transaction.commit();
 
     return {
@@ -648,33 +650,59 @@ const completeSchedule = async (staffId, scheduleId, { resultNote, resultImageUr
     throw err;
   }
 
-  const result = await pool.request()
-    .input('CareScheduleId', sql.Int, scheduleId)
-    .input('StaffId', sql.Int, staffId)
-    .input('ResultNote', sql.NVarChar(500), resultNote || null)
-    .input('ResultImageUrl', sql.NVarChar(500), resultImageUrl || null)
-    .query(`
-      UPDATE CareSchedules
-      SET
-        Status          = 'COMPLETED',
-        AssignedStaffId = @StaffId,
-        CompletedAt     = SYSDATETIME(),
-        ResultNote      = @ResultNote,
-        ResultImageUrl  = @ResultImageUrl
-      OUTPUT INSERTED.CareScheduleId, INSERTED.Status, INSERTED.CompletedAt
-      WHERE CareScheduleId = @CareScheduleId
-    `);
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const result = await transaction.request()
+      .input('CareScheduleId', sql.Int, scheduleId)
+      .input('StaffId', sql.Int, staffId)
+      .input('ResultNote', sql.NVarChar(500), resultNote || null)
+      .input('ResultImageUrl', sql.NVarChar(500), resultImageUrl || null)
+      .query(`
+        UPDATE CareSchedules
+        SET
+          Status          = 'COMPLETED',
+          AssignedStaffId = @StaffId,
+          CompletedAt     = SYSDATETIME(),
+          ResultNote      = @ResultNote,
+          ResultImageUrl  = @ResultImageUrl
+        OUTPUT INSERTED.CareScheduleId, INSERTED.Status, INSERTED.CompletedAt
+        WHERE CareScheduleId = @CareScheduleId AND Status = 'PENDING'
+      `);
 
-  return {
-    scheduleId,
-    cultivationId: schedule.CultivationId,
-    activityType: schedule.ActivityType,
-    plotCode: schedule.PlotCode,
-    status: 'COMPLETED',
-    completedAt: result.recordset[0]?.CompletedAt || new Date().toISOString(),
-    resultNote,
-    resultImageUrl,
-  };
+    if (!result.recordset.length) {
+      const error = new Error('Lịch chăm sóc không còn ở trạng thái chờ thực hiện');
+      error.statusCode = 409;
+      throw error;
+    }
+    const title = `Hoàn thành ${schedule.ActivityType} — ${schedule.PlotCode}`;
+    await transaction.request()
+      .input('CultivationId', sql.Int, schedule.CultivationId)
+      .input('StaffId', sql.Int, staffId)
+      .input('ActivityType', sql.NVarChar(50), schedule.ActivityType)
+      .input('Title', sql.NVarChar(150), title.slice(0, 150))
+      .input('Notes', sql.NVarChar(sql.MAX), resultNote || '')
+      .input('ImageUrl', sql.NVarChar(500), resultImageUrl || null)
+      .query(`INSERT INTO CultivationLogs
+        (CultivationId, StaffId, LogDate, ActivityType, Title, Notes, ImageUrl, CreatedAt)
+        VALUES (@CultivationId, @StaffId, CAST(GETDATE() AS DATE), @ActivityType,
+                @Title, @Notes, @ImageUrl, SYSDATETIME())`);
+    await notifyCareActivity(transaction, schedule.CultivationId, title);
+    await transaction.commit();
+    return {
+      scheduleId,
+      cultivationId: schedule.CultivationId,
+      activityType: schedule.ActivityType,
+      plotCode: schedule.PlotCode,
+      status: 'COMPLETED',
+      completedAt: result.recordset[0]?.CompletedAt || new Date().toISOString(),
+      resultNote,
+      resultImageUrl,
+    };
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1049,6 +1077,7 @@ const getMyCareRequests = async (staffId, filters = {}, userRole = 'Staff') => {
       cr.CultivationId,
       cr.ServiceType,
       cr.CustomerNote,
+      cr.Priority,
       cr.Status,
       cr.AdditionalFee,
       cr.ResultNote,
@@ -1082,7 +1111,9 @@ const getMyCareRequests = async (staffId, filters = {}, userRole = 'Staff') => {
     req.input('Status', sql.NVarChar(30), status);
   }
 
-  query += ` ORDER BY cr.RequestedAt DESC`;
+  query += ` ORDER BY CASE WHEN cr.Status IN ('COMPLETED', 'REJECTED') THEN 1 ELSE 0 END,
+    CASE cr.Priority WHEN 'URGENT' THEN 0 WHEN 'ATTENTION' THEN 1 ELSE 2 END,
+    cr.RequestedAt ASC, cr.RequestId ASC`;
 
   const result = await req.query(query);
   return result.recordset;

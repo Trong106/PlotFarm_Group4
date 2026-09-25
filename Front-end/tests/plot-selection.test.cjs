@@ -31,6 +31,7 @@ test('shared link restores selected plot, crop, package, filters and list mode',
   )), data);
   assert.deepEqual(plain(selection), {
     areaId: 19, plotId: 201, seedId: 21, pkgId: 15, view: 'LIST', status: 'AVAILABLE',
+    sizeFilter: 'ALL',
     minPrice: 400000, maxPrice: 600000, minPH: null, maxPH: null, soil: 'Đất cát',
   });
   const restored = parsePlotQuery(writePlotQuery(new URL('https://example.test/plots'), selection).searchParams);
