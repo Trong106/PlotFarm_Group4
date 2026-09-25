@@ -4,7 +4,7 @@ import { CarePriority, PriorityBadge, resolveCarePriority } from '@/components/m
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sprout,
   Video,
@@ -122,6 +122,15 @@ export default function StaffPage() {
   const [activeTab, setActiveTab] = useState<'plots' | 'requests' | 'harvest' | 'resources'>('plots');
   const [filterArea, setFilterArea] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const searchParams = useSearchParams();
+
+  // Đồng bộ tab từ query param ?tab= (được điều hướng từ Header thông báo)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'requests' || tabParam === 'harvest' || tabParam === 'plots' || tabParam === 'resources') {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Auth Guard: ensure only Staff or Admin can access
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Sprout,
   Sun,
@@ -21,6 +21,9 @@ import {
   Leaf,
   Truck,
   CheckCircle2,
+  AlertTriangle,
+  ShoppingCart,
+  ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -38,8 +41,35 @@ interface NotificationItem {
   CreatedAt: string;
 }
 
+/** Ánh xạ Type thông báo → URL điều hướng thông minh kèm query params */
+function getNotifDestination(notif: NotificationItem): string {
+  const id = notif.RelatedId;
+  switch (notif.Type) {
+    // Khách hàng: yêu cầu chăm sóc → /my-farm?tab=care
+    case 'CARE_REQUEST':
+    case 'CARE':
+      return id ? `/my-farm?tab=care&cultivationId=${id}` : '/my-farm?tab=care';
+    // Thu hoạch → /my-farm?tab=delivery
+    case 'HARVEST':
+      return id ? `/my-farm?tab=delivery&cultivationId=${id}` : '/my-farm?tab=delivery';
+    // Giao hàng → /my-farm?tab=delivery
+    case 'DELIVERY':
+      return id ? `/my-farm?tab=delivery&deliveryId=${id}` : '/my-farm?tab=delivery';
+    // Đơn hàng → /profile?tab=orders
+    case 'ORDER':
+      return id ? `/profile?tab=orders&orderId=${id}` : '/profile?tab=orders';
+    // Cảnh báo khẩn cấp (Staff) → /staff?tab=requests
+    case 'EMERGENCY_ALERT':
+      return '/staff?tab=requests';
+    // Mặc định: /profile
+    default:
+      return '/profile';
+  }
+}
+
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isAuthenticated, logout, initAuth } = useAuthStore();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -254,13 +284,38 @@ export default function Header() {
     switch (type) {
       case 'HARVEST':
         return <Leaf className="w-4 h-4 text-amber-500" />;
+      case 'CARE_REQUEST':
       case 'CARE':
         return <Sparkles className="w-4 h-4 text-emerald-500" />;
       case 'DELIVERY':
         return <Truck className="w-4 h-4 text-blue-500" />;
+      case 'ORDER':
+        return <ShoppingCart className="w-4 h-4 text-indigo-500" />;
+      case 'EMERGENCY_ALERT':
+        return <AlertTriangle className="w-4 h-4 text-rose-500" />;
       default:
         return <CheckCircle2 className="w-4 h-4 text-purple-500" />;
     }
+  };
+
+  /** Đánh dấu đã đọc (nếu chưa), đóng popover và điều hướng */
+  const handleNotifClick = async (notif: NotificationItem) => {
+    // Đóng popover ngay lập tức để UX mượt mà
+    setIsNotifOpen(false);
+    // Đánh dấu đã đọc nếu chưa
+    if (!notif.IsRead) {
+      try {
+        await api.patch(`/notifications/${notif.NotificationId}/read`);
+        setNotifications((prev) =>
+          prev.map((n) => (n.NotificationId === notif.NotificationId ? { ...n, IsRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch {
+        // Vẫn điều hướng dù có lỗi API
+      }
+    }
+    // Chuyển hướng tới trang tương ứng
+    router.push(getNotifDestination(notif));
   };
 
 // Role already defined above
@@ -374,12 +429,22 @@ export default function Header() {
                       notifications.slice(0, 8).map((notif) => (
                         <div
                           key={notif.NotificationId}
-                          onClick={() => !notif.IsRead && handleMarkAsRead(notif.NotificationId)}
-                          className={`p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer flex gap-3 items-start ${
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${notif.IsRead ? '' : '[Mới] '}${notif.Title} – Nhấn để xem chi tiết`}
+                          onClick={() => handleNotifClick(notif)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleNotifClick(notif)}
+                          className={`p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer flex gap-3 items-start group ${
                             !notif.IsRead ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : ''
                           }`}
                         >
-                          <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
+                          <div className={`p-2 rounded-xl shrink-0 mt-0.5 transition-colors ${
+                            notif.Type === 'EMERGENCY_ALERT'
+                              ? 'bg-rose-100 dark:bg-rose-950/50'
+                              : notif.Type === 'ORDER'
+                              ? 'bg-indigo-100 dark:bg-indigo-950/50'
+                              : 'bg-slate-100 dark:bg-slate-800'
+                          }`}>
                             {getNotifIcon(notif.Type)}
                           </div>
                           <div className="flex-1 min-w-0 space-y-1">
@@ -387,16 +452,24 @@ export default function Header() {
                               <p className={`text-xs truncate ${!notif.IsRead ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-700 dark:text-slate-300'}`}>
                                 {notif.Title}
                               </p>
-                              {!notif.IsRead && (
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                              )}
+                              <div className="flex items-center gap-1 shrink-0">
+                                {!notif.IsRead && (
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                )}
+                                <ArrowUpRight className="w-3 h-3 text-slate-300 dark:text-slate-600 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors" />
+                              </div>
                             </div>
                             <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                               {notif.Message}
                             </p>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 pt-0.5">
-                              <Clock className="w-3 h-3" /> {formatTime(notif.CreatedAt)}
-                            </span>
+                            <div className="flex items-center justify-between pt-0.5">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> {formatTime(notif.CreatedAt)}
+                              </span>
+                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                Xem ngay →
+                              </span>
+                            </div>
                           </div>
                         </div>
                       ))

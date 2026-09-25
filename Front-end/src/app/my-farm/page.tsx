@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { CarePriority, CarePrioritySelector, PriorityBadge } from '@/components/my-farm/CarePriority';
 import { WeeklyCareCard } from '@/components/my-farm/WeeklyCareCard';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sprout,
   Video,
@@ -176,6 +176,15 @@ export default function MyFarmPage() {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'timeline' | 'care' | 'delivery'>('timeline');
+  const searchParams = useSearchParams();
+
+  // Đồng bộ tab từ query param ?tab= (được điều hướng từ Header thông báo)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'care' || tabParam === 'delivery' || tabParam === 'timeline') {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Day 2 Data States
   const [loadedLogs, setLogs] = useState<CultivationLogItem[]>([]);

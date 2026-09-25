@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   User,
   ShieldCheck,
@@ -81,6 +81,15 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'info' | 'orders' | 'security' | 'admin_portal' | 'staff_tasks'>('info');
   const isAdmin = user?.role === 'Admin' || user?.roleId === 1;
   const isStaff = user?.role === 'Staff' || user?.roleId === 2;
+  const searchParams = useSearchParams();
+
+  // Đồng bộ tab từ query param ?tab= (được điều hướng từ Header thông báo)
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'orders' || tabParam === 'security' || tabParam === 'admin_portal' || tabParam === 'staff_tasks' || tabParam === 'info') {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Profile editing state
   const [isEditingProfile, setIsEditingProfile] = useState(false);
